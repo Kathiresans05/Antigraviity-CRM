@@ -32,7 +32,7 @@ export default function CareersPage() {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Header / Hero */}
-            <div className="bg-slate-900 text-white py-20 px-6">
+            <div className="bg-[#1F6F8B] text-white py-20 px-6">
                 <div className="max-w-6xl mx-auto text-center">
                     <h1 className="text-4xl md:text-6xl font-black mb-6 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent italic">
                         JOIN OUR TEAM
@@ -91,7 +91,7 @@ export default function CareersPage() {
                                             <span className="text-gray-900">{job.salaryRange}</span>
                                         </div>
                                     </div>
-                                    <div className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold group-hover:bg-blue-600 transition-colors">
+                                    <div className="mt-6 md:mt-0 flex items-center gap-2 px-6 py-3 bg-[#1F6F8B] text-white rounded-xl text-sm font-bold group-hover:bg-blue-600 transition-colors">
                                         View Details <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </Link>
@@ -106,7 +106,7 @@ export default function CareersPage() {
             </div>
 
             {/* Footer */}
-            <footer className="bg-slate-900 text-slate-500 py-10 px-6 mt-auto">
+            <footer className="bg-[#1F6F8B] text-slate-500 py-10 px-6 mt-auto">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
                     <span className="font-black text-white italic tracking-tighter text-xl">ANTIGRAVITY.</span>
                     <p className="text-sm font-medium">© 2026 Antigravity Careers. All rights reserved.</p>

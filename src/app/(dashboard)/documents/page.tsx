@@ -45,7 +45,7 @@ function DocumentStatCard({ title, value, subtitle, icon: Icon, color }: any) {
 
 function CategoryFolder({ name, count, size, color, icon: Icon, onClick }: any) {
     return (
-        <div onClick={onClick} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-[#0f172a]/30 hover:shadow-md transition-all duration-300 group cursor-pointer">
+        <div onClick={onClick} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-[#1F6F8B]/30 hover:shadow-md transition-all duration-300 group cursor-pointer">
             <div className="flex justify-between items-start mb-4">
                 <div className={clsx("p-3 rounded-xl group-hover:scale-110 transition-transform", color)}>
                     <Icon className="w-6 h-6" />
@@ -210,7 +210,7 @@ export default function DocumentsPage() {
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
                         <Folder className="w-4 h-4" /> New Folder
                     </button>
-                    <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md">
+                    <button onClick={handleUploadClick} className="flex items-center gap-2 px-5 py-2.5 bg-[#1F6F8B] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md">
                         <Upload className="w-4 h-4" /> Upload Document
                     </button>
                 </div>
@@ -352,7 +352,7 @@ export default function DocumentsPage() {
 
             {/* Upload Modal */}
             {isUploadOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1F6F8B]/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative">
                         <div className="flex items-center justify-between p-6 border-b border-slate-100">
                             <h3 className="text-lg font-bold text-slate-800">Upload Document</h3>
@@ -424,7 +424,7 @@ export default function DocumentsPage() {
                                 <button
                                     type="submit"
                                     disabled={!selectedFile || uploading}
-                                    className="flex-1 py-3 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                                    className="flex-1 py-3 bg-[#1F6F8B] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                                 >
                                     {uploading ? (
                                         <>

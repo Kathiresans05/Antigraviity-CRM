@@ -153,7 +153,7 @@ export default function AnnouncementsPage() {
                     </button>
                     <button
                         onClick={() => broadcastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#1F6F8B] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md"
                     >
                         <Plus className="w-4 h-4" /> New Announcement
                     </button>
@@ -252,7 +252,7 @@ export default function AnnouncementsPage() {
                                             <Link
                                                 href="/dashboard"
                                                 onClick={(e) => e.stopPropagation()}
-                                                className="flex items-center gap-1.5 text-xs font-bold text-[#0f172a] hover:text-blue-700 ml-auto bg-blue-50 px-3 py-1.5 rounded-lg transition-all"
+                                                className="flex items-center gap-1.5 text-xs font-bold text-[#1F6F8B] hover:text-blue-700 ml-auto bg-blue-50 px-3 py-1.5 rounded-lg transition-all"
                                             >
                                                 Go to CRM <ArrowUpRight className="w-3.5 h-3.5" />
                                             </Link>
@@ -275,7 +275,7 @@ export default function AnnouncementsPage() {
 
                 {/* Create New Call-to-Action */}
                 <div className="space-y-6">
-                    <div ref={broadcastRef} className="bg-gradient-to-br from-[#0f172a] to-blue-800 p-8 rounded-2xl shadow-lg relative overflow-hidden text-white scroll-mt-24">
+                    <div ref={broadcastRef} className="bg-gradient-to-br from-[#1F6F8B] to-blue-800 p-8 rounded-2xl shadow-lg relative overflow-hidden text-white scroll-mt-24">
                         <div className="absolute top-0 right-0 p-8 opacity-10">
                             <Send className="w-32 h-32" />
                         </div>
@@ -312,10 +312,10 @@ export default function AnnouncementsPage() {
                                 <button
                                     onClick={handleBroadcast}
                                     disabled={submitting}
-                                    className="w-full bg-white text-[#0f172a] py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    className="w-full bg-white text-[#1F6F8B] py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {submitting ? (
-                                        <div className="w-4 h-4 border-2 border-[#0f172a]/30 border-t-[#0f172a] rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-[#1F6F8B]/30 border-t-[#1F6F8B] rounded-full animate-spin" />
                                     ) : (
                                         <Send className="w-3.5 h-3.5" />
                                     )}

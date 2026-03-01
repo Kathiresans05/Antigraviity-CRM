@@ -489,7 +489,7 @@ export default function TeamAttendancePage() {
 
             {/* Correction Modal */}
             {showCorrectionModal && selectedRecord && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1F6F8B]/30 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                             <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -505,7 +505,7 @@ export default function TeamAttendancePage() {
                         </div>
                         <div className="p-6 space-y-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 bg-slate-900 rounded-lg flex items-center justify-center text-lg font-bold text-white">
+                                <div className="w-11 h-11 bg-[#1F6F8B] rounded-lg flex items-center justify-center text-lg font-bold text-white">
                                     {selectedRecord.userId?.name?.charAt(0)}
                                 </div>
                                 <div>

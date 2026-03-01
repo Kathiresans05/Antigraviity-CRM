@@ -19,7 +19,7 @@ function SettingTab({ label, icon: Icon, active, onClick }: any) {
             className={clsx(
                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold text-sm w-full md:w-auto",
                 active
-                    ? "bg-[#0f172a] text-white shadow-md shadow-blue-500/20"
+                    ? "bg-[#1F6F8B] text-white shadow-md shadow-blue-500/20"
                     : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
             )}
         >
@@ -87,7 +87,7 @@ export default function SettingsPage() {
                     <h2 className="text-[22px] font-bold text-gray-900 tracking-tight">System Settings</h2>
                     <p className="text-sm font-medium text-gray-500">Manage your account and organization preferences</p>
                 </div>
-                <button className="flex items-center gap-2 px-6 py-2.5 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-blue-500/20">
+                <button className="flex items-center gap-2 px-6 py-2.5 bg-[#1F6F8B] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-blue-500/20">
                     <Save className="w-4 h-4" /> Save Changes
                 </button>
             </div>
@@ -129,14 +129,14 @@ export default function SettingsPage() {
                             <div className="p-8 border-b border-gray-50 bg-gray-50/30">
                                 <div className="flex items-center gap-6">
                                     <div className="relative group">
-                                        <div className="w-24 h-24 rounded-2xl bg-[#0f172a]/10 flex items-center justify-center text-[#0f172a] text-3xl font-black border-2 border-white shadow-lg overflow-hidden">
+                                        <div className="w-24 h-24 rounded-2xl bg-[#1F6F8B]/10 flex items-center justify-center text-[#1F6F8B] text-3xl font-black border-2 border-white shadow-lg overflow-hidden">
                                             {session?.user?.image ? (
                                                 <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover" />
                                             ) : (
                                                 <span>{session?.user?.name?.[0] || "U"}</span>
                                             )}
                                         </div>
-                                        <button className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-md border border-gray-100 text-gray-600 hover:text-[#0f172a] transition-all">
+                                        <button className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-md border border-gray-100 text-gray-600 hover:text-[#1F6F8B] transition-all">
                                             <Camera className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -179,7 +179,7 @@ export default function SettingsPage() {
                                         <div className="space-y-3">
                                             <label className="text-xs font-bold text-gray-500">Accent Color</label>
                                             <div className="flex items-center gap-2">
-                                                {["#0f172a", "#3b82f6", "#6366f1", "#10b981", "#f59e0b"].map((color) => (
+                                                {["#1F6F8B", "#3b82f6", "#6366f1", "#10b981", "#f59e0b"].map((color) => (
                                                     <button
                                                         key={color}
                                                         className={clsx("w-8 h-8 rounded-lg border-2 border-white shadow-sm ring-1 ring-gray-100")}

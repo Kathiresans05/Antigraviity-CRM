@@ -526,7 +526,7 @@ export default function LeaveTrackerPage() {
                         </p>
                         <button
                             onClick={() => setShowWarning(false)}
-                            className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-gray-200"
+                            className="w-full bg-[#1F6F8B] hover:bg-black text-white font-bold py-4 rounded-2xl transition-all active:scale-95 shadow-lg shadow-gray-200"
                         >
                             Okay, Got it
                         </button>

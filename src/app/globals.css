@@ -8,14 +8,14 @@
   --color-blue-300: #cbd5e1;
   --color-blue-400: #94a3b8;
   --color-blue-500: #64748b;
-  --color-blue-600: #0f172a;
+  --color-blue-600: #1F6F8B;
   /* Main Dark Navy */
   --color-blue-700: #1e293b;
   --color-blue-800: #334155;
   --color-blue-900: #475569;
   --color-blue-950: #020617;
   --color-primary: var(--color-blue-600);
-  --color-sidebar-bg: #0f172a;
+  --color-sidebar-bg: #1F6F8B;
   --color-sidebar-text: #94a3b8;
 
   /* Custom Utilities */
@@ -32,7 +32,7 @@
 
 :root {
   --background: #f8fafc;
-  --foreground: #0f172a;
+  --foreground: #1F6F8B;
 }
 
 body {

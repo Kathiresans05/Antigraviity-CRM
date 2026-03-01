@@ -45,7 +45,7 @@ export default function JobDetailPage() {
                     <pre>{JSON.stringify(error, null, 2)}</pre>
                 </div>
             )}
-            <Link href="/careers" className="px-6 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center gap-2">
+            <Link href="/careers" className="px-6 py-3 bg-[#1F6F8B] text-white rounded-xl text-sm font-bold flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" /> Back to Careers
             </Link>
         </div>
@@ -112,7 +112,7 @@ export default function JobDetailPage() {
 
                 {/* Sidebar / Application */}
                 <div className="md:col-start-3">
-                    <div className="bg-gray-900 text-white rounded-3xl p-8 sticky top-28 shadow-2xl">
+                    <div className="bg-[#1F6F8B] text-white rounded-3xl p-8 sticky top-28 shadow-2xl">
                         <h3 className="text-2xl font-black mb-2 italic uppercase">Interested?</h3>
                         <p className="text-slate-400 text-sm font-medium mb-8">Help us reach the escape velocity of innovation.</p>
 
@@ -123,7 +123,7 @@ export default function JobDetailPage() {
                             <button onClick={() => {
                                 navigator.clipboard.writeText(window.location.href);
                                 alert("Job link copied to clipboard!");
-                            }} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-sm font-bold transition-all">
+                            }} className="w-full py-4 bg-[#1e293b] hover:bg-slate-700 text-slate-300 rounded-2xl text-sm font-bold transition-all">
                                 Copy Share Link
                             </button>
                         </div>
@@ -133,7 +133,7 @@ export default function JobDetailPage() {
                             <div className="space-y-4">
                                 {['Application Review', 'Technical Round', 'HR Interview'].map((step, i) => (
                                     <div key={step} className="flex items-center gap-4">
-                                        <span className="w-6 h-6 rounded-full bg-slate-800 text-xs font-black flex items-center justify-center border border-slate-700">{i + 1}</span>
+                                        <span className="w-6 h-6 rounded-full bg-[#1e293b] text-xs font-black flex items-center justify-center border border-slate-700">{i + 1}</span>
                                         <span className="text-xs font-bold text-slate-400">{step}</span>
                                     </div>
                                 ))}

@@ -83,7 +83,7 @@ export default function DailyReportsPage() {
     if (loading && (activeTab === "checklists" ? checklists.length === 0 : attendance.length === 0)) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] bg-[#f5f7f9]">
-                <Loader2 className="w-8 h-8 text-[#0f172a] animate-spin mb-4" />
+                <Loader2 className="w-8 h-8 text-[#1F6F8B] animate-spin mb-4" />
                 <p className="text-slate-500 font-medium tracking-wide">Fetching team records...</p>
             </div>
         );
@@ -96,7 +96,7 @@ export default function DailyReportsPage() {
                 <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 rounded-lg shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 rounded-lg">
-                            <Calendar className="w-5 h-5 text-[#0f172a]" />
+                            <Calendar className="w-5 h-5 text-[#1F6F8B]" />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-800">Team Performance Reports</h1>
@@ -119,7 +119,7 @@ export default function DailyReportsPage() {
                                 </p>
                             </div>
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white text-xs font-bold rounded-md hover:bg-[#1e293b] transition-colors shadow-sm">
+                        <button className="flex items-center gap-2 px-4 py-2 bg-[#1F6F8B] text-white text-xs font-bold rounded-md hover:bg-[#1e293b] transition-colors shadow-sm">
                             <Download className="w-3.5 h-3.5" />
                             Export
                         </button>
@@ -132,7 +132,7 @@ export default function DailyReportsPage() {
                         onClick={() => setActiveTab("checklists")}
                         className={clsx(
                             "px-6 py-2 rounded-lg text-sm font-bold transition-all",
-                            activeTab === "checklists" ? "bg-[#0f172a] text-white shadow-md shadow-slate-200" : "text-slate-500 hover:bg-slate-50"
+                            activeTab === "checklists" ? "bg-[#1F6F8B] text-white shadow-md shadow-slate-200" : "text-slate-500 hover:bg-slate-50"
                         )}
                     >
                         Activity Checklists
@@ -141,7 +141,7 @@ export default function DailyReportsPage() {
                         onClick={() => setActiveTab("summaries")}
                         className={clsx(
                             "px-6 py-2 rounded-lg text-sm font-bold transition-all",
-                            activeTab === "summaries" ? "bg-[#0f172a] text-white shadow-md shadow-slate-200" : "text-slate-500 hover:bg-slate-50"
+                            activeTab === "summaries" ? "bg-[#1F6F8B] text-white shadow-md shadow-slate-200" : "text-slate-500 hover:bg-slate-50"
                         )}
                     >
                         Work Summaries
@@ -158,7 +158,7 @@ export default function DailyReportsPage() {
                                 placeholder="Find by employee name..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-[#0f172a]/20 focus:border-[#0f172a] focus:bg-white transition-all text-[13px]"
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-[#1F6F8B]/20 focus:border-[#1F6F8B] focus:bg-white transition-all text-[13px]"
                             />
                         </div>
                     </div>
@@ -173,7 +173,7 @@ export default function DailyReportsPage() {
                                 <button
                                     key={btn.id}
                                     onClick={() => setFilterStatus(btn.id)}
-                                    className={`px-5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-tight transition-all ${filterStatus === btn.id ? 'bg-white text-[#0f172a] shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`px-5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-tight transition-all ${filterStatus === btn.id ? 'bg-white text-[#1F6F8B] shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
                                 >
                                     {btn.label}
                                 </button>
@@ -209,7 +209,7 @@ export default function DailyReportsPage() {
                                                         {userName.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-slate-800 text-[14px] hover:text-[#0f172a] cursor-pointer transition-colors">{userName}</p>
+                                                        <p className="font-bold text-slate-800 text-[14px] hover:text-[#1F6F8B] cursor-pointer transition-colors">{userName}</p>
                                                         <p className="text-[11px] text-slate-500 font-medium">Reporting to you</p>
                                                     </div>
                                                 </div>
@@ -222,7 +222,7 @@ export default function DailyReportsPage() {
                                                     </div>
                                                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h-full rounded-full transition-all duration-700 ${pct === 100 ? 'bg-emerald-500' : 'bg-[#0f172a]'}`}
+                                                            className={`h-full rounded-full transition-all duration-700 ${pct === 100 ? 'bg-emerald-500' : 'bg-[#1F6F8B]'}`}
                                                             style={{ width: `${pct}%` }}
                                                         ></div>
                                                     </div>
@@ -247,7 +247,7 @@ export default function DailyReportsPage() {
                                                         setSelectedRecord(checklist);
                                                         setIsModalOpen(true);
                                                     }}
-                                                    className="text-[12px] font-bold text-[#0f172a] hover:underline flex items-center gap-1 ml-auto group-hover:translate-x-1 transition-transform"
+                                                    className="text-[12px] font-bold text-[#1F6F8B] hover:underline flex items-center gap-1 ml-auto group-hover:translate-x-1 transition-transform"
                                                 >
                                                     Review Report
                                                     <ArrowRight className="w-3.5 h-3.5" />
@@ -269,7 +269,7 @@ export default function DailyReportsPage() {
                                                 {(record.userId?.name || "?").charAt(0).toUpperCase()}
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-slate-900 group-hover:text-[#0f172a] transition-colors">{record.userId?.name || "Unknown User"}</h4>
+                                                <h4 className="font-bold text-slate-900 group-hover:text-[#1F6F8B] transition-colors">{record.userId?.name || "Unknown User"}</h4>
                                                 <p className="text-[11px] font-medium text-slate-500 mt-0.5">{record.userId?.department || "General"}</p>
                                                 <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
                                                     <Calendar className="w-3 h-3 text-slate-400" />
@@ -303,7 +303,7 @@ export default function DailyReportsPage() {
                                                     <Hourglass className="w-3.5 h-3.5" />
                                                     <span className="text-[10px] font-bold uppercase tracking-wider">Net Hours</span>
                                                 </div>
-                                                <p className="text-sm font-bold text-[#0f172a]">
+                                                <p className="text-sm font-bold text-[#1F6F8B]">
                                                     {record.totalHours ? `${record.totalHours}h` : "--"}
                                                 </p>
                                             </div>
@@ -340,7 +340,7 @@ export default function DailyReportsPage() {
                                                 {record.workStatusUpload || <span className="text-slate-400 italic font-normal">No summary provided for this session yet.</span>}
                                             </p>
                                             {record.workStatusUpload && record.workStatusUpload.length > 150 && (
-                                                <button className="mt-2 text-[11px] font-bold text-slate-400 hover:text-[#0f172a] transition-colors">Read More</button>
+                                                <button className="mt-2 text-[11px] font-bold text-slate-400 hover:text-[#1F6F8B] transition-colors">Read More</button>
                                             )}
                                         </div>
                                     </div>
@@ -391,7 +391,7 @@ export default function DailyReportsPage() {
                     <div className="space-y-6">
                         <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-white border border-[#0f172a]/20 flex items-center justify-center text-[#0f172a] font-bold text-lg shadow-sm">
+                                <div className="w-12 h-12 rounded-full bg-white border border-[#1F6F8B]/20 flex items-center justify-center text-[#1F6F8B] font-bold text-lg shadow-sm">
                                     {(selectedRecord.userId?.name || "U").charAt(0).toUpperCase()}
                                 </div>
                                 <div>
@@ -408,13 +408,13 @@ export default function DailyReportsPage() {
                         <div className="space-y-3">
                             <div className="flex justify-between items-end">
                                 <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Completion Status</h5>
-                                <span className="text-[14px] font-bold text-[#0f172a]">
+                                <span className="text-[14px] font-bold text-[#1F6F8B]">
                                     {Math.round((selectedRecord.items.filter((i: any) => i.completed).length / selectedRecord.items.length) * 100)}%
                                 </span>
                             </div>
                             <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200 shadow-inner">
                                 <div
-                                    className="h-full bg-[#0f172a] rounded-full transition-all duration-1000"
+                                    className="h-full bg-[#1F6F8B] rounded-full transition-all duration-1000"
                                     style={{ width: `${(selectedRecord.items.filter((i: any) => i.completed).length / selectedRecord.items.length) * 100}%` }}
                                 ></div>
                             </div>

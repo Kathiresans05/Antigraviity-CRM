@@ -95,7 +95,7 @@ export default function EmployeeProfilePage() {
             </div>
 
             {/* SECTION 1: PROFILE HEADER CARD (Teal Blue) */}
-            <div className="bg-[#0f172a] rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
+            <div className="bg-[#1F6F8B] rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
                 {/* Decorative Background Elements */}
                 <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
 
@@ -151,7 +151,7 @@ export default function EmployeeProfilePage() {
                     <button
                         key={t.id}
                         onClick={() => setActiveTab(t.id)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === t.id ? 'bg-[#0f172a] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === t.id ? 'bg-[#1F6F8B] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
                             }`}
                     >
                         <t.icon className="w-4 h-4" /> {t.label}
@@ -226,7 +226,7 @@ export default function EmployeeProfilePage() {
                             {/* Address & Coordinates */}
                             <div className="group bg-white rounded-xl shadow-sm border border-gray-100">
                                 <div className="px-5 pb-5 pt-4 grid gap-4 text-sm">
-                                    <h4 className="font-bold flex gap-2"><MapPin className="w-4 h-4 text-[#0f172a]" /> Address</h4>
+                                    <h4 className="font-bold flex gap-2"><MapPin className="w-4 h-4 text-[#1F6F8B]" /> Address</h4>
                                     <div>
                                         <p className="text-gray-800">{basicDetails?.address || "No address provided."}</p>
                                     </div>

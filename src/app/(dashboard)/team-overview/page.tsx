@@ -243,7 +243,7 @@ export default function TeamOverviewPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                                                    <div className="w-9 h-9 rounded-full bg-[#1e293b] text-white flex items-center justify-center font-bold text-xs shrink-0">
                                                         {tl.name.charAt(0)}
                                                     </div>
                                                     <div>

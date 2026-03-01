@@ -465,7 +465,7 @@ export default function AttendancePage() {
                         </div>
 
                         <div className="flex items-center gap-5">
-                            <div className="w-12 h-12 bg-gray-900 rounded-xl flex items-center justify-center shadow-md shadow-gray-100">
+                            <div className="w-12 h-12 bg-[#1F6F8B] rounded-xl flex items-center justify-center shadow-md shadow-gray-100">
                                 <Clock className="w-6 h-6 text-white" />
                             </div>
                             <div>
@@ -519,7 +519,7 @@ export default function AttendancePage() {
                                     <button
                                         onClick={handleClockOutClick}
                                         disabled={loading}
-                                        className="px-6 py-3 bg-gray-900 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-all shadow-md shadow-gray-100"
+                                        className="px-6 py-3 bg-[#1F6F8B] text-white rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-[#16556b] transition-all shadow-md shadow-gray-100"
                                     >
                                         Clock Out
                                     </button>
@@ -529,7 +529,7 @@ export default function AttendancePage() {
                             <button
                                 onClick={handleClockIn}
                                 disabled={loading}
-                                className="px-10 py-3.5 bg-gray-900 text-white rounded-xl text-[13px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 flex items-center gap-3"
+                                className="px-10 py-3.5 bg-[#1F6F8B] text-white rounded-xl text-[13px] font-bold uppercase tracking-widest hover:bg-[#16556b] transition-all shadow-lg shadow-gray-200 flex items-center gap-3"
                             >
                                 <Play className="w-4 h-4 fill-current" />
                                 Clock In Now
@@ -573,7 +573,7 @@ export default function AttendancePage() {
                                         } finally { setLoading(false); }
                                     }}
                                     disabled={loading}
-                                    className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-all shadow-md shadow-gray-100 flex items-center gap-2"
+                                    className="px-6 py-2.5 bg-[#1F6F8B] text-white rounded-lg text-[11px] font-bold uppercase tracking-wider hover:bg-[#16556b] transition-all shadow-md shadow-gray-100 flex items-center gap-2"
                                 >
                                     {loading && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                                     Auto Close
@@ -585,7 +585,7 @@ export default function AttendancePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
                     <KPICard
-                        title="Attendance" value={`${stats.attendancePct.toFixed(1)}%`} color="#0f172a" icon={<TrendingUp />}
+                        title="Attendance" value={`${stats.attendancePct.toFixed(1)}%`} color="#1F6F8B" icon={<TrendingUp />}
                     />
                     <KPICard
                         title="Working Hours" value={`${stats.totalHours.toFixed(1)}h`} color="#059669" icon={<Timer />}
@@ -644,7 +644,7 @@ export default function AttendancePage() {
                                     datasets: [{
                                         label: 'Hours',
                                         data: monthlyDataObj.data,
-                                        backgroundColor: '#0f172a',
+                                        backgroundColor: '#1F6F8B',
                                         borderRadius: 8,
                                         hoverBackgroundColor: '#334155',
                                         barThickness: 16
@@ -653,7 +653,7 @@ export default function AttendancePage() {
                                 options={{
                                     responsive: true,
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, displayColors: false } },
+                                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1F6F8B', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, displayColors: false } },
                                     scales: {
                                         y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { size: 10, weight: 'bold' }, color: '#94a3b8', padding: 10 } },
                                         x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: 'bold' }, color: '#c1c1c1', padding: 10 } }
@@ -675,7 +675,7 @@ export default function AttendancePage() {
                                     data={{
                                         datasets: [{
                                             data: [weeklyAvgEfficiency, 100 - weeklyAvgEfficiency],
-                                            backgroundColor: ['#0f172a', '#f1f5f9'],
+                                            backgroundColor: ['#1F6F8B', '#f1f5f9'],
                                             borderWidth: 0,
                                             circumference: 270,
                                             rotation: 225,
@@ -698,7 +698,7 @@ export default function AttendancePage() {
                                         <span className="text-[10px] font-bold text-emerald-600">+4.2%</span>
                                     </div>
                                     <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-gray-900 rounded-full" style={{ width: '78%' }} />
+                                        <div className="h-full bg-[#1F6F8B] rounded-full" style={{ width: '78%' }} />
                                     </div>
                                 </div>
                                 <p className="text-[11px] text-gray-400 font-medium text-center px-2 leading-relaxed">
@@ -792,7 +792,7 @@ export default function AttendancePage() {
                                                             {record.effectiveHours?.toFixed(1)}h
                                                         </span>
                                                         <div className="w-12 h-1 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-                                                            <div className="h-full bg-gray-900 transition-all duration-1000" style={{ width: `${Math.min((record.effectiveHours / 8) * 100, 100)}%` }} />
+                                                            <div className="h-full bg-[#1F6F8B] transition-all duration-1000" style={{ width: `${Math.min((record.effectiveHours / 8) * 100, 100)}%` }} />
                                                         </div>
                                                     </div>
                                                 </td>
@@ -837,7 +837,7 @@ export default function AttendancePage() {
 
                 {/* Checkout Work Status Modal */}
                 {showCheckoutModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-6">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1F6F8B]/60 backdrop-blur-md p-6">
                         <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 border border-white/20 brand-shadow">
                             <div className="flex items-center justify-between p-10 pb-6">
                                 <h3 className="text-2xl font-black text-slate-800 tracking-tight">Daily Work Summary</h3>
@@ -862,7 +862,7 @@ export default function AttendancePage() {
                                 <div className="space-y-4">
                                     <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Attachments (Optional)</label>
                                     <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-[24px] border border-slate-100">
-                                        <label className="cursor-pointer px-6 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shrink-0">
+                                        <label className="cursor-pointer px-6 py-2.5 bg-[#1F6F8B] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[#1e293b] transition-all shrink-0">
                                             Choose File
                                             <input
                                                 type="file"
@@ -900,7 +900,7 @@ export default function AttendancePage() {
 
                 {/* Correction Request Modal */}
                 {showCorrectionModal && selectedRecordForCorrection && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-6">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1F6F8B]/60 backdrop-blur-md p-6">
                         <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-300 border border-white/20">
                             <div className="flex items-center justify-between p-10 pb-6">
                                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">Time Correction</h3>
@@ -977,7 +977,7 @@ export default function AttendancePage() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full py-5 text-[13px] font-black uppercase tracking-[0.2em] text-white bg-slate-900 rounded-[24px] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 disabled:opacity-50"
+                                    className="w-full py-5 text-[13px] font-black uppercase tracking-[0.2em] text-white bg-[#1F6F8B] rounded-[24px] hover:bg-[#1e293b] transition-all shadow-2xl shadow-slate-200 disabled:opacity-50"
                                 >
                                     {loading ? "Processing Application..." : "Send to HR for Review"}
                                 </button>
@@ -1020,7 +1020,7 @@ function KPICard({ title, value, icon, color, isActive, onClick }: { title: stri
 
             {isActive && (
                 <div className="absolute top-0 right-0 p-1.5">
-                    <div className="w-2 h-2 rounded-full bg-slate-900" />
+                    <div className="w-2 h-2 rounded-full bg-[#1F6F8B]" />
                 </div>
             )}
         </div>

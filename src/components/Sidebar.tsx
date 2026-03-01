@@ -188,8 +188,8 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     return (
         <aside className={clsx(
             "flex flex-col h-screen fixed top-0 left-0 z-40 transition-all duration-300 ease-in-out",
-            "bg-[#0f172a] shadow-2xl",
-            collapsed ? "w-[80px]" : "w-[280px]"
+            "bg-[#1F6F8B] shadow-2xl",
+            collapsed ? "w-[72px]" : "w-[256px]"
         )}>
             {/* Header / Logo */}
             <div className={clsx(
@@ -224,7 +224,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                 {sections.map((section, idx) => (
                     <div key={section.label} className={clsx(idx !== 0 && "mt-5")}>
                         {!collapsed && (
-                            <h3 className="px-4 mb-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                            <h3 className="px-4 mb-1.5 text-[10px] font-bold text-blue-200/70 uppercase tracking-[0.15em]">
                                 {section.label}
                             </h3>
                         )}
@@ -241,13 +241,13 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                                                 "group flex items-center gap-3 rounded-xl transition-all duration-200 relative",
                                                 collapsed ? "p-2.5 justify-center" : "px-3.5 py-2",
                                                 isActive
-                                                    ? "bg-blue-600/10 text-blue-400 font-semibold"
-                                                    : "text-slate-400 hover:bg-white/[0.03] hover:text-white"
+                                                    ? "bg-white/10 text-white font-semibold shadow-sm"
+                                                    : "text-blue-100/70 hover:bg-white/[0.05] hover:text-white"
                                             )}
                                         >
                                             <Icon className={clsx(
                                                 "w-4.5 h-4.5 transition-transform duration-200 group-hover:scale-110",
-                                                isActive ? "text-blue-400" : "text-slate-400 group-hover:text-white"
+                                                isActive ? "text-white" : "text-blue-100/70 group-hover:text-white"
                                             )} />
                                             {!collapsed && (
                                                 <span className="text-[14px]">{item.name}</span>
@@ -255,12 +255,12 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
                                             {/* Active Indicator */}
                                             {isActive && !collapsed && (
-                                                <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                                                <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
                                             )}
 
                                             {/* Tooltip for collapsed mode */}
                                             {collapsed && (
-                                                <div className="absolute left-full ml-4 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50 shadow-xl border border-white/10">
+                                                <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#1e293b] text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50 shadow-xl border border-white/10">
                                                     {item.name}
                                                 </div>
                                             )}
@@ -280,16 +280,16 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                     collapsed ? "justify-center" : "px-1.5 py-1.5"
                 )}>
                     <div className="relative group flex-shrink-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center text-blue-400 font-bold shadow-inner text-sm">
+                        <div className="w-9 h-9 rounded-xl bg-[#1e293b] border border-white/10 flex items-center justify-center text-blue-400 font-bold shadow-inner text-sm">
                             {userName.charAt(0).toUpperCase()}
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0f172a] rounded-full"></div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#1F6F8B] rounded-full"></div>
                     </div>
 
                     {!collapsed && (
                         <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-white text-xs font-semibold truncate leading-tight">{userName}</span>
-                            <span className="text-slate-500 text-[10px] font-medium truncate uppercase tracking-wider mt-0.5">{userRole}</span>
+                            <span className="text-blue-200/70 text-[10px] font-medium truncate uppercase tracking-wider mt-0.5">{userRole}</span>
                         </div>
                     )}
 
@@ -297,7 +297,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                     {!collapsed && (
                         <button
                             onClick={handleLogout}
-                            className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors group"
+                            className="p-2 text-blue-200/70 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors group"
                             title="Logout"
                         >
                             <LogOut className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -308,7 +308,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                 {collapsed && (
                     <button
                         onClick={handleLogout}
-                        className="mt-4 w-full flex justify-center p-3 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors group"
+                        className="mt-4 w-full flex justify-center p-3 text-blue-200/70 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors group"
                         title="Logout"
                     >
                         <LogOut className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />

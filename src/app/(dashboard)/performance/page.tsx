@@ -169,7 +169,7 @@ export default function PerformancePage() {
         datasets: [{
             label: 'Performance Trend',
             data: trend.length > 0 ? trend.map(d => d.value) : [85, 88, 92, 90, 94, 98],
-            borderColor: '#0f172a',
+            borderColor: '#1F6F8B',
             backgroundColor: (context: any) => {
                 const ctx = context.chart.ctx;
                 const gradient = ctx.createLinearGradient(0, 0, 0, 300);
@@ -181,10 +181,10 @@ export default function PerformancePage() {
             tension: 0.4,
             pointRadius: 6,
             pointBackgroundColor: '#fff',
-            pointBorderColor: '#0f172a',
+            pointBorderColor: '#1F6F8B',
             pointBorderWidth: 2,
             pointHoverRadius: 8,
-            pointHoverBackgroundColor: '#0f172a',
+            pointHoverBackgroundColor: '#1F6F8B',
             pointHoverBorderColor: '#fff',
         }]
     };
@@ -201,7 +201,7 @@ export default function PerformancePage() {
                 stats.avgSkills.teamwork,
                 stats.avgSkills.adaptability,
             ] : [88, 76, 65, 92, 85, 80],
-            backgroundColor: '#0f172a',
+            backgroundColor: '#1F6F8B',
             borderRadius: 4,
             barThickness: 24,
         }]
