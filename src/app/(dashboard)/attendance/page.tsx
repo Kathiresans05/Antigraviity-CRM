@@ -4,11 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
-    Clock, Play, Square, CheckCircle, XCircle, Coffee,
+    Clock, Play, Square, CheckCircle, XCircle, Coffee, CalendarX,
     Calendar as CalendarIcon, Download, Printer, Filter,
     MoreVertical, ArrowUpRight, ArrowDownRight, UserCheck,
-    UserX, UserMinus, Timer, TrendingUp, ChevronLeft, ChevronRight,
-    BarChart2, Activity
+    UserX, UserMinus, Timer, TrendingUp, ChevronLeft, ChevronRight, BarChart2, Activity,
+    Umbrella, Zap, Flame, LogOut as LogOutIcon, AlertTriangle
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
@@ -52,7 +52,7 @@ const STATUS_CONFIG: Record<string, { label: string, bg: string, text: string, d
     'Half Day': { label: 'Half Day', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
     Absent: { label: 'Absent', bg: 'bg-slate-50', text: 'text-slate-400', dot: 'bg-slate-300' },
     'On Leave': { label: 'On Leave', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
-    Offline: { label: 'Holiday', bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
+    Holiday: { label: 'Holiday', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
     'Early Logout': { label: 'Early Logout', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' }
 };
 
@@ -62,18 +62,20 @@ export default function AttendancePage() {
     const [isClockedIn, setIsClockedIn] = useState(false);
     const [isOnBreak, setIsOnBreak] = useState(false);
     const [workingHours, setWorkingHours] = useState("00:00:00");
+    const [breakHours, setBreakHours] = useState("00:00:00");
     const [clockInTime, setClockInTime] = useState<Date | null>(null);
     const [breakMinutes, setBreakMinutes] = useState(0);
     const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
     const [liveBreakMins, setLiveBreakMins] = useState(0);
     const [records, setRecords] = useState<any[]>([]);
+    const [statusFilter, setStatusFilter] = useState<string | null>(null);
+    const [unclosedSession, setUnclosedSession] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [mounted, setMounted] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
-    const [unclosedSession, setUnclosedSession] = useState<any>(null);
     const [dashboardStats, setDashboardStats] = useState<any>({});
     const [showCorrectionModal, setShowCorrectionModal] = useState(false);
     const [selectedRecordForCorrection, setSelectedRecordForCorrection] = useState<any>(null);
@@ -120,22 +122,38 @@ export default function AttendancePage() {
     const processedRecords = monthRecords.map(r => {
         const isToday = new Date(r.date).toDateString() === new Date().toDateString();
         const hours = (isToday && isClockedIn) ? todayNetHours : (r.totalHours || 0);
+        const hasClockedOut = !!r.clockOutTime;
+
         let effectiveStatus = r.status;
-        if (hours < 8 && r.status !== 'On Leave' && r.status !== 'Absent') {
-            effectiveStatus = hours >= 7 ? 'Early Logout' : 'Half Day';
+
+        // Only apply hour-based overrides if they've clocked out (or it's a past day)
+        if (hasClockedOut && r.status !== 'On Leave' && r.status !== 'Holiday') {
+            if (hours < 5) {
+                effectiveStatus = 'Absent';
+            } else if (hours < 7) {
+                effectiveStatus = 'Half Day';
+            } else if (hours < 8) {
+                effectiveStatus = 'Early Logout';
+            }
         }
+
         return { ...r, effectiveStatus, effectiveHours: hours };
+    }).filter(r => {
+        if (!statusFilter) return true;
+        if (statusFilter === 'Missed Punch') return r.autoClosed || r.status === 'Auto Closed';
+        if (statusFilter === 'Early Exit') return r.status === 'Early Logout';
+        return r.effectiveStatus === statusFilter;
     });
 
     // Use the fetched stats from the server for KPI cards if available, else fallback to client calculations
     const stats = {
-        present: dashboardStats.present ?? processedRecords.filter(r => r.effectiveStatus === 'Present' || r.effectiveStatus === 'Late').length,
-        absent: dashboardStats.absent ?? processedRecords.filter(r => r.effectiveStatus === 'Absent').length,
-        leave: dashboardStats.leave ?? processedRecords.filter(r => r.effectiveStatus === 'On Leave').length,
+        present: processedRecords.filter(r => r.effectiveStatus === 'Present' || r.effectiveStatus === 'Late' || r.effectiveStatus === 'Early Logout').length,
+        absent: processedRecords.filter(r => r.effectiveStatus === 'Absent').length,
+        leave: processedRecords.filter(r => r.effectiveStatus === 'On Leave').length,
         halfDay: processedRecords.filter(r => r.effectiveStatus === 'Half Day').length,
-        lateIn: dashboardStats.late ?? processedRecords.filter(r => r.status === 'Late').length,
-        autoClosed: dashboardStats.autoClosed ?? processedRecords.filter(r => r.autoClosed).length,
-        totalHours: dashboardStats.totalHours ?? processedRecords.reduce((acc, r) => acc + r.effectiveHours, 0),
+        lateIn: processedRecords.filter(r => r.status === 'Late').length,
+        autoClosed: processedRecords.filter(r => r.autoClosed).length,
+        totalHours: processedRecords.reduce((acc, r) => acc + (r.effectiveHours || 0), 0),
         attendancePct: 0
     };
 
@@ -212,7 +230,7 @@ export default function AttendancePage() {
     const [workStatus, setWorkStatus] = useState("");
     const [fileData, setFileData] = useState<{ name: string, data: string } | null>(null);
 
-    // Live working-hours timer
+    // Live timers (Both work and break)
     useEffect(() => {
         if (!isClockedIn || !clockInTime) return;
         const tick = () => {
@@ -222,11 +240,8 @@ export default function AttendancePage() {
             if (isNaN(clockInMs)) return;
 
             const grossMs = now - clockInMs;
-
-            // Accumulated finished breaks in ms
             const finishedBreakMs = (breakMinutes || 0) * 60000;
 
-            // Current running break in ms
             let runningBreakMs = 0;
             if (isOnBreak && breakStartTime) {
                 const breakStartMs = new Date(breakStartTime).getTime();
@@ -235,17 +250,25 @@ export default function AttendancePage() {
                 }
             }
 
+            // Calculate Net Work Time
             const netMs = Math.max(grossMs - finishedBreakMs - runningBreakMs, 0);
-            if (isNaN(netMs)) return;
-
-            const netSec = Math.floor(netMs / 1000);
-
-            setWorkingHours(() => {
+            if (!isNaN(netMs)) {
+                const netSec = Math.floor(netMs / 1000);
                 const h = Math.floor(netSec / 3600).toString().padStart(2, "0");
                 const m = Math.floor((netSec % 3600) / 60).toString().padStart(2, "0");
                 const s = (netSec % 60).toString().padStart(2, "0");
-                return `${h}:${m}:${s}`;
-            });
+                setWorkingHours(`${h}:${m}:${s}`);
+            }
+
+            // Calculate Real-time Break Time (Accumulated + Running)
+            const totalBreakMs = finishedBreakMs + runningBreakMs;
+            if (!isNaN(totalBreakMs)) {
+                const totalSec = Math.floor(totalBreakMs / 1000);
+                const bh = Math.floor(totalSec / 3600).toString().padStart(2, "0");
+                const bm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, "0");
+                const bs = (totalSec % 60).toString().padStart(2, "0");
+                setBreakHours(`${bh}:${bm}:${bs}`);
+            }
         };
         tick();
         const id = setInterval(tick, 1000);
@@ -459,10 +482,18 @@ export default function AttendancePage() {
                     <div className="flex items-center gap-4">
                         {isClockedIn ? (
                             <div className="flex items-center gap-6 bg-gray-50 p-3 pr-6 rounded-2xl border border-gray-100 shadow-inner">
-                                <div className="flex flex-col items-end pl-4 border-r border-gray-200 pr-6">
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Work Time Today</span>
-                                    <span className="text-2xl font-bold text-gray-900 tabular-nums mt-0.5 leading-none tracking-tight">
-                                        {mounted ? workingHours : "00:00:00"}
+                                <div className="flex flex-col items-end pl-4 border-r border-gray-200 pr-6 min-w-[140px]">
+                                    <span className={cn(
+                                        "text-[9px] font-bold uppercase tracking-wider transition-colors duration-300",
+                                        isOnBreak ? "text-amber-500" : "text-gray-400"
+                                    )}>
+                                        {isOnBreak ? "On Break" : "Work Time Today"}
+                                    </span>
+                                    <span className={cn(
+                                        "text-2xl font-bold tabular-nums mt-0.5 leading-none tracking-tight transition-colors duration-300",
+                                        isOnBreak ? "text-amber-500" : "text-gray-900"
+                                    )}>
+                                        {mounted ? (isOnBreak ? breakHours : workingHours) : "00:00:00"}
                                     </span>
                                 </div>
                                 <div className="flex gap-3">
@@ -552,13 +583,34 @@ export default function AttendancePage() {
                     </div>
                 )}
 
-                {/* KPI Overview - Flat & Powerful */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                    <KPICard title="Total Attendance" value={`${stats.attendancePct.toFixed(1)}%`} icon={<TrendingUp />} color="#0f172a" badge="+0%" subLabel="Active" />
-                    <KPICard title="Working Hours" value={`${safeTodayNetHours.toFixed(1)}h`} icon={<Timer />} color="#059669" badge="Today" subLabel="Target 8h" />
-                    <KPICard title="Late Arrival" value={stats.lateIn} icon={<Clock />} color="#ea580c" badge="Normal" subLabel="This month" />
-                    <KPICard title="Leave taken" value={stats.leave} icon={<UserMinus />} color="#7c3aed" badge="None" subLabel="Monthly" />
-                    <KPICard title="Auto closed" value={stats.autoClosed} icon={<Square />} color="#64748b" badge="Low" subLabel="Action Required" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+                    <KPICard
+                        title="Attendance" value={`${stats.attendancePct.toFixed(1)}%`} color="#0f172a" icon={<TrendingUp />}
+                    />
+                    <KPICard
+                        title="Working Hours" value={`${stats.totalHours.toFixed(1)}h`} color="#059669" icon={<Timer />}
+                    />
+                    <KPICard
+                        title="Late Arrival" value={stats.lateIn} color="#f43f5e" icon={<Timer />}
+                        isActive={statusFilter === 'Late'} onClick={() => setStatusFilter(statusFilter === 'Late' ? null : 'Late')}
+                    />
+                    <KPICard
+                        title="Leave Balance" value={dashboardStats.leaveBalance ?? 18} color="#8b5cf6" icon={<Umbrella />}
+                    />
+                    <KPICard
+                        title="Monthly Leaves" value={dashboardStats.monthlyLeaveTaken ?? 0} color="#6366f1" icon={<CalendarX />}
+                    />
+                    <KPICard
+                        title="Today Break" value={`${Math.round(dashboardStats.todayBreak ?? 0)}m`} color="#f59e0b" icon={<Coffee />}
+                    />
+                    <KPICard
+                        title="Early Exits" value={dashboardStats.earlyExits ?? 0} color="#f97316" icon={<LogOutIcon />}
+                        isActive={statusFilter === 'Early Exit'} onClick={() => setStatusFilter(statusFilter === 'Early Exit' ? null : 'Early Exit')}
+                    />
+                    <KPICard
+                        title="Auto Closed" value={dashboardStats.autoClosed ?? 0} color="#64748b" icon={<Clock />}
+                        isActive={statusFilter === 'Auto Closed'} onClick={() => setStatusFilter(statusFilter === 'Auto Closed' ? null : 'Auto Closed')}
+                    />
                 </div>
 
                 {/* Main Analytics Grid */}
@@ -731,7 +783,7 @@ export default function AttendancePage() {
                                                 </td>
                                                 <td className="px-8 py-4 text-center">
                                                     <span className="px-2 py-1 bg-gray-50 border border-gray-100 rounded text-[11px] font-semibold text-gray-500">
-                                                        {record.breakMinutes || 0}m
+                                                        {Math.round(record.breakMinutes || 0)}m
                                                     </span>
                                                 </td>
                                                 <td className="px-8 py-4 text-center">
@@ -786,34 +838,41 @@ export default function AttendancePage() {
                 {/* Checkout Work Status Modal */}
                 {showCheckoutModal && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-6">
-                        <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 border border-white/20">
+                        <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 border border-white/20 brand-shadow">
                             <div className="flex items-center justify-between p-10 pb-6">
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Daily Work Summary</h3>
-                                <button onClick={() => setShowCheckoutModal(false)} className="p-3 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-all">
+                                <h3 className="text-2xl font-black text-slate-800 tracking-tight">Daily Work Summary</h3>
+                                <button onClick={() => setShowCheckoutModal(false)} className="p-3 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all">
                                     <XCircle className="w-6 h-6" />
                                 </button>
                             </div>
 
                             <form onSubmit={confirmClockOut} className="p-10 pt-0 space-y-8">
                                 <div className="space-y-4">
-                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">What did you achieve today?</label>
+                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">What did you achieve today?</label>
                                     <textarea
                                         rows={4}
                                         placeholder="Describe your progress, tickets resolved, or key milestones..."
                                         value={workStatus}
+                                        required
                                         onChange={(e) => setWorkStatus(e.target.value)}
-                                        className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-[28px] text-[14px] font-medium text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-200 transition-all resize-none shadow-inner"
+                                        className="w-full px-6 py-5 bg-slate-50 border border-slate-100 rounded-[28px] text-[14px] font-medium text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-600/10 focus:bg-white focus:border-blue-600/30 transition-all resize-none shadow-inner"
                                     />
                                 </div>
 
                                 <div className="space-y-4">
-                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Attachments (Optional)</label>
-                                    <div className="relative group">
-                                        <input
-                                            type="file"
-                                            onChange={handleFileChange}
-                                            className="w-full text-[13px] text-slate-500 file:mr-6 file:py-3 file:px-8 file:rounded-xl file:border-0 file:text-[11px] file:font-black file:uppercase file:tracking-widest file:bg-slate-900 file:text-white hover:file:bg-slate-800 transition-all cursor-pointer bg-slate-50 p-3 rounded-[24px] border border-slate-100 group-hover:bg-slate-100/50"
-                                        />
+                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Attachments (Optional)</label>
+                                    <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-[24px] border border-slate-100">
+                                        <label className="cursor-pointer px-6 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shrink-0">
+                                            Choose File
+                                            <input
+                                                type="file"
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                        <span className="text-[12px] font-medium text-slate-400 truncate pr-4">
+                                            {fileData ? fileData.name : "No file chosen"}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -828,7 +887,7 @@ export default function AttendancePage() {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="flex-[2] py-5 text-[12px] font-black uppercase tracking-widest text-white bg-slate-900 rounded-[24px] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 flex items-center justify-center gap-3 disabled:opacity-50"
+                                        className="flex-[2] py-5 text-[12px] font-black uppercase tracking-widest text-white bg-blue-600 rounded-[24px] hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-3 disabled:opacity-50 brand-shadow"
                                     >
                                         {loading ? <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle className="w-5 h-5" />}
                                         Complete Clock Out
@@ -926,37 +985,44 @@ export default function AttendancePage() {
                         </div>
                     </div>
                 )}
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }
 
-function KPICard({ title, value, icon, color, badge, subLabel }: { title: string; value: string | number; icon: React.ReactNode; color: string; badge?: string; subLabel?: string }) {
+function KPICard({ title, value, icon, color, isActive, onClick }: { title: string; value: string | number; icon: React.ReactNode; color: string; isActive?: boolean; onClick?: () => void }) {
     return (
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-            <div className="flex items-center justify-between mb-6">
+        <div
+            onClick={onClick}
+            className={cn(
+                "bg-white p-5 rounded-xl border transition-colors duration-200 relative overflow-hidden cursor-pointer",
+                isActive ? "border-slate-900 bg-slate-50/50 shadow-sm ring-1 ring-slate-900" : "border-gray-100 shadow-sm",
+                !onClick && "cursor-default"
+            )}
+        >
+            <div className="flex items-center gap-5">
                 <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
                     style={{ backgroundColor: `${color}08`, color }}
                 >
-                    {React.cloneElement(icon as React.ReactElement<any>, { className: "w-4 h-4" })}
+                    {React.cloneElement(icon as React.ReactElement<any>, { className: "w-6 h-6" })}
                 </div>
-                {badge && (
-                    <div className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-100">
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{badge}</span>
-                    </div>
-                )}
+                <div className="min-w-0 flex-1">
+                    <h3
+                        className="text-2xl font-bold tracking-tight tabular-nums truncate leading-none mb-1.5"
+                        style={{ color }}
+                    >
+                        {value}
+                    </h3>
+                    <p className="text-sm font-medium text-gray-500 truncate">{title}</p>
+                </div>
             </div>
 
-            <div className="space-y-0.5">
-                <h3 className="text-2xl font-bold text-gray-900 tracking-tight tabular-nums">
-                    {value}
-                </h3>
-                <div>
-                    <p className="text-xs font-semibold text-gray-600">{title}</p>
-                    {subLabel && <p className="text-[10px] font-medium text-gray-400 mt-0.5">{subLabel}</p>}
+            {isActive && (
+                <div className="absolute top-0 right-0 p-1.5">
+                    <div className="w-2 h-2 rounded-full bg-slate-900" />
                 </div>
-            </div>
+            )}
         </div>
     );
 }
@@ -986,9 +1052,17 @@ function AttendanceCalendar({ records, selectedMonth, selectedYear, isClockedIn,
         if (!record) return { color: 'text-slate-400', bg: 'bg-white', label: '', isToday, statusLabel: '' };
 
         const hours = (isToday && isClockedIn) ? todayNetHours : (record.totalHours || 0);
+        const hasClockedOut = !!record.clockOutTime;
         let effectiveStatus = record.status;
-        if (hours < 8 && record.status !== 'On Leave' && record.status !== 'Absent') {
-            effectiveStatus = hours >= 7 ? 'Early Logout' : 'Half Day';
+
+        if (hasClockedOut && record.status !== 'On Leave' && record.status !== 'Holiday') {
+            if (hours < 5) {
+                effectiveStatus = 'Absent';
+            } else if (hours < 7) {
+                effectiveStatus = 'Half Day';
+            } else if (hours < 8) {
+                effectiveStatus = 'Early Logout';
+            }
         }
         const statusLabel = (effectiveStatus === 'Present' || effectiveStatus === 'Late') ? 'Full Day' : effectiveStatus;
 

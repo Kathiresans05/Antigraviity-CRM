@@ -123,8 +123,8 @@ export default function Header({ title = "Dashboard" }: { title?: string }) {
                                                 onMouseDown={() => handleResultClick(result.href)}
                                                 disabled={!canViewOtherProfiles}
                                                 className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left group ${canViewOtherProfiles
-                                                        ? "hover:bg-blue-50 cursor-pointer"
-                                                        : "opacity-60 cursor-not-allowed"
+                                                    ? "hover:bg-blue-50 cursor-pointer"
+                                                    : "opacity-60 cursor-not-allowed"
                                                     }`}
                                             >
                                                 <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-sm shrink-0">
@@ -198,10 +198,49 @@ export default function Header({ title = "Dashboard" }: { title?: string }) {
                 )}
 
                 {/* Notifications */}
-                <button className="relative p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all group">
-                    <Bell className="w-5 h-5 group-hover:scale-110" />
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
-                </button>
+                <Menu as="div" className="relative">
+                    <Menu.Button className="relative p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all group focus:outline-none">
+                        <Bell className="w-5 h-5 group-hover:scale-110" />
+                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
+                    </Menu.Button>
+                    <Transition
+                        as={Fragment}
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
+                    >
+                        <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none overflow-hidden z-20">
+                            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
+                                <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">New</span>
+                            </div>
+                            <div className="max-h-80 overflow-y-auto">
+                                {/* Dummy notifications */}
+                                <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer">
+                                    <p className="text-sm font-semibold text-gray-800 leading-tight">New company policy updated</p>
+                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Please review the new HR guidelines in the documents portal.</p>
+                                    <p className="text-[10px] text-gray-400 mt-2 font-medium">2 hours ago</p>
+                                </div>
+                                <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                                    <p className="text-sm font-semibold text-gray-800 leading-tight">System maintenance scheduled</p>
+                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Expect a 15-minute downtime tonight at 12:00 AM.</p>
+                                    <p className="text-[10px] text-gray-400 mt-2 font-medium">5 hours ago</p>
+                                </div>
+                            </div>
+                            <div className="p-3 bg-gray-50 border-t border-gray-100 shrink-0 text-center">
+                                <Link
+                                    href="/announcements"
+                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                                >
+                                    View all announcements
+                                </Link>
+                            </div>
+                        </Menu.Items>
+                    </Transition>
+                </Menu>
 
                 {/* Profile Dropdown */}
                 {mounted ? (

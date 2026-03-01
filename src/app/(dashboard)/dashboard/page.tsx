@@ -5,7 +5,8 @@ import {
     Users, Briefcase, TrendingUp, TrendingDown, Bell, Search,
     ChevronDown, Eye, Edit, Trash2, Clock, CheckSquare,
     UserCheck, UserMinus, UserX, UserPlus, Gift, Calendar as CalendarIcon,
-    ArrowUpRight, ArrowDownRight, MoreHorizontal, PieChart, BarChart3, HelpCircle, Bug, DollarSign
+    ArrowUpRight, ArrowDownRight, MoreHorizontal, PieChart, BarChart3, HelpCircle, Bug, DollarSign,
+    ClipboardList, FileWarning, Trophy
 } from "lucide-react";
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -84,6 +85,31 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
 
     return (
         <div className="space-y-8 pb-10">
+            {/* Holiday Banner */}
+            {data?.stats?.holidayToday && (
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-md">
+                                <Gift className="w-8 h-8 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">Today is a Company Holiday!</h3>
+                                <p className="text-blue-100 font-medium">Enjoy the <b>{data.stats.holidayToday}</b>. All attendance is marked as Holiday.</p>
+                            </div>
+                        </div>
+                        <div className="hidden md:block">
+                            <span className="px-4 py-2 bg-white/10 rounded-full text-xs font-black uppercase tracking-widest border border-white/20">
+                                Holiday Mode Active
+                            </span>
+                        </div>
+                    </div>
+                    {/* Decorative Circles */}
+                    <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+                    <div className="absolute -left-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+                </div>
+            )}
+
             {/* Header with Live Date */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -114,17 +140,72 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                     { title: "New Joinees", value: data?.stats?.newJoineesMonth || 0, subtitle: new Date().toLocaleDateString('en-US', { month: 'long' }), icon: UserPlus, color: "bg-purple-50 text-purple-600", trend: "This month", href: "/employees" },
                     { title: "Pending Onboarding", value: data?.stats?.pendingOnboarding || 0, subtitle: "Action Required", icon: UserCheck, color: "bg-blue-50 text-blue-600", trend: data?.stats?.pendingOnboarding > 0 ? "Pending" : "None", href: "#onboarding-approvals" },
                     { title: "Birthdays", value: data?.stats?.birthdaysToday || 0, subtitle: "Coming Up", icon: Gift, color: "bg-pink-50 text-pink-600", trend: "Today", href: "/employees" },
-                ].map((stat, idx) => (
-                    <Link href={stat.href} key={idx} className="bg-white p-5 rounded-[12px] border border-gray-100 shadow-sm hover:shadow-md transition-all group block">
+                    {
+                        title: "Absent Today",
+                        value: data?.stats?.absentToday || 0,
+                        subtitle: data?.stats?.holidayToday ? "Holiday Override" : "Not Checked In",
+                        icon: UserX,
+                        color: data?.stats?.holidayToday ? "bg-indigo-50 text-indigo-600" : "bg-rose-50 text-rose-600",
+                        status: data?.stats?.holidayToday ? "Holiday" : (data?.stats?.absentToday > 0 ? "Warning" : "Normal"),
+                        href: "/employees?status=absent"
+                    },
+                    {
+                        title: "Late Arrivals",
+                        value: data?.stats?.lateArrivals || 0,
+                        subtitle: "After 9:30 AM",
+                        icon: Clock,
+                        color: "bg-amber-50 text-amber-600",
+                        status: (data?.stats?.lateArrivals > 10 ? "High" : data?.stats?.lateArrivals > 0 ? "Medium" : "Low"),
+                        href: "/attendance?status=Late"
+                    },
+                    {
+                        title: "Probation Ending",
+                        value: data?.stats?.probationEndingMonth || 0,
+                        subtitle: "Confirmation Required",
+                        icon: ClipboardList,
+                        color: "bg-purple-50 text-purple-600",
+                        status: "Action Required",
+                        href: "/employees?filter=probation-ending"
+                    },
+                    {
+                        title: "Pending Docs",
+                        value: data?.stats?.pendingDocuments || 0,
+                        subtitle: "Compliance Pending",
+                        icon: FileWarning,
+                        color: "bg-orange-50 text-orange-600",
+                        status: "Action Required",
+                        href: "/employees?filter=pending-docs"
+                    },
+                    {
+                        title: "Anniversaries",
+                        value: data?.stats?.workAnniversariesMonth || 0,
+                        subtitle: "Celebrate Milestones",
+                        icon: Trophy,
+                        color: "bg-indigo-50 text-indigo-600",
+                        status: "Normal",
+                        href: "/employees?filter=anniversaries"
+                    },
+                ].map((stat: any, idx) => (
+                    <Link href={stat.href} key={idx} className="bg-white p-5 rounded-[12px] border border-gray-100 shadow-sm hover:shadow-md transition-all group block relative overflow-hidden">
                         <div className="flex justify-between items-start mb-4">
                             <div className={clsx("p-2 rounded-lg group-hover:scale-110 transition-transform", stat.color)}>
                                 <stat.icon className="w-5 h-5" />
                             </div>
-                            <span className={clsx(
-                                "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                                stat.trend.includes('+') ? "bg-green-50 text-green-600" :
-                                    stat.trend.includes('-') ? "bg-red-50 text-red-600" : "bg-gray-50 text-gray-500"
-                            )}>{stat.trend}</span>
+                            {stat.trend ? (
+                                <span className={clsx(
+                                    "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                                    stat.trend.includes('+') ? "bg-green-50 text-green-600" :
+                                        stat.trend.includes('-') ? "bg-red-50 text-red-600" : "bg-gray-50 text-gray-500"
+                                )}>{stat.trend}</span>
+                            ) : stat.status ? (
+                                <span className={clsx(
+                                    "text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded border",
+                                    stat.status === "Warning" || stat.status === "Action Required" || stat.status === "High" ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                        stat.status === "Medium" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                            stat.status === "Holiday" ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
+                                                "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                )}>{stat.status}</span>
+                            ) : null}
                         </div>
                         <h4 className="text-2xl font-bold text-gray-900">{stat.value}</h4>
                         <p className="text-sm font-semibold text-gray-800 mt-1">{stat.title}</p>
@@ -281,9 +362,9 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Employee Snapshot Table */}
-                <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden text-black">
+                <div className="lg:col-span-2 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden text-black">
                     <div className="p-6 border-b border-gray-50 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900 leading-tight">Employee Snapshot</h3>
                         <Link href="/employees" className="text-xs font-semibold text-blue-600 hover:underline">View All</Link>
@@ -334,6 +415,37 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                         </table>
                     </div>
                 </div>
+
+                {/* Announcements Widget */}
+                <div className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Bell className="w-5 h-5 text-blue-600" />
+                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">Recent Broadcasts</h3>
+                        </div>
+                        <Link href="/announcements" className="text-xs font-semibold text-blue-600 hover:underline">View All</Link>
+                    </div>
+                    <div className="divide-y divide-gray-50 flex-1 overflow-y-auto max-h-[350px]">
+                        {data?.announcements?.length > 0 ? data.announcements.map((ann: any, idx: number) => (
+                            <div key={idx} className="p-5 hover:bg-gray-50/50 transition-colors cursor-pointer group">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate pr-4">{ann.title}</h4>
+                                    <span className={clsx("w-2 h-2 rounded-full shrink-0", ann.priority === 'Urgent' ? 'bg-rose-500' : ann.priority === 'Important' ? 'bg-amber-500' : 'bg-blue-500')} title={`Priority: ${ann.priority}`} />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs text-gray-400 font-semibold">{ann.date}</p>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded-full">{ann.priority || 'General'}</span>
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="p-8 text-center flex flex-col items-center justify-center h-full">
+                                <Bell className="w-8 h-8 text-gray-200 mb-3" />
+                                <p className="text-sm font-semibold text-gray-400">No broadcasts found</p>
+                                <p className="text-[11px] text-gray-400 mt-1">Create one from Announcements</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* 3. Payroll & Performance Row */}
@@ -355,7 +467,7 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                 </div>
 
                 {/* Payroll Summary */}
-                <div className="bg-[#1f6f8b] p-8 rounded-[12px] shadow-lg relative overflow-hidden group">
+                <div className="bg-[#0f172a] p-8 rounded-[12px] shadow-lg relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform text-white">
                         <DollarSign className="w-32 h-32" />
                     </div>
@@ -383,7 +495,7 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                             </div>
                         </div>
                         <div className="flex gap-4">
-                            <button className="flex-1 bg-white text-[#1f6f8b] py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-all shadow-md">Process Payroll</button>
+                            <button className="flex-1 bg-white text-[#0f172a] py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-all shadow-md">Process Payroll</button>
                             <button className="flex-1 bg-white/10 text-white border border-white/20 py-3 rounded-xl text-xs font-bold hover:bg-white/20 transition-all">Download Report</button>
                         </div>
                     </div>
@@ -745,7 +857,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-gray-500 max-w-md text-center">
                     {error || "The dashboard data could not be loaded. Please ensure your backend is accessible and your session is active, or try restarting the development server."}
                 </p>
-                <button onClick={() => window.location.reload()} className="mt-6 px-4 py-2 bg-[#1f6f8b] text-white rounded-lg text-sm font-bold shadow-sm">
+                <button onClick={() => window.location.reload()} className="mt-6 px-4 py-2 bg-[#0f172a] text-white rounded-lg text-sm font-bold shadow-sm">
                     Retry
                 </button>
             </div>
@@ -757,8 +869,8 @@ export default function DashboardPage() {
         datasets: [{
             label: 'Attendance %',
             data: data?.charts?.performanceTrend?.data || [],
-            borderColor: '#1f6f8b',
-            backgroundColor: 'rgba(31, 111, 139, 0.1)',
+            borderColor: '#0f172a',
+            backgroundColor: 'rgba(15, 23, 42, 0.1)',
             fill: true,
             tension: 0.4,
             pointRadius: 4,

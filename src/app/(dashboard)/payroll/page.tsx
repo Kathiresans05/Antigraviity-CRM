@@ -221,7 +221,7 @@ export default function PayrollPage() {
                     <button
                         onClick={handleProcessPayroll}
                         disabled={processing || stats.pendingCount === 0}
-                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#1f6f8b] text-white rounded-xl text-sm font-bold hover:bg-[#164e63] transition-all shadow-md shadow-cyan-900/10 disabled:opacity-50 min-w-[200px]"
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:bg-[#164e63] transition-all shadow-md shadow-cyan-900/10 disabled:opacity-50 min-w-[200px]"
                     >
                         {processing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Process Monthly Payroll"}
                     </button>
@@ -409,7 +409,7 @@ export default function PayrollPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <p className="text-base font-bold text-[#1f6f8b] tracking-tight">
+                                        <p className="text-base font-bold text-[#0f172a] tracking-tight">
                                             ₹{emp.netPay.toLocaleString()}
                                         </p>
                                     </td>
@@ -504,7 +504,7 @@ export default function PayrollPage() {
                                 <button type="button" onClick={() => setEditModalData(null)} className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition-colors">
                                     Cancel
                                 </button>
-                                <button type="submit" className="flex items-center gap-2 px-5 py-2.5 bg-[#1f6f8b] text-white text-sm font-bold rounded-xl hover:bg-[#164e63] shadow-md shadow-cyan-900/10 transition-all">
+                                <button type="submit" className="flex items-center gap-2 px-5 py-2.5 bg-[#0f172a] text-white text-sm font-bold rounded-xl hover:bg-[#164e63] shadow-md shadow-cyan-900/10 transition-all">
                                     <Save className="w-4 h-4" /> Save Changes
                                 </button>
                             </div>
@@ -562,7 +562,7 @@ export default function PayrollPage() {
 
                             <div className="pt-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50 p-4 rounded-xl">
                                 <span className="text-base font-bold text-gray-700">Net Payable</span>
-                                <span className="text-2xl font-black text-[#1f6f8b] tracking-tight">₹{payslipModalData.netPay.toLocaleString()}</span>
+                                <span className="text-2xl font-black text-[#0f172a] tracking-tight">₹{payslipModalData.netPay.toLocaleString()}</span>
                             </div>
                         </div>
                         <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">

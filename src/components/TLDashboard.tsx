@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     Users, Briefcase, TrendingUp, Clock, CheckSquare,
-    Search, Bell, FileText, BarChart3, PieChart, Users2, AlertTriangle, Play
+    Search, Bell, FileText, BarChart3, PieChart, Users2, AlertTriangle, Play,
+    Calendar, UserCheck, Activity
 } from "lucide-react";
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -25,7 +26,7 @@ function KPICard({ title, value, trend, icon: Icon, color, onClick }: any) {
     const trendColor = isPositive ? 'text-emerald-600 bg-emerald-50' : trend.includes('-') ? 'text-rose-600 bg-rose-50' : 'text-amber-600 bg-amber-50';
 
     return (
-        <div 
+        <div
             onClick={onClick}
             className={clsx(
                 "bg-white rounded-[8px] p-5 border border-gray-200 hover:border-blue-300 transition-all flex flex-col justify-between h-full relative",
@@ -143,6 +144,21 @@ export default function TLDashboard({ session, data: initialData }: any) {
         }]
     };
 
+    // Personal Dummy Data
+    const myLeaveBalances = [
+        { type: 'Casual Leave', total: 12, used: 4, color: 'emerald' },
+        { type: 'Sick Leave', total: 6, used: 2, color: 'rose' },
+        { type: 'Privilege Leave', total: 15, used: 0, color: 'blue' }
+    ];
+
+    const myAttendanceStats = {
+        present: 18,
+        absent: 1,
+        late: 2,
+        halfDay: 0,
+        avgHours: '8h 15m'
+    };
+
     return (
         <div className="space-y-6 pb-10 bg-[#F8FAFC] min-h-screen font-sans">
             {/* Header */}
@@ -151,7 +167,7 @@ export default function TLDashboard({ session, data: initialData }: any) {
                     <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">Team Overview</h1>
                     <p className="text-[13px] font-medium text-slate-500 mt-1">Monitor your team's performance and workload.</p>
                 </div>
-                <button 
+                <button
                     onClick={fetchData}
                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-gray-200 bg-white transition-all group"
                     title="Refresh Data"
@@ -180,14 +196,14 @@ export default function TLDashboard({ session, data: initialData }: any) {
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-[15px] font-bold text-slate-900">Weekly Attendance</h3>
                         <div className="flex gap-4">
-                            <button 
+                            <button
                                 onClick={() => router.push('/team-attendance')}
                                 className="flex items-center gap-2 hover:bg-slate-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
                             >
                                 <div className="w-3 h-3 rounded-sm bg-[#2563EB]"></div>
                                 <span className="text-[12px] font-medium text-slate-600">Present</span>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => router.push('/team-attendance')}
                                 className="flex items-center gap-2 hover:bg-slate-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
                             >
@@ -205,15 +221,15 @@ export default function TLDashboard({ session, data: initialData }: any) {
                                 plugins: { legend: { display: false } },
                                 scales: {
                                     x: { grid: { display: false }, stacked: true, ticks: { font: { size: 11, weight: 600 }, color: '#64748B' } },
-                                    y: { 
-                                        grid: { color: '#F8FAFC' }, 
-                                        stacked: true, 
-                                        beginAtZero: true, 
-                                        ticks: { 
-                                            font: { size: 11, weight: 600 }, 
-                                            color: '#64748B', 
-                                            stepSize: 2 
-                                        } 
+                                    y: {
+                                        grid: { color: '#F8FAFC' },
+                                        stacked: true,
+                                        beginAtZero: true,
+                                        ticks: {
+                                            font: { size: 11, weight: 600 },
+                                            color: '#64748B',
+                                            stepSize: 2
+                                        }
                                     }
                                 }
                             }}
@@ -231,16 +247,16 @@ export default function TLDashboard({ session, data: initialData }: any) {
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 cutout: '75%',
-                                plugins: { 
-                                    legend: { 
-                                        position: 'bottom', 
-                                        labels: { 
-                                            usePointStyle: true, 
-                                            padding: 20, 
-                                            font: { size: 11, weight: 600 }, 
-                                            color: '#475569' 
-                                        } 
-                                    } 
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: {
+                                            usePointStyle: true,
+                                            padding: 20,
+                                            font: { size: 11, weight: 600 },
+                                            color: '#475569'
+                                        }
+                                    }
                                 }
                             }}
                         />
@@ -278,30 +294,137 @@ export default function TLDashboard({ session, data: initialData }: any) {
                     <div>
                         <h3 className="text-[15px] font-bold text-slate-900 mb-4">Quick Actions</h3>
                         <div className="grid grid-cols-2 gap-3">
-                            <button 
+                            <button
                                 onClick={() => router.push('/daily-tasks')}
                                 className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-blue-50/50 hover:border-blue-200 hover:text-blue-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
                             >
                                 <FileText className="w-4 h-4 text-blue-500 transition-transform" /> Assign New Task
                             </button>
-                <button 
-                    onClick={() => router.push('/team-attendance')}
-                    className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-emerald-50/50 hover:border-emerald-200 hover:text-emerald-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
-                >
-                    <CheckSquare className="w-4 h-4 text-emerald-500 transition-transform" /> Auto-approve Attendance
-                </button>
-                            <button 
+                            <button
+                                onClick={() => router.push('/team-attendance')}
+                                className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-emerald-50/50 hover:border-emerald-200 hover:text-emerald-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
+                            >
+                                <CheckSquare className="w-4 h-4 text-emerald-500 transition-transform" /> Auto-approve Attendance
+                            </button>
+                            <button
                                 onClick={() => router.push('/leave-approvals')}
                                 className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-amber-50/50 hover:border-amber-200 hover:text-amber-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
                             >
                                 <Clock className="w-4 h-4 text-amber-500 transition-transform" /> View Pending Leaves
                             </button>
-                            <button 
+                            <button
                                 onClick={() => router.push('/meetings')}
                                 className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-purple-50/50 hover:border-purple-200 hover:text-purple-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
                             >
                                 <Users className="w-4 h-4 text-purple-500 transition-transform" /> Schedule Meeting
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Personal Overview (Leave Tracker & Attendance) */}
+            <div className="mt-8 pt-6 border-t border-gray-200/60">
+                <div className="flex items-center justify-between mb-4 px-1">
+                    <div>
+                        <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">Personal Overview</h2>
+                        <p className="text-[13px] font-medium text-slate-500 mt-1">Track your own attendance and leave balances.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* My Leave Tracker */}
+                    <div className="bg-white p-6 rounded-[8px] border border-gray-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-blue-600" />
+                                <h3 className="text-[15px] font-bold text-slate-900">Leave Tracker</h3>
+                            </div>
+                            <button
+                                onClick={() => router.push('/leave-tracker')}
+                                className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                                Apply Leave
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            {myLeaveBalances.map((leave, idx) => (
+                                <div key={idx} className="p-4 rounded-xl border border-gray-100 bg-slate-50 hover:shadow-sm transition-all pb-3">
+                                    <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3 truncate" title={leave.type}>{leave.type}</h4>
+                                    <div className="flex items-baseline gap-1.5 mb-2">
+                                        <span className={clsx(
+                                            "text-2xl font-extrabold leading-none",
+                                            leave.color === 'emerald' ? 'text-emerald-600' :
+                                                leave.color === 'rose' ? 'text-rose-600' : 'text-blue-600'
+                                        )}>
+                                            {leave.total - leave.used}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-400">/ {leave.total}</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                        <div
+                                            className={clsx(
+                                                "h-1.5 rounded-full",
+                                                leave.color === 'emerald' ? 'bg-emerald-500' :
+                                                    leave.color === 'rose' ? 'bg-rose-500' : 'bg-blue-500'
+                                            )}
+                                            style={{ width: `${(leave.used / leave.total) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <p className="text-[10px] font-medium text-slate-500 mt-1.5 text-right">{leave.used} used</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Personal Attendance */}
+                    <div className="bg-white p-6 rounded-[8px] border border-gray-200">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2">
+                                <UserCheck className="w-5 h-5 text-emerald-600" />
+                                <h3 className="text-[15px] font-bold text-slate-900">My Attendance</h3>
+                            </div>
+                            <button
+                                onClick={() => router.push('/attendance')}
+                                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                            >
+                                View Log
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between mb-6 p-4 rounded-xl bg-slate-50 border border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-lg">
+                                    <Activity className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Avg. Work Hours</p>
+                                    <p className="text-[18px] font-extrabold text-slate-900 mt-0.5">{myAttendanceStats.avgHours}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-bold text-slate-900">Current Month</p>
+                                <p className="text-[11px] font-medium text-emerald-600 mt-0.5">{myAttendanceStats.present} Days Present</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2">
+                            <div className="p-3 text-center border border-gray-100 rounded-lg">
+                                <p className="text-lg font-bold text-slate-900">{myAttendanceStats.present}</p>
+                                <p className="text-[10px] font-semibold text-slate-500 uppercase mt-0.5">Present</p>
+                            </div>
+                            <div className="p-3 text-center border border-gray-100 rounded-lg bg-rose-50/50">
+                                <p className="text-lg font-bold text-rose-600">{myAttendanceStats.absent}</p>
+                                <p className="text-[10px] font-semibold text-rose-500 uppercase mt-0.5">Absent</p>
+                            </div>
+                            <div className="p-3 text-center border border-gray-100 rounded-lg bg-amber-50/50">
+                                <p className="text-lg font-bold text-amber-600">{myAttendanceStats.late}</p>
+                                <p className="text-[10px] font-semibold text-amber-600 uppercase mt-0.5">Late</p>
+                            </div>
+                            <div className="p-3 text-center border border-gray-100 rounded-lg bg-blue-50/50">
+                                <p className="text-lg font-bold text-blue-600">{myAttendanceStats.halfDay}</p>
+                                <p className="text-[10px] font-semibold text-blue-600 uppercase mt-0.5">Half Day</p>
+                            </div>
                         </div>
                     </div>
                 </div>

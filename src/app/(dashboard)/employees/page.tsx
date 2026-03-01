@@ -40,6 +40,9 @@ function EmployeesContent() {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [filterDepartment, setFilterDepartment] = useState("");
+    const [filterRole, setFilterRole] = useState("");
+    const [filterStatus, setFilterStatus] = useState("Active");
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -118,12 +121,17 @@ function EmployeesContent() {
         }
     };
 
-    const filtered = (employees || []).filter(e => e && e.isActive).filter(e => {
+    const filtered = (employees || []).filter(e => {
+        if (!e) return false;
+        if (filterStatus === "Active" && !e.isActive) return false;
+        if (filterStatus === "Inactive" && e.isActive) return false;
+        if (filterDepartment && e.department !== filterDepartment) return false;
+        if (filterRole && e.role !== filterRole) return false;
+
         const name = (e.name || "").toLowerCase();
         const email = (e.email || "").toLowerCase();
-        const dept = (e.department || "").toLowerCase();
         const search = searchTerm.toLowerCase();
-        return name.includes(search) || email.includes(search) || dept.includes(search);
+        return name.includes(search) || email.includes(search);
     });
 
     const getInitials = (name: string) => {
@@ -157,20 +165,47 @@ function EmployeesContent() {
                     <div>
                         <h2 className="text-base font-bold text-gray-900">Employees</h2>
                         <p className="text-xs text-gray-500">
-                            {(employees || []).length} total · {(employees || []).filter(e => e?.isActive).length} active
+                            {filtered.length} visible · {(employees || []).length} total
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search employees…"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                        />
+                <div className="flex flex-col sm:flex-row items-end gap-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search employees…"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                            />
+                        </div>
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="py-2 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        >
+                            <option value="All">All Status</option>
+                            <option value="Active">Active Only</option>
+                            <option value="Inactive">Inactive Only</option>
+                        </select>
+                        <select
+                            value={filterDepartment}
+                            onChange={(e) => setFilterDepartment(e.target.value)}
+                            className="py-2 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        >
+                            <option value="">All Departments</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <select
+                            value={filterRole}
+                            onChange={(e) => setFilterRole(e.target.value)}
+                            className="py-2 px-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                        >
+                            <option value="">All Roles</option>
+                            {Array.from(new Set(employees.map(e => e.role))).map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
                     </div>
                     {canManage && (
                         <div className="flex gap-2">

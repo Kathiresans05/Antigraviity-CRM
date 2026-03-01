@@ -128,7 +128,7 @@ export default function MeetingsPage() {
                 <div className="flex gap-3">
                     <button
                         onClick={() => setShowModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#1f6f8b] text-white rounded-lg text-sm font-bold shadow-sm hover:bg-[#1a5d75] transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white rounded-lg text-sm font-bold shadow-sm hover:bg-[#1e293b] transition-all"
                     >
                         <Plus className="w-4 h-4" /> Schedule Meeting
                     </button>
@@ -295,7 +295,7 @@ export default function MeetingsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-[#1f6f8b] to-[#2289a8]">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-[#0f172a] to-[#2289a8]">
                             <div className="flex items-center gap-2 text-white">
                                 <Calendar className="w-5 h-5" />
                                 <h2 className="text-base font-bold">Schedule Meeting</h2>
@@ -450,7 +450,7 @@ export default function MeetingsPage() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="flex-1 py-2.5 bg-[#1f6f8b] text-white rounded-lg text-sm font-bold hover:bg-[#1a5d75] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                                    className="flex-1 py-2.5 bg-[#0f172a] text-white rounded-lg text-sm font-bold hover:bg-[#1e293b] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
                                 >
                                     {saving ? (
                                         <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>

@@ -29,6 +29,7 @@ const ADMIN_LINKS = [
             { name: "Team Attendance", href: "/team-attendance", icon: Users },
             { name: "Manage Teams", href: "/manage-teams", icon: Users },
             { name: "Leave Management", href: "/leave-tracker", icon: Calendar },
+            { name: "Holidays", href: "/holidays", icon: Calendar },
         ]
     },
     {
@@ -66,6 +67,7 @@ const MANAGER_LINKS = [
             { name: "Team Attendance", href: "/team-attendance", icon: Users },
             { name: "Manage Teams", href: "/manage-teams", icon: Users },
             { name: "Leave Approvals", href: "/leave-approvals", icon: Calendar },
+            { name: "Holidays", href: "/holidays", icon: Calendar },
         ]
     },
     {

@@ -82,7 +82,8 @@ export async function POST(req: Request) {
             salutation, middleName, bloodGroup, maritalStatus, nationality,
             personalEmail, alternatePhone, residentialLandline,
             emergencyContactName, emergencyContactNumber,
-            countryOfBirth, stateOfBirth, placeOfBirth
+            countryOfBirth, stateOfBirth, placeOfBirth,
+            ifscCode, documents
         } = await req.json();
 
         // Validate reportingManager ID
@@ -102,6 +103,21 @@ export async function POST(req: Request) {
 
         const existing = await User.findOne({ email });
         let user;
+
+        let generatedEmployeeCode = employeeCode;
+        if (!generatedEmployeeCode && (!existing || !existing.employeeCode)) {
+            const lastUser = await User.findOne({ employeeCode: { $regex: /^EMP-\d+$/ } }).sort({ employeeCode: -1 }).collation({ locale: "en_US", numericOrdering: true });
+            if (lastUser && lastUser.employeeCode) {
+                const lastNum = parseInt(lastUser.employeeCode.replace('EMP-', ''), 10);
+                if (!isNaN(lastNum)) {
+                    generatedEmployeeCode = `EMP-${lastNum + 1}`;
+                } else {
+                    generatedEmployeeCode = `EMP-1001`;
+                }
+            } else {
+                generatedEmployeeCode = `EMP-1001`;
+            }
+        }
 
         const needsManagerApproval = !['Manager', 'HR', 'HR Manager', 'Admin'].includes(role || 'Employee');
         const defaultManagerStatus = needsManagerApproval ? 'Pending' : 'Approved';
@@ -123,7 +139,7 @@ export async function POST(req: Request) {
             existing.onboardingStatus = onboardingStatus || 'Pending Approval';
             existing.managerApproval = defaultManagerStatus;
             existing.hrApproval = 'Pending';
-            existing.employeeCode = employeeCode || existing.employeeCode;
+            existing.employeeCode = generatedEmployeeCode || existing.employeeCode;
             existing.joinDate = joinDate || new Date();
 
             // Detailed Fields Update
@@ -146,6 +162,8 @@ export async function POST(req: Request) {
             existing.placeOfBirth = placeOfBirth || existing.placeOfBirth;
             existing.bankName = bankName || existing.bankName;
             existing.accountNumber = accountNumber || existing.accountNumber;
+            existing.ifscCode = ifscCode || existing.ifscCode;
+            existing.documents = documents || existing.documents;
             existing.pfAccount = pfAccount || existing.pfAccount;
             existing.esiAccount = esiAccount || existing.esiAccount;
             existing.salaryDetails = salaryDetails || existing.salaryDetails;
@@ -188,10 +206,12 @@ export async function POST(req: Request) {
                 countryOfBirth,
                 stateOfBirth,
                 placeOfBirth,
-                employeeCode: employeeCode || `EMP${Math.floor(1000 + Math.random() * 9000)}`,
+                employeeCode: generatedEmployeeCode,
                 joinDate: joinDate || new Date(),
                 bankName,
                 accountNumber,
+                ifscCode,
+                documents,
                 pfAccount,
                 esiAccount,
                 salaryDetails: salaryDetails || {},
@@ -236,13 +256,32 @@ export async function PATCH(req: Request) {
             return NextResponse.json({ error: "User ID is required." }, { status: 400 });
         }
 
+        const existingUser = await User.findById(id);
+        if (!existingUser) {
+            return NextResponse.json({ error: "User not found." }, { status: 404 });
+        }
+
         const updateData: any = {};
         if (name !== undefined) updateData.name = name;
         if (email !== undefined) updateData.email = email;
         if (phone !== undefined) updateData.phone = phone;
         if (department !== undefined) updateData.department = department;
         if (role !== undefined) updateData.role = role;
-        if (isActive !== undefined) updateData.isActive = isActive;
+
+        let justActivated = false;
+        if (isActive !== undefined) {
+            updateData.isActive = isActive;
+            // Transition from pending to active (Approval logic)
+            if (isActive === true && !existingUser.isActive) {
+                updateData.onboardingStatus = 'Completed';
+                updateData.hrApproval = 'Approved';
+                justActivated = true;
+            } else if (isActive === false && existingUser.isActive) {
+                // If HR deactivates them later
+                updateData.onboardingStatus = 'Inactive';
+            }
+        }
+
         if (reportingManager !== undefined) updateData.reportingManager = reportingManager || null;
         if (teamLeader !== undefined) updateData.teamLeader = teamLeader || null;
 
@@ -255,6 +294,15 @@ export async function PATCH(req: Request) {
 
         if (!user) {
             return NextResponse.json({ error: "User not found." }, { status: 404 });
+        }
+
+        if (justActivated) {
+            try {
+                const { sendOnboardingCompleteEmail } = await import('@/lib/email');
+                await sendOnboardingCompleteEmail(user.email, user.name);
+            } catch (e) {
+                console.error("Failed to send onboarding email via hook", e);
+            }
         }
 
         return NextResponse.json({ message: "Employee updated.", user });

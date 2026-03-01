@@ -76,7 +76,7 @@ export default function LeaveApprovalsPage() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] bg-[#f5f7f9]">
-                <Loader2 className="w-8 h-8 text-[#0067ff] animate-spin mb-4" />
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
                 <p className="text-slate-500 font-medium tracking-wide">Fetching leave applications...</p>
             </div>
         );
@@ -89,7 +89,7 @@ export default function LeaveApprovalsPage() {
                 <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 rounded-lg shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-50 rounded-lg">
-                            <CalendarDays className="w-5 h-5 text-[#0067ff]" />
+                            <CalendarDays className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-800">Leave Approvals</h1>
@@ -112,7 +112,7 @@ export default function LeaveApprovalsPage() {
                                 <p className="text-lg font-bold text-emerald-600">{stats.approved}</p>
                             </div>
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-[#0067ff] text-white text-xs font-bold rounded-md hover:bg-[#0052cc] transition-colors shadow-sm">
+                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-md hover:bg-blue-700 transition-colors shadow-sm brand-shadow">
                             <Download className="w-3.5 h-3.5" />
                             Report
                         </button>
@@ -129,7 +129,7 @@ export default function LeaveApprovalsPage() {
                                 placeholder="Search by name or type..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all text-[13px]"
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 focus:bg-white transition-all text-[13px]"
                             />
                         </div>
                         <button className="flex items-center gap-2 px-3 py-2 text-slate-600 border border-slate-200 rounded-md hover:bg-slate-50 text-[13px] font-medium transition-colors">
@@ -146,7 +146,7 @@ export default function LeaveApprovalsPage() {
                                 onClick={() => setSearchTerm(status === 'All' ? '' : status)}
                                 className={clsx(
                                     "px-5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-tight transition-all",
-                                    (searchTerm === status || (status === 'All' && searchTerm === '')) ? 'bg-white text-[#0067ff] shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'
+                                    (searchTerm === status || (status === 'All' && searchTerm === '')) ? 'bg-white text-blue-600 shadow-sm border border-slate-200 brand-shadow' : 'text-slate-500 hover:text-slate-800'
                                 )}
                             >
                                 {status}
@@ -185,11 +185,11 @@ export default function LeaveApprovalsPage() {
                                     <tr key={record._id} className="hover:bg-slate-50/50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-[#f0f4ff] text-[#0067ff] flex items-center justify-center font-bold text-sm border border-blue-100 shadow-sm">
+                                                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100 shadow-sm">
                                                     {record.userId.name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-slate-800 text-[14px] hover:text-[#0067ff] cursor-pointer transition-colors">{record.userId.name}</p>
+                                                    <p className="font-bold text-slate-800 text-[14px] hover:text-blue-600 cursor-pointer transition-colors">{record.userId.name}</p>
                                                     <p className="text-[11px] text-slate-500 font-medium">{record.userId.email}</p>
                                                 </div>
                                             </div>
@@ -264,7 +264,7 @@ export default function LeaveApprovalsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                     <div className="bg-white border border-slate-200 p-5 rounded-lg shadow-sm flex items-start gap-4">
                         <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                            <MessageSquare className="w-5 h-5 text-[#0067ff]" />
+                            <MessageSquare className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
                             <h4 className="text-sm font-bold text-slate-800 mb-1">Dual Approval System</h4>

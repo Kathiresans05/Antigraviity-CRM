@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Megaphone, Users, Eye, Calendar,
     Plus, Search, Filter, Share2,
@@ -11,6 +11,8 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 // ─── Components ─────────────────────────────────────────────────────────────
 
@@ -53,57 +55,81 @@ export default function AnnouncementsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
 
-    const [announcements, setAnnouncements] = useState([
-        {
-            id: 1,
-            title: "Annual Company Retreat 2024",
-            content: "We are thrilled to announce that our annual retreat will be held in Goa this year! Get ready for a week of bonding...",
-            date: "Oct 24, 2023",
-            author: "Internal Comms",
-            reach: "98%",
-            priority: "General",
-            status: "Broadcasted"
-        },
-        {
-            id: 2,
-            title: "Urgent: Server Maintenance Tonight",
-            content: "Critical infrastructure updates are scheduled for 11 PM IST. Expect minor downtime across internal tools.",
-            date: "Today, 10:00 AM",
-            author: "IT Dept",
-            reach: "45%",
-            priority: "Urgent",
-            status: "Active"
-        },
-        {
-            id: 3,
-            title: "New Health Insurance Policy Updates",
-            content: "Important changes have been made to our health insurance coverage. Please review the attached document.",
-            date: "Oct 20, 2023",
-            author: "HR Benefits",
-            reach: "82%",
-            priority: "Important",
-            status: "Broadcasted"
-        },
-        {
-            id: 4,
-            title: "Q4 Townhall Meeting Schedule",
-            content: "Join us for the quarterly update from our leadership team. Topics include yearly performance and 2024 goals.",
-            date: "Scheduled: Oct 30",
-            author: "Leadership Office",
-            reach: "0%",
-            priority: "Important",
-            status: "Scheduled"
+    const [announcements, setAnnouncements] = useState<any[]>([]);
+    const [submitting, setSubmitting] = useState(false);
+    const broadcastRef = useRef<HTMLDivElement>(null);
+
+    // Quick Broadcast Form State
+    const [newTitle, setNewTitle] = useState("");
+    const [newContent, setNewContent] = useState("");
+    const [newIncludeLink, setNewIncludeLink] = useState(false);
+
+    const fetchAnnouncements = async () => {
+        try {
+            setLoading(true);
+            const res = await axios.get("/api/announcements");
+            setAnnouncements(res.data);
+
+            // Mark each announcement as seen
+            if (res.data && res.data.length > 0) {
+                res.data.forEach(async (ann: any) => {
+                    try {
+                        const announcementId = ann._id;
+                        await axios.post(`/api/announcements/${announcementId}/seen`);
+                    } catch (err) {
+                        console.error(`Failed to mark announcement ${ann._id} as seen:`, err);
+                    }
+                });
+            }
+        } catch (err) {
+            console.error("Failed to fetch announcements:", err);
+            toast.error("Failed to load announcements");
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
 
     useEffect(() => {
-        setTimeout(() => setLoading(false), 500);
+        fetchAnnouncements();
     }, []);
+
+    const handleBroadcast = async () => {
+        if (!newTitle.trim() || !newContent.trim()) {
+            return toast.error("Title and message are required.");
+        }
+
+        try {
+            setSubmitting(true);
+            await axios.post("/api/announcements", {
+                title: newTitle,
+                content: newContent,
+                includeCrmLink: newIncludeLink,
+                priority: "General", // Default for quick broadcast
+                status: "Broadcasted",
+            });
+
+            toast.success("Announcement broadcasted successfully!");
+            setNewTitle("");
+            setNewContent("");
+            setNewIncludeLink(false);
+            fetchAnnouncements();
+        } catch (error: any) {
+            console.error("Failed to broadcast:", error);
+            const errMsg = error.response?.data?.details || error.response?.data?.error || "Failed to broadcast announcement.";
+            toast.error(errMsg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const filteredAds = announcements.filter(ad =>
         ad.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ad.author.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const averageReach = announcements.length > 0
+        ? Math.round(announcements.reduce((acc, curr) => acc + parseInt(curr.reach || "0"), 0) / announcements.length)
+        : 0;
 
     if (loading) {
         return (
@@ -125,7 +151,10 @@ export default function AnnouncementsPage() {
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
                         <Calendar className="w-4 h-4" /> Schedule Broadcast
                     </button>
-                    <button className="flex items-center gap-2 px-5 py-2.5 bg-[#1f6f8b] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md">
+                    <button
+                        onClick={() => broadcastRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-md"
+                    >
                         <Plus className="w-4 h-4" /> New Announcement
                     </button>
                 </div>
@@ -135,28 +164,28 @@ export default function AnnouncementsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <AnnouncementStatCard
                     title="Total Broadcasts"
-                    value="124"
+                    value={announcements.length}
                     subtitle="Lifetime updates sent"
                     icon={Megaphone}
                     color="bg-blue-50 text-blue-600"
                 />
                 <AnnouncementStatCard
                     title="Current Reach"
-                    value="92%"
+                    value={`${averageReach}%`}
                     subtitle="Avg. engagement rate"
                     icon={Users}
                     color="bg-purple-50 text-purple-600"
                 />
                 <AnnouncementStatCard
                     title="Active Alerts"
-                    value="2"
+                    value={announcements.filter(a => a.status === 'Active' || a.priority === 'Urgent').length}
                     subtitle="Pinned/Urgent right now"
                     icon={Bell}
                     color="bg-amber-50 text-amber-600"
                 />
                 <AnnouncementStatCard
                     title="Scheduled Items"
-                    value="5"
+                    value={announcements.filter(a => a.status === 'Scheduled').length}
                     subtitle="Set for future release"
                     icon={Clock}
                     color="bg-emerald-50 text-emerald-600"
@@ -181,8 +210,8 @@ export default function AnnouncementsPage() {
                     </div>
 
                     <div className="divide-y divide-gray-50">
-                        {filteredAds.map((ad) => (
-                            <div key={ad.id} className="p-6 hover:bg-gray-50/50 transition-colors group cursor-pointer border-l-4 border-transparent hover:border-blue-500 transition-all">
+                        {filteredAds.length > 0 ? filteredAds.map((ad) => (
+                            <div key={ad._id || ad.id} className="p-6 hover:bg-gray-50/50 transition-colors group cursor-pointer border-l-4 border-transparent hover:border-blue-500 transition-all">
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-3">
@@ -190,7 +219,7 @@ export default function AnnouncementsPage() {
                                             <PriorityBadge priority={ad.priority} />
                                         </div>
                                         <p className="text-xs font-semibold text-gray-400 flex items-center gap-2">
-                                            <Calendar className="w-3 h-3" /> {ad.date} • By {ad.author}
+                                            <Calendar className="w-3 h-3" /> {new Date(ad.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })} • By {ad.author}
                                         </p>
                                     </div>
                                     <div className="text-center">
@@ -198,25 +227,45 @@ export default function AnnouncementsPage() {
                                         <p className="text-[10px] font-bold text-gray-400 uppercase">Seen</p>
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed font-medium">
+                                <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed font-medium whitespace-pre-wrap">
                                     {ad.content}
                                 </p>
                                 <div className="mt-4 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                                     <div className="flex items-center gap-4">
-                                        <button className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); toast("Detailed result viewing coming soon!", { icon: '📊' }); }}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700"
+                                        >
                                             <Eye className="w-3.5 h-3.5" /> View Results
                                         </button>
-                                        <button className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigator.clipboard.writeText(`Check out this announcement: ${ad.title}`);
+                                                toast.success("Link copied to clipboard!");
+                                            }}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-gray-700"
+                                        >
                                             <Share2 className="w-3.5 h-3.5" /> Share
                                         </button>
-                                        <Link href="/dashboard" className="flex items-center gap-1.5 text-xs font-bold text-[#1f6f8b] hover:text-blue-700 ml-auto bg-blue-50 px-3 py-1.5 rounded-lg transition-all">
-                                            Go to CRM <ArrowUpRight className="w-3.5 h-3.5" />
-                                        </Link>
+                                        {ad.includeCrmLink && (
+                                            <Link
+                                                href="/dashboard"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="flex items-center gap-1.5 text-xs font-bold text-[#0f172a] hover:text-blue-700 ml-auto bg-blue-50 px-3 py-1.5 rounded-lg transition-all"
+                                            >
+                                                Go to CRM <ArrowUpRight className="w-3.5 h-3.5" />
+                                            </Link>
+                                        )}
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-gray-400" />
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div className="p-12 text-center text-gray-500 font-semibold">
+                                No announcements found.
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-4 bg-gray-50/50 text-center">
@@ -226,7 +275,7 @@ export default function AnnouncementsPage() {
 
                 {/* Create New Call-to-Action */}
                 <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-[#1f6f8b] to-blue-800 p-8 rounded-2xl shadow-lg relative overflow-hidden text-white">
+                    <div ref={broadcastRef} className="bg-gradient-to-br from-[#0f172a] to-blue-800 p-8 rounded-2xl shadow-lg relative overflow-hidden text-white scroll-mt-24">
                         <div className="absolute top-0 right-0 p-8 opacity-10">
                             <Send className="w-32 h-32" />
                         </div>
@@ -239,19 +288,38 @@ export default function AnnouncementsPage() {
                                 <input
                                     type="text"
                                     placeholder="Announcement Title..."
+                                    value={newTitle}
+                                    onChange={(e) => setNewTitle(e.target.value)}
                                     className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm placeholder:text-blue-200/50 focus:outline-none focus:ring-2 focus:ring-white/30"
                                 />
                                 <textarea
                                     placeholder="Write your message here..."
                                     rows={3}
+                                    value={newContent}
+                                    onChange={(e) => setNewContent(e.target.value)}
                                     className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm placeholder:text-blue-200/50 focus:outline-none focus:ring-2 focus:ring-white/30 resize-none"
                                 />
                                 <div className="flex items-center gap-2 mb-2">
-                                    <input type="checkbox" id="addCrmLink" className="w-4 h-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500" />
+                                    <input
+                                        type="checkbox"
+                                        id="addCrmLink"
+                                        checked={newIncludeLink}
+                                        onChange={(e) => setNewIncludeLink(e.target.checked)}
+                                        className="w-4 h-4 rounded border-white/20 bg-white/10 text-blue-600 focus:ring-blue-500"
+                                    />
                                     <label htmlFor="addCrmLink" className="text-xs font-bold text-blue-100 cursor-pointer">Include "Go to CRM" button</label>
                                 </div>
-                                <button className="w-full bg-white text-[#1f6f8b] py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
-                                    <Send className="w-3.5 h-3.5" /> Broadcast Now
+                                <button
+                                    onClick={handleBroadcast}
+                                    disabled={submitting}
+                                    className="w-full bg-white text-[#0f172a] py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {submitting ? (
+                                        <div className="w-4 h-4 border-2 border-[#0f172a]/30 border-t-[#0f172a] rounded-full animate-spin" />
+                                    ) : (
+                                        <Send className="w-3.5 h-3.5" />
+                                    )}
+                                    {submitting ? 'Broadcasting...' : 'Broadcast Now'}
                                 </button>
                             </div>
                         </div>

@@ -158,7 +158,7 @@ export default function PerformancePage() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] bg-[#f5f7f9]">
-                <Loader2 className="w-8 h-8 text-[#0067ff] animate-spin mb-4" />
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
                 <p className="text-slate-500 font-medium tracking-wide">Synthesizing Analytics...</p>
             </div>
         );
@@ -169,22 +169,22 @@ export default function PerformancePage() {
         datasets: [{
             label: 'Performance Trend',
             data: trend.length > 0 ? trend.map(d => d.value) : [85, 88, 92, 90, 94, 98],
-            borderColor: '#0067ff',
+            borderColor: '#0f172a',
             backgroundColor: (context: any) => {
                 const ctx = context.chart.ctx;
                 const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-                gradient.addColorStop(0, 'rgba(0, 103, 255, 0.1)');
-                gradient.addColorStop(1, 'rgba(0, 103, 255, 0)');
+                gradient.addColorStop(0, 'rgba(15, 23, 42, 0.1)');
+                gradient.addColorStop(1, 'rgba(15, 23, 42, 0)');
                 return gradient;
             },
             fill: true,
             tension: 0.4,
             pointRadius: 6,
             pointBackgroundColor: '#fff',
-            pointBorderColor: '#0067ff',
+            pointBorderColor: '#0f172a',
             pointBorderWidth: 2,
             pointHoverRadius: 8,
-            pointHoverBackgroundColor: '#0067ff',
+            pointHoverBackgroundColor: '#0f172a',
             pointHoverBorderColor: '#fff',
         }]
     };
@@ -201,7 +201,7 @@ export default function PerformancePage() {
                 stats.avgSkills.teamwork,
                 stats.avgSkills.adaptability,
             ] : [88, 76, 65, 92, 85, 80],
-            backgroundColor: '#0067ff',
+            backgroundColor: '#0f172a',
             borderRadius: 4,
             barThickness: 24,
         }]
@@ -215,7 +215,7 @@ export default function PerformancePage() {
                     <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 rounded-lg shadow-sm">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-blue-50 rounded-lg">
-                                <TrendingUp className="w-5 h-5 text-[#0067ff]" />
+                                <TrendingUp className="w-5 h-5 text-blue-600" />
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold text-slate-800">Performance Analytics</h1>
@@ -233,7 +233,7 @@ export default function PerformancePage() {
                                     setReviewForm({ userId: '', score: 4.0, goalCompletion: 80, reviewerNotes: '' });
                                     setReviewModal(true);
                                 }}
-                                className="flex items-center gap-2 px-4 py-2 bg-[#0067ff] text-white text-[13px] font-bold rounded-md hover:bg-[#0052cc] transition-colors shadow-sm"
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[13px] font-bold rounded-md hover:bg-blue-700 transition-colors shadow-sm brand-shadow"
                             >
                                 <Plus className="w-4 h-4" />
                                 New Review
@@ -285,7 +285,7 @@ export default function PerformancePage() {
                                     <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Performance Trend</h3>
                                     <p className="text-[11px] font-bold text-slate-400">Monthly efficiency (Live Data)</p>
                                 </div>
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-[#0067ff] bg-blue-50 px-2 py-1 rounded">
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
                                     <Activity className="w-3.5 h-3.5" /> LIVE CONNECTED
                                 </div>
                             </div>
@@ -376,7 +376,7 @@ export default function PerformancePage() {
                                     onClick={() => setSearchTerm(status === 'All Reviews' ? '' : status)}
                                     className={clsx(
                                         "px-5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-tight transition-all",
-                                        (searchTerm === status || (status === 'All Reviews' && searchTerm === '')) ? 'bg-white text-[#0067ff] shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'
+                                        (searchTerm === status || (status === 'All Reviews' && searchTerm === '')) ? 'bg-white text-blue-600 shadow-sm border border-slate-200 brand-shadow' : 'text-slate-500 hover:text-slate-800'
                                     )}
                                 >
                                     {status === 'Improvement' ? 'Needs Imp.' : status}
@@ -415,11 +415,11 @@ export default function PerformancePage() {
                                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-[#f0f4ff] text-[#0067ff] flex items-center justify-center font-bold text-sm border border-blue-100 shadow-sm">
+                                                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100 shadow-sm">
                                                         {rev.name.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-slate-800 text-[14px] hover:text-[#0067ff] cursor-pointer transition-colors">{rev.name}</p>
+                                                        <p className="font-bold text-slate-800 text-[14px] hover:text-blue-600 cursor-pointer transition-colors">{rev.name}</p>
                                                         <p className="text-[11px] text-slate-500 font-medium uppercase tracking-tight">{rev.dept}</p>
                                                     </div>
                                                 </div>
@@ -445,7 +445,7 @@ export default function PerformancePage() {
                                             <td className="px-6 py-4 text-right">
                                                 <button
                                                     onClick={() => setReportModal(rev)}
-                                                    className="text-[12px] font-bold text-[#0067ff] hover:underline flex items-center gap-1 ml-auto group-hover:translate-x-1 transition-transform"
+                                                    className="text-[12px] font-bold text-blue-600 hover:underline flex items-center gap-1 ml-auto group-hover:translate-x-1 transition-transform"
                                                 >
                                                     Report
                                                     <ExternalLink className="w-3.5 h-3.5" />
@@ -483,7 +483,7 @@ export default function PerformancePage() {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         {/* Header */}
-                        <div className="p-6 bg-gradient-to-br from-[#0067ff] to-[#0052cc] text-white flex justify-between items-start flex-shrink-0">
+                        <div className="p-6 bg-gradient-to-br from-blue-600 to-blue-800 text-white flex justify-between items-start flex-shrink-0 brand-shadow">
                             <div className="flex items-center gap-4">
                                 <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center text-white font-bold text-xl">{reportModal.name?.charAt(0).toUpperCase()}</div>
                                 <div>
@@ -539,7 +539,7 @@ export default function PerformancePage() {
                                                     <div key={k} className="flex items-center gap-3">
                                                         <span className="text-[12px] font-semibold text-slate-600 w-28 capitalize">{k}</span>
                                                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-[#0067ff] rounded-full" style={{ width: `${v}%` }} />
+                                                            <div className="h-full bg-blue-600 rounded-full" style={{ width: `${v}%` }} />
                                                         </div>
                                                         <span className="text-[12px] font-bold text-slate-700 w-8 text-right">{v}</span>
                                                     </div>
@@ -562,10 +562,10 @@ export default function PerformancePage() {
                                 /* — EDIT MODE — */
                                 editForm && <div className="space-y-5">
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Performance Score: <span className="text-[#0067ff]">{editForm.score} / 5.0</span></label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Performance Score: <span className="text-blue-600">{editForm.score} / 5.0</span></label>
                                         <input type="range" min="1" max="5" step="0.1" value={editForm.score}
                                             onChange={e => setEditForm({ ...editForm, score: parseFloat(e.target.value) })}
-                                            className="w-full accent-[#0067ff]" />
+                                            className="w-full accent-blue-600" />
                                         <div className="flex justify-between text-[11px] text-slate-400 font-semibold mt-1"><span>1.0 Poor</span><span>3.0 Average</span><span>5.0 Excellent</span></div>
                                     </div>
                                     <div>
@@ -582,8 +582,8 @@ export default function PerformancePage() {
                                                     <span className="text-[12px] font-semibold text-slate-600 w-28 capitalize">{k}</span>
                                                     <input type="range" min="0" max="100" step="1" value={v}
                                                         onChange={e => setEditForm({ ...editForm, skills: { ...editForm.skills, [k]: parseInt(e.target.value) } })}
-                                                        className="flex-1 accent-[#0067ff]" />
-                                                    <span className="text-[12px] font-bold text-[#0067ff] w-8 text-right">{v}</span>
+                                                        className="flex-1 accent-blue-600" />
+                                                    <span className="text-[12px] font-bold text-blue-600 w-8 text-right">{v}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -598,7 +598,7 @@ export default function PerformancePage() {
                                 <button
                                     onClick={handleReportEditSubmit}
                                     disabled={submitting}
-                                    className="w-full py-2.5 bg-[#0067ff] text-white text-sm font-bold rounded-xl hover:bg-[#0052cc] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    className="w-full py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 brand-shadow"
                                 >
                                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                     Save Changes
@@ -613,7 +613,7 @@ export default function PerformancePage() {
                                         });
                                         setEditingReport(true);
                                     }}
-                                    className="w-full py-2.5 bg-[#0067ff] text-white text-sm font-bold rounded-xl hover:bg-[#0052cc] transition-all"
+                                    className="w-full py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all brand-shadow"
                                 >
                                     ✏️ Edit This Review
                                 </button>
@@ -649,8 +649,8 @@ export default function PerformancePage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Score: <span className="text-[#0067ff]">{reviewForm.score} / 5.0</span></label>
-                                    <input type="range" min="1" max="5" step="0.1" value={reviewForm.score} onChange={e => setReviewForm({ ...reviewForm, score: parseFloat(e.target.value) })} className="w-full accent-[#0067ff]" />
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Score: <span className="text-blue-600">{reviewForm.score} / 5.0</span></label>
+                                    <input type="range" min="1" max="5" step="0.1" value={reviewForm.score} onChange={e => setReviewForm({ ...reviewForm, score: parseFloat(e.target.value) })} className="w-full accent-blue-600" />
                                     <div className="flex justify-between text-[11px] text-slate-400 font-semibold mt-1"><span>1.0 Poor</span><span>3.0 Average</span><span>5.0 Excellent</span></div>
                                 </div>
                                 <div>
@@ -663,7 +663,7 @@ export default function PerformancePage() {
                                 </div>
                                 <div className="pt-2 flex justify-end gap-3">
                                     <button type="button" onClick={() => setReviewModal(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 rounded-xl">Cancel</button>
-                                    <button type="submit" disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 bg-[#0067ff] text-white text-sm font-bold rounded-xl hover:bg-[#0052cc] disabled:opacity-50">
+                                    <button type="submit" disabled={submitting} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 brand-shadow">
                                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Review
                                     </button>
                                 </div>

@@ -17,49 +17,58 @@ export const authOptions: AuthOptions = {
                     throw new Error("Missing email or password");
                 }
 
-                await connectToDatabase();
-
-                // --- SAFETY SEED DEFAULT ADMIN IF DB IS EMPTY ---
-                const userCount = await User.countDocuments();
-                if (userCount === 0) {
-                    const adminPassword = await bcrypt.hash('admin123', 10);
-                    await User.create({
-                        name: 'System Admin',
-                        email: 'admin@crm.com',
-                        password: adminPassword,
-                        role: 'Admin',
-                        isActive: true,
-                        onboardingStatus: 'Completed',
-                        managerApproval: 'Approved',
-                        hrApproval: 'Approved',
-                        employeeCode: 'ADM-001'
-                    });
+                console.log("Authorize called for email:", credentials.email);
+                try {
+                  console.log("Calling connectToDatabase from Authorize...");
+                  await connectToDatabase();
+                  console.log("Returned from connectToDatabase in Authorize.");
+                } catch (dbErr: any) {
+                  console.error("CRITICAL DB ERROR IN AUTHORIZE:", dbErr.message);
+                  throw new Error("Login failed: Database error");
                 }
 
-                const user = await User.findOne({ email: credentials.email });
+                try {
+                  console.log("Querying for user email...");
+                  const user = await User.findOne({ email: credentials.email });
+                  console.log("User found:", user ? "YES" : "NO");
 
-                if (!user || !user.isActive) {
-                    throw new Error("Invalid credentials or account inactive");
+                  if (!user) {
+                    console.log("No user found with this email.");
+                    return null;
+                  }
+
+                  if (!user.isActive) {
+                    console.log("User account is inactive.");
+                    return null;
+                  }
+
+                  console.log("Comparing passwords...");
+                  const isPasswordCorrect = await bcrypt.compare(credentials.password, user.password);
+                  console.log("Password match result:", isPasswordCorrect);
+
+                  if (!isPasswordCorrect) {
+                      console.log("Password mismatch for user:", user.email);
+                      return null;
+                  }
+
+                  console.log("Authentication successful for:", user.email, "Role:", user.role);
+                  return {
+                      id: user._id.toString(),
+                      email: user.email,
+                      name: user.name,
+                      role: user.role,
+                  };
+                } catch (queryErr: any) {
+                  console.error("QUERY ERROR in Authorize:", queryErr.message);
+                  return null;
                 }
-
-                const isPasswordCorrect = await bcrypt.compare(credentials.password, user.password);
-
-                if (!isPasswordCorrect) {
-                    throw new Error("Invalid credentials");
-                }
-
-                return {
-                    id: user._id.toString(),
-                    email: user.email,
-                    name: user.name,
-                    role: user.role,
-                };
             }
         })
     ],
     callbacks: {
         async jwt({ token, user }: { token: any, user: any }) {
             if (user) {
+                console.log("JWT Callback - Initializing token with user:", user.email, "Role:", user.role);
                 token.id = user.id;
                 token.role = user.role;
             }
@@ -67,6 +76,7 @@ export const authOptions: AuthOptions = {
         },
         async session({ session, token }: { session: any, token: any }) {
             if (session?.user) {
+                console.log("Session Callback - Mapping token to session for:", session.user.email, "Role:", token.role);
                 session.user.id = token.id;
                 session.user.role = token.role;
             }
@@ -79,5 +89,5 @@ export const authOptions: AuthOptions = {
     session: {
         strategy: "jwt" as const,
     },
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: process.env.NEXTAUTH_SECRET || "default_local_secret_for_development_only",
 };

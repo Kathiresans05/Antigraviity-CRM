@@ -9,6 +9,7 @@ import Project from "@/models/Project";
 import Task from "@/models/Task";
 import Support from "@/models/Support";
 import Announcement from "@/models/Announcement";
+import Holiday from "@/models/Holiday";
 import moment from "moment";
 import { markAbsenteesToday } from "@/lib/attendance-utils";
 
@@ -30,6 +31,13 @@ export async function GET(req: Request) {
         const todayStart = moment().startOf('day').toDate();
         const todayEnd = moment().endOf('day').toDate();
         const monthStart = moment().startOf('month').toDate();
+
+        // Check if today is a Holiday
+        const holidayToday = await Holiday.findOne({
+            date: { $gte: todayStart, $lte: todayEnd }
+        });
+        const currentMonth = moment().month() + 1;
+        const currentDay = moment().date();
 
         const userId = (session.user as any).id;
         const userRole = (session.user as any).role;
@@ -105,6 +113,35 @@ export async function GET(req: Request) {
             status: { $nin: ['Completed', 'Done'] }
         });
 
+        // --- New KPI Calculations ---
+        let absentToday = Math.max(0, totalEmployees - presentToday - onLeaveToday);
+        if (holidayToday) {
+            absentToday = 0;
+        }
+        const probationEndingMonth = await User.countDocuments({
+            ...userFilter,
+            joinDate: {
+                $gte: moment().subtract(3, 'months').startOf('month').toDate(),
+                $lte: moment().subtract(3, 'months').endOf('month').toDate()
+            }
+        });
+
+        const allActiveUsers = await User.find(userFilter).select('documents');
+        const pendingDocumentsCount = allActiveUsers.filter(u => {
+            const docs = u.documents || {};
+            return !docs.aadharCard || !docs.panCard || !docs.resume || !docs.offerLetter;
+        }).length;
+
+        const workAnniversariesMonth = await User.countDocuments({
+            ...userFilter,
+            $expr: {
+                $and: [
+                    { $eq: [{ $month: '$joinDate' }, currentMonth] },
+                    { $lt: [{ $year: '$joinDate' }, moment().year()] }
+                ]
+            }
+        });
+
         // 2. Weekly Attendance Data (Mon-Fri of current week)
         const weeklyAttendance: any = { present: [], absent: [] };
         const weekStart = moment().startOf('week').add(1, 'days'); // Monday
@@ -166,8 +203,6 @@ export async function GET(req: Request) {
         }
 
         // Birthdays Today (Month and Day match)
-        const currentMonth = moment().month() + 1;
-        const currentDay = moment().date();
         const birthdaysToday = await User.countDocuments({
             $expr: {
                 $and: [
@@ -353,7 +388,13 @@ export async function GET(req: Request) {
                 teamAttendanceRate,
                 myPendingTasks: myPendingTasksCount,
                 pendingOnboarding: onboardingApprovals.length,
-                teamProductivity: performanceData[performanceData.length - 1] // Current month/week productivity
+                teamProductivity: performanceData[performanceData.length - 1], // Current month/week productivity
+                absentToday,
+                lateArrivals: lateLogins,
+                probationEndingMonth,
+                pendingDocuments: pendingDocumentsCount,
+                workAnniversariesMonth,
+                holidayToday: holidayToday ? holidayToday.name : null
             },
             weeklyAttendance,
             projectStatus: {

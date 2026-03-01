@@ -28,13 +28,13 @@ export default function OnboardingPage() {
     const [formData, setFormData] = useState({
         // Step 1: Basic
         salutation: "Mr.", firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "Male", dob: "",
-        bloodGroup: "", maritalStatus: "Single", nationality: "Indian",
+        bloodGroup: "", maritalStatus: "Single", nationality: "Indian", address: "",
         // Step 2: Job
         designation: "", department: "", joinDate: "", reportingManager: "", probationPeriod: "6",
         employeeCode: "", // Manual Employee ID
-        role: "Employee",
+        role: "Employee", employmentType: "Full-time",
         // Step 3: Salary
-        currency: "INR", basePay: "", bankName: "", accountNo: "",
+        currency: "INR", basePay: "", bankName: "", accountNumber: "", ifscCode: "",
         pfAccount: "", esiAccount: "",
         basicSalary: "", hra: "", conveyance: "",
         pfEmployee: "", esiEmployee: "", professionalTax: "",
@@ -99,6 +99,10 @@ export default function OnboardingPage() {
                 ...formData,
                 name: `${formData.firstName} ${formData.lastName}`,
                 onboardingStatus: manualOnboardingStatus || "In Progress",
+                address: formData.address,
+                employmentType: formData.employmentType,
+                accountNumber: formData.accountNumber,
+                ifscCode: formData.ifscCode,
                 salaryDetails: {
                     basePay: Number(formData.basePay) || 0,
                     basicSalary: Number(formData.basicSalary) || 0,
@@ -169,9 +173,37 @@ export default function OnboardingPage() {
         }
 
         setIsSubmitting(true);
-        const submitToast = toast.loading("Submitting for approval...");
+        const submitToast = toast.loading("Uploading documents & submitting...");
 
         try {
+            const docsUrls: any = {};
+            for (const [docName, file] of Object.entries(uploadedFiles)) {
+                const docForm = new FormData();
+                docForm.append("file", file);
+                docForm.append("category", "Employee Records");
+
+                // Construct custom name to identify employee in Document Center
+                const employeeName = `${formData.firstName} ${formData.lastName}`.trim();
+                docForm.append("customName", `${employeeName} - ${docName}`);
+                docForm.append("employeeName", employeeName);
+
+                const upRes = await fetch("/api/documents", { method: "POST", body: docForm });
+                if (upRes.ok) {
+                    const upData = await upRes.json();
+                    if (docName === "Aadhar Card") docsUrls.aadharCard = upData.fileUrl;
+                    if (docName === "PAN Card") docsUrls.panCard = upData.fileUrl;
+                    if (docName === "Resume") docsUrls.resume = upData.fileUrl;
+                    if (docName === "Offer Letter") docsUrls.offerLetter = upData.fileUrl;
+                    if (docName === "Certificates") docsUrls.certificates = upData.fileUrl;
+                } else {
+                    const errData = await upRes.json().catch(() => ({}));
+                    toast.error(`Failed to upload ${docName}: ${errData.details || errData.error || "Unknown error"}`);
+                    setIsSubmitting(false);
+                    toast.dismiss(submitToast);
+                    return;
+                }
+            }
+
             const payload = {
                 name: `${formData.firstName} ${formData.lastName}`.trim(),
                 firstName: formData.firstName,
@@ -184,10 +216,14 @@ export default function OnboardingPage() {
                 joinDate: formData.joinDate ? new Date(formData.joinDate) : undefined,
                 probationPeriod: formData.probationPeriod ? parseInt(formData.probationPeriod) : undefined,
                 employeeCode: formData.employeeCode, // Manual ID
+                address: formData.address,
+                employmentType: formData.employmentType,
                 bankName: formData.bankName,
-                accountNumber: formData.accountNo,
+                accountNumber: formData.accountNumber,
+                ifscCode: formData.ifscCode,
                 pfAccount: formData.pfAccount,
                 esiAccount: formData.esiAccount,
+                documents: docsUrls,
                 salaryDetails: {
                     basePay: Number(formData.basePay) || 0,
                     basicSalary: Number(formData.basicSalary) || 0,
@@ -234,15 +270,15 @@ export default function OnboardingPage() {
                 setCurrentStep(1);
                 setFormData({
                     salutation: "Mr.", firstName: "", middleName: "", lastName: "", email: "", phone: "", gender: "Male", dob: "",
-                    bloodGroup: "", maritalStatus: "Single", nationality: "Indian",
+                    bloodGroup: "", maritalStatus: "Single", nationality: "Indian", address: "",
                     designation: "", department: "", joinDate: "", reportingManager: "", probationPeriod: "6",
                     employeeCode: "",
-                    currency: "INR", basePay: "", bankName: "", accountNo: "",
+                    currency: "INR", basePay: "", bankName: "", accountNumber: "", ifscCode: "",
                     pfAccount: "", esiAccount: "",
                     basicSalary: "", hra: "", conveyance: "",
                     pfEmployee: "", esiEmployee: "", professionalTax: "",
                     pfEmployer: "", esiEmployer: "",
-                    role: "Employee",
+                    role: "Employee", employmentType: "Full-time",
                     personalEmail: "", alternatePhone: "", residentialLandline: "",
                     emergencyContactName: "", emergencyContactNumber: "",
                     countryOfBirth: "India", stateOfBirth: "", placeOfBirth: "",
@@ -269,10 +305,10 @@ export default function OnboardingPage() {
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] bg-[#f1f5f9] -m-6">
             {/* ─── Top Stats (Zoho Flat & Compact) ────────────────── */}
-            <div className="flex items-center gap-4 p-6 pt-8 overflow-x-auto selection:bg-[#1f6f8b]/10">
+            <div className="flex items-center gap-4 p-6 pt-8 overflow-x-auto selection:bg-[#0f172a]/10">
                 {(!loadingStats && stats.length > 0) ? stats.map((stat, i) => {
                     const icons = [UserCircle, Calendar, CheckCircle2, ShieldCheck];
-                    const colors = ["text-[#1f6f8b]", "text-amber-600", "text-emerald-600", "text-indigo-600"];
+                    const colors = ["text-[#0f172a]", "text-amber-600", "text-emerald-600", "text-indigo-600"];
                     const bgs = ["bg-blue-50/50", "bg-amber-50/50", "bg-emerald-50/50", "bg-indigo-50/50"];
                     const Icon = icons[i] || UserCircle;
 
@@ -323,7 +359,7 @@ export default function OnboardingPage() {
                                         <div className="flex items-center gap-3">
                                             <div className={clsx(
                                                 "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
-                                                isActive ? "bg-[#1f6f8b] text-white ring-4 ring-[#1f6f8b]/10" :
+                                                isActive ? "bg-[#0f172a] text-white ring-4 ring-[#0f172a]/10" :
                                                     isCompleted ? "bg-emerald-500 text-white" :
                                                         "bg-white border border-slate-300 text-slate-400"
                                             )}>
@@ -332,7 +368,7 @@ export default function OnboardingPage() {
                                             <div className="flex flex-col pr-6">
                                                 <span className={clsx(
                                                     "text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
-                                                    isActive ? "text-[#1f6f8b]" : isCompleted ? "text-emerald-600" : "text-slate-400"
+                                                    isActive ? "text-[#0f172a]" : isCompleted ? "text-emerald-600" : "text-slate-400"
                                                 )}>{step.title}</span>
                                             </div>
                                         </div>
@@ -365,7 +401,7 @@ export default function OnboardingPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-5">
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Salutation</label>
-                                                <select name="salutation" value={formData.salutation} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs bg-white">
+                                                <select name="salutation" value={formData.salutation} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs bg-white">
                                                     <option>Mr.</option>
                                                     <option>Ms.</option>
                                                     <option>Mrs.</option>
@@ -374,19 +410,19 @@ export default function OnboardingPage() {
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">First Name <span className="text-rose-500">*</span></label>
-                                                <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="John" />
+                                                <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="John" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Middle Name</label>
-                                                <input type="text" name="middleName" value={formData.middleName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="Quincy" />
+                                                <input type="text" name="middleName" value={formData.middleName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="Quincy" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Last Name <span className="text-rose-500">*</span></label>
-                                                <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="Doe" />
+                                                <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="Doe" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Gender</label>
-                                                <select name="gender" value={formData.gender} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs bg-white">
+                                                <select name="gender" value={formData.gender} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs bg-white">
                                                     <option>Male</option>
                                                     <option>Female</option>
                                                     <option>Other</option>
@@ -394,33 +430,33 @@ export default function OnboardingPage() {
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Date of Birth</label>
-                                                <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" />
+                                                <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Blood Group</label>
-                                                <select name="bloodGroup" value={formData.bloodGroup} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs bg-white">
+                                                <select name="bloodGroup" value={formData.bloodGroup} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs bg-white">
                                                     <option value="">Select...</option>
                                                     {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => <option key={bg} value={bg}>{bg}</option>)}
                                                 </select>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Marital Status</label>
-                                                <select name="maritalStatus" value={formData.maritalStatus} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs bg-white">
+                                                <select name="maritalStatus" value={formData.maritalStatus} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs bg-white">
                                                     <option>Single</option>
                                                     <option>Married</option>
                                                 </select>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Nationality</label>
-                                                <input type="text" name="nationality" value={formData.nationality} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="e.g. Indian" />
+                                                <input type="text" name="nationality" value={formData.nationality} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="e.g. Indian" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Work Email <span className="text-rose-500">*</span></label>
-                                                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="john.doe@email.com" />
+                                                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="john.doe@email.com" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Mobile Number</label>
-                                                <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="+91 XXXX XXXX" />
+                                                <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="+91 XXXX XXXX" />
                                             </div>
                                         </div>
 
@@ -429,15 +465,15 @@ export default function OnboardingPage() {
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-5">
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">Country of Birth</label>
-                                                    <input type="text" name="countryOfBirth" value={formData.countryOfBirth} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="India" />
+                                                    <input type="text" name="countryOfBirth" value={formData.countryOfBirth} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="India" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">State of Birth</label>
-                                                    <input type="text" name="stateOfBirth" value={formData.stateOfBirth} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="Tamil Nadu" />
+                                                    <input type="text" name="stateOfBirth" value={formData.stateOfBirth} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="Tamil Nadu" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">Place of Birth</label>
-                                                    <input type="text" name="placeOfBirth" value={formData.placeOfBirth} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="Chennai" />
+                                                    <input type="text" name="placeOfBirth" value={formData.placeOfBirth} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="Chennai" />
                                                 </div>
                                             </div>
                                         </div>
@@ -482,7 +518,21 @@ export default function OnboardingPage() {
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">Employee ID <span className="text-rose-500">*</span></label>
-                                                <input type="text" name="employeeCode" value={formData.employeeCode} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-[#1f6f8b]/30 bg-blue-50/10 outline-none text-xs" placeholder="e.g. EMP-101" />
+                                                <input type="text" name="employeeCode" value={formData.employeeCode} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-[#0f172a]/30 bg-blue-50/10 outline-none text-xs" placeholder="e.g. EMP-101" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[12px] font-semibold text-slate-600">Employment Type <span className="text-rose-500">*</span></label>
+                                                <select
+                                                    name="employmentType"
+                                                    value={formData.employmentType}
+                                                    onChange={handleInputChange}
+                                                    className="w-full h-10 px-3 rounded-md border border-[#0f172a]/30 bg-blue-50/20 outline-none text-xs transition-all focus:border-[#0f172a]"
+                                                >
+                                                    <option value="Full-time">Full-time</option>
+                                                    <option value="Intern">Intern</option>
+                                                    <option value="Contract">Contract</option>
+                                                    <option value="Freelance">Freelance</option>
+                                                </select>
                                             </div>
                                             <div className="space-y-1.5">
                                                 <label className="text-[12px] font-semibold text-slate-600">System Role <span className="text-rose-500">*</span></label>
@@ -490,7 +540,7 @@ export default function OnboardingPage() {
                                                     name="role"
                                                     value={formData.role}
                                                     onChange={handleInputChange}
-                                                    className="w-full h-10 px-3 rounded-md border border-[#1f6f8b]/30 bg-blue-50/20 outline-none text-xs transition-all focus:border-[#1f6f8b]"
+                                                    className="w-full h-10 px-3 rounded-md border border-[#0f172a]/30 bg-blue-50/20 outline-none text-xs transition-all focus:border-[#0f172a]"
                                                 >
                                                     <option value="Employee">Standard Employee</option>
                                                     <option value="Manager">Standard Manager</option>
@@ -512,7 +562,7 @@ export default function OnboardingPage() {
                                                         <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
                                                     ))}
                                                 </select>
-                                                {loadingUsers && <p className="text-[9px] text-[#1f6f8b] animate-pulse mt-1">Fetching managers list...</p>}
+                                                {loadingUsers && <p className="text-[9px] text-[#0f172a] animate-pulse mt-1">Fetching managers list...</p>}
                                             </div>
                                         </div>
 
@@ -521,23 +571,27 @@ export default function OnboardingPage() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-5">
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">Personal Email</label>
-                                                    <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="personal@email.com" />
+                                                    <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="personal@email.com" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">Alternate Mobile</label>
-                                                    <input type="tel" name="alternatePhone" value={formData.alternatePhone} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="+91 XXXX XXXX" />
+                                                    <input type="tel" name="alternatePhone" value={formData.alternatePhone} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="+91 XXXX XXXX" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">Residential Landline</label>
-                                                    <input type="tel" name="residentialLandline" value={formData.residentialLandline} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="044-XXXXXXX" />
+                                                    <input type="tel" name="residentialLandline" value={formData.residentialLandline} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="044-XXXXXXX" />
+                                                </div>
+                                                <div className="space-y-1.5 md:col-span-2">
+                                                    <label className="text-[12px] font-semibold text-slate-600">Current Address</label>
+                                                    <textarea name="address" value={formData.address} onChange={handleInputChange} rows={2} className="w-full px-3 py-2 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs resize-none" placeholder="Full residential address" />
                                                 </div>
                                                 <div className="space-y-1.5 md:col-span-1">
                                                     <label className="text-[12px] font-semibold text-slate-600">Emergency Contact Name</label>
-                                                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="Relative's Name" />
+                                                    <input type="text" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="Relative's Name" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="text-[12px] font-semibold text-slate-600">Emergency Contact Number</label>
-                                                    <input type="tel" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#1f6f8b] outline-none text-xs" placeholder="+91 XXXX XXXX" />
+                                                    <input type="tel" name="emergencyContactNumber" value={formData.emergencyContactNumber} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 focus:border-[#0f172a] outline-none text-xs" placeholder="+91 XXXX XXXX" />
                                                 </div>
                                             </div>
                                         </div>
@@ -574,7 +628,11 @@ export default function OnboardingPage() {
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <label className="text-[12px] font-semibold text-slate-600">Account Number</label>
-                                                        <input type="text" name="accountNo" value={formData.accountNo} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none text-xs" />
+                                                        <input type="text" name="accountNumber" value={formData.accountNumber} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none text-xs" />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[12px] font-semibold text-slate-600">IFSC Code</label>
+                                                        <input type="text" name="ifscCode" value={formData.ifscCode} onChange={handleInputChange} className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none text-xs" />
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <label className="text-[12px] font-semibold text-slate-600">PF Number (UAN)</label>
@@ -609,7 +667,7 @@ export default function OnboardingPage() {
                                                                     }));
                                                                     toast.success("Auto-filled standard breakdown");
                                                                 }}
-                                                                className="text-[10px] font-bold text-[#1f6f8b] bg-[#1f6f8b]/10 hover:bg-[#1f6f8b]/20 px-3 py-1.5 rounded transition-colors"
+                                                                className="text-[10px] font-bold text-[#0f172a] bg-[#0f172a]/10 hover:bg-[#0f172a]/20 px-3 py-1.5 rounded transition-colors"
                                                             >
                                                                 Auto-Fill Standards
                                                             </button>
@@ -643,15 +701,15 @@ export default function OnboardingPage() {
                                                                         <tbody className="divide-y divide-slate-100">
                                                                             <tr>
                                                                                 <td className="px-4 py-2">Basic</td>
-                                                                                <td className="px-4 py-2"><input type="number" name="basicSalary" value={formData.basicSalary} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 focus:border-[#1f6f8b] outline-none" placeholder="0" /></td>
+                                                                                <td className="px-4 py-2"><input type="number" name="basicSalary" value={formData.basicSalary} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 focus:border-[#0f172a] outline-none" placeholder="0" /></td>
                                                                             </tr>
                                                                             <tr>
                                                                                 <td className="px-4 py-2">HRA @ 50% of Basic</td>
-                                                                                <td className="px-4 py-2"><input type="number" name="hra" value={formData.hra} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 focus:border-[#1f6f8b] outline-none" placeholder="0" /></td>
+                                                                                <td className="px-4 py-2"><input type="number" name="hra" value={formData.hra} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 focus:border-[#0f172a] outline-none" placeholder="0" /></td>
                                                                             </tr>
                                                                             <tr>
                                                                                 <td className="px-4 py-2">Conveyance / Special Allowance</td>
-                                                                                <td className="px-4 py-2"><input type="number" name="conveyance" value={formData.conveyance} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 focus:border-[#1f6f8b] outline-none" placeholder="0" /></td>
+                                                                                <td className="px-4 py-2"><input type="number" name="conveyance" value={formData.conveyance} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 focus:border-[#0f172a] outline-none" placeholder="0" /></td>
                                                                             </tr>
                                                                             <tr className="bg-slate-50/50 font-bold">
                                                                                 <td className="px-4 py-3 text-slate-900">Gross Total (A)</td>
@@ -689,9 +747,9 @@ export default function OnboardingPage() {
                                                                                 <td className="px-4 py-2"><input type="number" name="esiEmployer" value={formData.esiEmployer} onChange={handleInputChange} className="w-full h-8 px-2 text-right rounded border border-slate-200 text-slate-500 focus:border-slate-400 outline-none" placeholder="0" /></td>
                                                                             </tr>
 
-                                                                            <tr className="bg-[#1f6f8b]/5 font-bold">
+                                                                            <tr className="bg-[#0f172a]/5 font-bold">
                                                                                 <td className="px-4 py-4 text-slate-900">Total Cost to Company (CTC)</td>
-                                                                                <td className="px-4 py-4 text-right text-[#1f6f8b] text-base">{formatCur(ctc)}</td>
+                                                                                <td className="px-4 py-4 text-right text-[#0f172a] text-base">{formatCur(ctc)}</td>
                                                                             </tr>
                                                                         </tbody>
                                                                     </table>
@@ -714,29 +772,31 @@ export default function OnboardingPage() {
                                         </div>
                                         <div className="space-y-4">
                                             {[
-                                                { name: "ID Card / Passport", status: "Required" },
-                                                { name: "Education Certificate", status: "Required" },
-                                                { name: "Signature Scan", status: "Optional" }
+                                                { name: "Aadhar Card", status: "Required" },
+                                                { name: "PAN Card", status: "Required" },
+                                                { name: "Resume", status: "Required" },
+                                                { name: "Offer Letter", status: "Optional" },
+                                                { name: "Certificates", status: "Optional" }
                                             ].map((doc, i) => {
                                                 const file = uploadedFiles[doc.name];
                                                 return (
-                                                    <label key={i} className="flex items-center justify-between p-4 bg-white rounded-md border border-slate-200 group hover:border-[#1f6f8b]/40 transition-colors cursor-pointer shadow-sm relative">
+                                                    <label key={i} className="flex items-center justify-between p-4 bg-white rounded-md border border-slate-200 group hover:border-[#0f172a]/40 transition-colors cursor-pointer shadow-sm relative">
                                                         <div className="flex items-center gap-4">
                                                             <div className="w-10 h-10 rounded border border-slate-200 flex items-center justify-center bg-slate-50">
                                                                 {file ? (
                                                                     <Check className="w-5 h-5 text-emerald-500" />
                                                                 ) : (
-                                                                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-[#1f6f8b] transition-colors" />
+                                                                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-[#0f172a] transition-colors" />
                                                                 )}
                                                             </div>
                                                             <div>
                                                                 <p className="text-[13px] font-bold text-slate-800">{doc.name}</p>
-                                                                <p className={clsx("text-[11px] font-medium", file ? "text-emerald-600 truncate max-w-[200px]" : "text-[#1f6f8b]/70")}>
+                                                                <p className={clsx("text-[11px] font-medium", file ? "text-emerald-600 truncate max-w-[200px]" : "text-[#0f172a]/70")}>
                                                                     {file ? file.name : doc.status}
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <div className="text-[11px] font-bold text-[#1f6f8b] bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                                                        <div className="text-[11px] font-bold text-[#0f172a] bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
                                                             {file ? 'Change' : 'Upload'}
                                                         </div>
                                                         <input
@@ -777,7 +837,7 @@ export default function OnboardingPage() {
                                                     name="password"
                                                     value={formData.password}
                                                     onChange={handleInputChange}
-                                                    className="w-full h-10 px-3 rounded-md border border-[#1f6f8b]/30 bg-blue-50/10 outline-none text-xs focus:border-[#1f6f8b]"
+                                                    className="w-full h-10 px-3 rounded-md border border-[#0f172a]/30 bg-blue-50/10 outline-none text-xs focus:border-[#0f172a]"
                                                     placeholder="Set employee password"
                                                 />
                                             </div>
@@ -788,7 +848,7 @@ export default function OnboardingPage() {
                                                     name="confirmPassword"
                                                     value={formData.confirmPassword}
                                                     onChange={handleInputChange}
-                                                    className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none text-xs focus:border-[#1f6f8b]"
+                                                    className="w-full h-10 px-3 rounded-md border border-slate-200 outline-none text-xs focus:border-[#0f172a]"
                                                     placeholder="Verify password"
                                                 />
                                             </div>
@@ -797,7 +857,7 @@ export default function OnboardingPage() {
                                                 <div className="flex flex-wrap gap-4">
                                                     {["Chat", "Files", "Tickets", "Feed", "Wiki"].map(perm => (
                                                         <label key={perm} className="flex items-center gap-2 cursor-pointer py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors">
-                                                            <input type="checkbox" defaultChecked className="w-3.5 h-3.5 rounded border-slate-300 text-[#1f6f8b]" />
+                                                            <input type="checkbox" defaultChecked className="w-3.5 h-3.5 rounded border-slate-300 text-[#0f172a]" />
                                                             <span className="text-[11px] font-medium text-slate-600">{perm}</span>
                                                         </label>
                                                     ))}
@@ -823,12 +883,12 @@ export default function OnboardingPage() {
                                                     <div className="flex-1">
                                                         <p className="text-xs font-bold text-slate-800">{policy}</p>
                                                     </div>
-                                                    <button className="text-[11px] font-bold text-[#1f6f8b] hover:underline">View Policy</button>
+                                                    <button className="text-[11px] font-bold text-[#0f172a] hover:underline">View Policy</button>
                                                 </div>
                                             ))}
                                             <div className="mt-8 pt-6 border-t border-slate-100">
                                                 <label className="flex items-start gap-3 cursor-pointer group">
-                                                    <input type="checkbox" className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#1f6f8b]" />
+                                                    <input type="checkbox" className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#0f172a]" />
                                                     <span className="text-xs text-slate-600 group-hover:text-slate-900 transition-colors">
                                                         I confirm that I have read and shared the necessary company documentation with the employee and received formal acceptance.
                                                     </span>
@@ -863,7 +923,7 @@ export default function OnboardingPage() {
                                             </div>
                                             <div className="space-y-1">
                                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Employee ID</p>
-                                                <p className="text-xs font-bold text-[#1f6f8b]">{formData.employeeCode || "-"}</p>
+                                                <p className="text-xs font-bold text-[#0f172a]">{formData.employeeCode || "-"}</p>
                                             </div>
                                             <div className="space-y-1">
                                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">System Role</p>
@@ -899,7 +959,7 @@ export default function OnboardingPage() {
                             disabled={currentStep === 1}
                             className={clsx(
                                 "text-[13px] font-bold flex items-center gap-1.5 transition-all",
-                                currentStep === 1 ? "text-slate-300 cursor-not-allowed" : "text-[#1f6f8b] hover:text-[#16556b]"
+                                currentStep === 1 ? "text-slate-300 cursor-not-allowed" : "text-[#0f172a] hover:text-[#16556b]"
                             )}
                         >
                             <ChevronLeft className="w-4 h-4" /> Previous
@@ -919,7 +979,7 @@ export default function OnboardingPage() {
                             <button
                                 onClick={currentStep === STEPS.length ? activateEmployee : nextStep}
                                 disabled={isSubmitting}
-                                className="bg-[#1f6f8b] hover:bg-[#16556b] disabled:opacity-70 text-white px-6 py-2.5 rounded text-[13px] font-bold shadow-sm transition-all flex items-center gap-2"
+                                className="bg-[#0f172a] hover:bg-[#16556b] disabled:opacity-70 text-white px-6 py-2.5 rounded text-[13px] font-bold shadow-sm transition-all flex items-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>

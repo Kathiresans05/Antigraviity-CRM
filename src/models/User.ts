@@ -55,8 +55,16 @@ const UserSchema = new mongoose.Schema({
     probationPeriod: { type: Number }, // in months
     bankName: { type: String },
     accountNumber: { type: String },
+    ifscCode: { type: String },
     pfAccount: { type: String },
     esiAccount: { type: String },
+    documents: {
+        aadharCard: { type: String },
+        panCard: { type: String },
+        resume: { type: String },
+        offerLetter: { type: String },
+        certificates: { type: String }
+    },
     salaryDetails: {
         basePay: { type: Number },
         basicSalary: { type: Number },

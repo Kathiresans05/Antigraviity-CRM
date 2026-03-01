@@ -1,6 +1,7 @@
 import Attendance from "@/models/Attendance";
 import User from "@/models/User";
 import Leave from "@/models/Leave";
+import Holiday from "@/models/Holiday";
 import moment from "moment";
 
 /**
@@ -17,6 +18,11 @@ export async function markAbsenteesToday() {
 
     const todayStart = moment().startOf('day').toDate();
     const todayEnd = moment().endOf('day').toDate();
+
+    // Check if today is a Holiday
+    const holidayToday = await Holiday.findOne({
+        date: { $gte: todayStart, $lte: todayEnd }
+    });
 
     // 1. Get all active employees whose joinDate is before today
     //    (new hires who started today should not be auto-marked absent)
@@ -52,9 +58,14 @@ export async function markAbsenteesToday() {
     }).select('userId');
     const onLeaveIds = approvedLeaves.map(leave => leave.userId.toString());
 
-    // 5. Create "Absent" or "On Leave" records for them
+    // 5. Create "Absent", "On Leave", or "Holiday" records for them
     const newRecords = absenteeIds.map(userId => {
-        const status = onLeaveIds.includes(userId.toString()) ? 'On Leave' : 'Absent';
+        let status = 'Absent';
+        if (holidayToday) {
+            status = 'Holiday';
+        } else if (onLeaveIds.includes(userId.toString())) {
+            status = 'On Leave';
+        }
         return {
             userId,
             date: todayStart,

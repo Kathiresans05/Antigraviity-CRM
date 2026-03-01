@@ -35,7 +35,7 @@ export default function ManpowerTab({ requests, isAdmin, onRefresh }: { requests
                     <h3 className="text-lg font-bold text-gray-900">Manpower Requests</h3>
                     <p className="text-sm font-medium text-gray-500">Approve department hiring requests to convert them to Job Openings.</p>
                 </div>
-                <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[#1f6f8b] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#1a5d75]">
+                <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#1e293b]">
                     <Plus className="w-4 h-4" /> Raise Request
                 </button>
             </div>
@@ -119,7 +119,7 @@ export default function ManpowerTab({ requests, isAdmin, onRefresh }: { requests
                             <textarea placeholder="Additional Notes" className="w-full p-2.5 border rounded-xl text-sm resize-none" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
                             <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
                                 <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2 text-sm font-bold text-gray-500">Cancel</button>
-                                <button type="submit" disabled={submitting} className="px-6 py-2 bg-[#1f6f8b] text-white rounded-xl text-sm font-bold hover:bg-[#1a5d75]">Submit Request</button>
+                                <button type="submit" disabled={submitting} className="px-6 py-2 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:bg-[#1e293b]">Submit Request</button>
                             </div>
                         </form>
                     </div>

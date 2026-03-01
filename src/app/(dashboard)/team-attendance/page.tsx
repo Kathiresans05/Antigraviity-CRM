@@ -8,7 +8,7 @@ import {
     Users, UserCheck, UserX, Calendar as CalendarIcon,
     Search, Download, Clock, ChevronLeft, ChevronRight,
     AlertCircle, ArrowUpDown, Filter, MoreHorizontal, RefreshCw, Square, CheckCircle, XCircle,
-    Activity
+    Activity, Gift
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import moment from "moment";
@@ -23,6 +23,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
     Absent: { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500", label: "Absent" },
     'On Leave': { bg: "bg-violet-50", text: "text-violet-700", dot: "bg-violet-500", label: "On Leave" },
     'Auto Closed': { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400", label: "Auto Closed" },
+    'Holiday': { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500", label: "Holiday" },
     'Offline': { bg: "bg-slate-50", text: "text-slate-400", dot: "bg-slate-300", label: "Offline" },
 };
 
@@ -40,16 +41,19 @@ export default function TeamAttendancePage() {
     const [selectedRecord, setSelectedRecord] = useState<any>(null);
     const [showCorrectionModal, setShowCorrectionModal] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+    const [holidays, setHolidays] = useState<any[]>([]);
 
     const fetchData = async () => {
         try {
             setRefreshing(true);
-            const [usersRes, attendanceRes] = await Promise.all([
+            const [usersRes, attendanceRes, holidaysRes] = await Promise.all([
                 axios.get("/api/users?strict=true"),
-                axios.get("/api/attendance")
+                axios.get("/api/attendance"),
+                axios.get("/api/holidays")
             ]);
             setTeamMembers(usersRes.data.users || []);
             setAttendanceRecords(attendanceRes.data.records || []);
+            setHolidays(holidaysRes.data || []);
         } catch (error) {
             console.error("Failed to fetch data", error);
             toast.error("Failed to sync team data");
@@ -117,7 +121,10 @@ export default function TeamAttendancePage() {
                 const selDate = selectedDate.clone().startOf('day');
 
                 if (user.isActive) {
-                    if (selDate.isBefore(now.clone().startOf('day'))) {
+                    const isHoliday = holidays.some(h => moment(h.date).isSame(selDate, 'day'));
+                    if (isHoliday) {
+                        status = 'Holiday';
+                    } else if (selDate.isBefore(now.clone().startOf('day'))) {
                         status = 'Absent';
                     } else if (selDate.isSame(now, 'day') && now.hour() >= 11) {
                         status = 'Absent';
@@ -177,10 +184,11 @@ export default function TeamAttendancePage() {
         const absent = baseRecords.filter(r => r.status === 'Absent').length;
         const leave = baseRecords.filter(r => r.status === 'On Leave').length;
         const late = baseRecords.filter(r => r.status === 'Late').length;
+        const holiday = baseRecords.filter(r => r.status === 'Holiday').length;
         const corrections = baseRecords.filter(r => r.correctionRequested && r.correctionDetails?.status === 'Pending').length;
         const total = baseRecords.length;
 
-        return { present, absent, leave, late, corrections, total };
+        return { present, absent, leave, late, holiday, corrections, total };
     }, [mergedRecords, searchTerm]);
 
     const handleCorrectionAction = async (action: 'approveCorrection' | 'rejectCorrection') => {
@@ -248,7 +256,7 @@ export default function TeamAttendancePage() {
                                 <RefreshCw className={clsx("w-3.5 h-3.5", refreshing && "animate-spin")} />
                                 Sync Data
                             </button>
-                            <button className="flex items-center gap-2 px-6 py-2 text-[12px] font-semibold text-white bg-[#0067ff] border border-[#005ce6] rounded-lg hover:bg-[#005ce6] transition-all shadow-sm">
+                            <button className="flex items-center gap-2 px-6 py-2 text-[12px] font-semibold text-white bg-blue-600 border border-blue-700 rounded-lg hover:bg-blue-700 transition-all shadow-sm brand-shadow">
                                 <Download className="w-3.5 h-3.5" />
                                 Export Reports
                             </button>
@@ -263,13 +271,13 @@ export default function TeamAttendancePage() {
                                 className={clsx(
                                     "px-4 py-3 text-[13px] font-semibold capitalize transition-all relative",
                                     activeTab === tab
-                                        ? "text-[#0067ff]"
+                                        ? "text-blue-600"
                                         : "text-slate-500 hover:text-slate-800"
                                 )}
                             >
                                 {tab} View
                                 {activeTab === tab && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0067ff]" />
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
                                 )}
                             </button>
                         ))}
@@ -300,6 +308,10 @@ export default function TeamAttendancePage() {
                     <SummaryCard
                         label="Late In" value={stats.late} color="#d97706" icon={<Clock />} badge="Low" subLabel="Metric"
                         isActive={statusFilter === "Late"} onClick={() => setStatusFilter("Late")}
+                    />
+                    <SummaryCard
+                        label={`Holidays`} value={stats.holiday} color="#6366f1" icon={<Gift className="w-5 h-5" />} badge="Fixed" subLabel="Calendar"
+                        isActive={statusFilter === "Holiday"} onClick={() => setStatusFilter("Holiday")}
                     />
                     <SummaryCard
                         label="Pending Fix" value={stats.corrections} color="#ea580c" icon={<AlertCircle />}
@@ -336,14 +348,14 @@ export default function TeamAttendancePage() {
                                 placeholder="Search employees..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0067ff]/20 focus:border-[#0067ff] focus:bg-white transition-all w-full"
+                                className="pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 focus:bg-white transition-all w-full"
                             />
                         </div>
                         <div className="relative group">
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#0067ff]/20 focus:border-[#0067ff] cursor-pointer appearance-none transition-all"
+                                className="pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 cursor-pointer appearance-none transition-all"
                                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '0.8rem' }}
                             >
                                 <option value="All">All Status</option>
@@ -352,6 +364,7 @@ export default function TeamAttendancePage() {
                                 <option value="Absent">Absent</option>
                                 <option value="Offline">Offline</option>
                                 <option value="On Leave">On Leave</option>
+                                <option value="Holiday">Holiday</option>
                             </select>
                         </div>
                     </div>
@@ -377,7 +390,7 @@ export default function TeamAttendancePage() {
                                     <tr>
                                         <td colSpan={7} className="px-6 py-24 text-center">
                                             <div className="flex flex-col items-center">
-                                                <div className="w-8 h-8 border-3 border-slate-100 border-t-[#0067ff] rounded-full animate-spin mb-4" />
+                                                <div className="w-8 h-8 border-3 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-4" />
                                                 <p className="text-[13px] font-semibold text-slate-600">Syncing records...</p>
                                             </div>
                                         </td>
@@ -398,7 +411,7 @@ export default function TeamAttendancePage() {
                                             <tr key={record._id} className="hover:bg-slate-50 transition-all group">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 border border-slate-200 group-hover:bg-[#0067ff] group-hover:text-white group-hover:border-[#0067ff] transition-all">
+                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 border border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
                                                             {user?.name?.charAt(0).toUpperCase()}
                                                         </div>
                                                         <div>
@@ -534,7 +547,7 @@ export default function TeamAttendancePage() {
                             <button
                                 onClick={() => handleCorrectionAction('approveCorrection')}
                                 disabled={actionLoading}
-                                className="flex-[2] py-2.5 bg-[#0067ff] text-white rounded-lg text-[13px] font-bold hover:bg-[#005ce6] transition-all shadow-md shadow-blue-100"
+                                className="flex-[2] py-2.5 bg-blue-600 text-white rounded-lg text-[13px] font-bold hover:bg-blue-700 transition-all shadow-md brand-shadow"
                             >
                                 {actionLoading ? 'Processing...' : 'Approve Fix'}
                             </button>
@@ -558,7 +571,7 @@ function SummaryCard({
             className={clsx(
                 "group bg-white p-5 rounded-xl border transition-all duration-300 text-left w-full",
                 isActive
-                    ? "border-[#0067ff] shadow-md ring-1 ring-[#0067ff]/10"
+                    ? "border-blue-600 shadow-md ring-1 ring-blue-600/10"
                     : "border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md"
             )}
         >
@@ -566,7 +579,7 @@ function SummaryCard({
                 <div
                     className={clsx(
                         "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
-                        isActive ? "bg-[#0067ff] text-white" : "bg-slate-50 text-slate-600 group-hover:bg-slate-100"
+                        isActive ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600 group-hover:bg-slate-100"
                     )}
                     style={!isActive ? { color } : {}}
                 >
@@ -575,7 +588,7 @@ function SummaryCard({
                 {badge && (
                     <div className={clsx(
                         "px-2 py-0.5 rounded-md border text-[10px] font-bold transition-colors",
-                        isActive ? "bg-[#0067ff]/10 border-[#0067ff]/20 text-[#0067ff]" : "bg-slate-50 border-slate-200 text-slate-500"
+                        isActive ? "bg-blue-600/10 border-blue-600/20 text-blue-600" : "bg-slate-50 border-slate-200 text-slate-500"
                     )}>
                         {badge}
                     </div>
@@ -585,14 +598,14 @@ function SummaryCard({
             <div>
                 <h3 className={clsx(
                     "text-2xl font-bold tracking-tight tabular-nums mb-1 transition-colors",
-                    isActive ? "text-[#0067ff]" : "text-slate-900"
+                    isActive ? "text-blue-600" : "text-slate-900"
                 )}>
                     {value}
                 </h3>
                 <div className="flex flex-col">
                     <p className={clsx(
                         "text-[12px] font-semibold transition-colors",
-                        isActive ? "text-[#0067ff]/80" : "text-slate-600"
+                        isActive ? "text-blue-600/80" : "text-slate-600"
                     )}>{label}</p>
                     {subLabel && <p className="text-[11px] font-medium text-slate-400 mt-0.5">{subLabel}</p>}
                 </div>

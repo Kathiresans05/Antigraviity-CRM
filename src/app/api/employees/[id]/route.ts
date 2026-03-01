@@ -81,7 +81,8 @@ export async function GET(
             managerDetails: {
                 name: user.reportingManager?.name || "None",
                 role: user.reportingManager?.role || "N/A"
-            }
+            },
+            rawUser: user
         };
 
         // If salary is included, only admins should see it

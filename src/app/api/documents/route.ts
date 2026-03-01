@@ -44,9 +44,11 @@ export async function POST(req: Request) {
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
         const category = formData.get("category") as string;
+        const customName = formData.get("customName") as string | null;
+        const employeeName = formData.get("employeeName") as string | null;
 
         if (!file || !category) {
-            return NextResponse.json({ error: "File and category are required" }, { status: 400 });
+            return NextResponse.json({ error: "File and category are required", details: `File: ${!!file}, Category: ${category}` }, { status: 400 });
         }
 
         // Validate User
@@ -66,9 +68,13 @@ export async function POST(req: Request) {
             await mkdir(uploadDir, { recursive: true });
         }
 
-        // Handle duplicate filenames gracefully
+        // Handle duplicate filenames gracefully and apply customName if present
+        const originalExt = file.name.split(".").pop() || "";
+        const baseNameToUse = customName ?
+            `${customName}.${originalExt}` : file.name;
+
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const safeFileName = baseNameToUse.replace(/[^a-zA-Z0-9.-]/g, "_");
         const newFileName = `${uniqueSuffix}-${safeFileName}`;
         const filePath = join(uploadDir, newFileName);
 
@@ -83,7 +89,7 @@ export async function POST(req: Request) {
             type: ext,
             size: file.size,
             category,
-            owner: user.name,
+            owner: employeeName || user.name,
             ownerId: user._id,
             fileUrl: `/uploads/documents/${newFileName}`,
         });
@@ -91,6 +97,6 @@ export async function POST(req: Request) {
         return NextResponse.json(newDoc, { status: 201 });
     } catch (error: any) {
         console.error("Failed to upload document:", error);
-        return NextResponse.json({ error: "Failed to upload document" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to upload document", details: error.message || error.toString() }, { status: 500 });
     }
 }
