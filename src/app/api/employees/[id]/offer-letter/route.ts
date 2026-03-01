@@ -104,9 +104,10 @@ export async function GET(
 
         // Serialize to bytes
         const pdfBytes = await pdfDoc.save();
+        const buffer = Buffer.from(pdfBytes);
 
         // Return the PDF buffer as a downloadable file
-        return new NextResponse(pdfBytes, {
+        return new NextResponse(buffer, {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
