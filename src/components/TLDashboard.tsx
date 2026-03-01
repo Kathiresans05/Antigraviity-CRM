@@ -68,7 +68,7 @@ export default function TLDashboard({ session, data: initialData }: any) {
             // Re-using manager stats API route for now as it provides team-wide context
             const res = await fetch('/api/dashboard/stats');
             const result = await res.json();
-            if (result.stats) {
+            if (result && result.stats) {
                 setData(result);
             }
         } catch (err) {
@@ -80,9 +80,10 @@ export default function TLDashboard({ session, data: initialData }: any) {
 
     useEffect(() => {
         if (!initialData) fetchData();
-    }, [initialData]);
+        else setLoading(false);
+    }, []);
 
-    if (loading && !data?.stats) {
+    if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
