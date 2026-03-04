@@ -13,33 +13,40 @@ if (!cached) {
 }
 
 async function connectToDatabase() {
-  console.log("connectToDatabase function start...");
   if (cached.conn) {
-    console.log("Using cached DB connection.");
-    return cached.conn;
+    // Verify connection is still alive
+    if (mongoose.connection.readyState === 1) {
+      return cached.conn;
+    }
+    // Reset stale connection
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (!cached.promise) {
-    console.log("No cached promise, creating new connection...");
     const opts = {
       bufferCommands: false,
-      connectTimeoutMS: 10000,
-      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 30000,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      retryWrites: true,
+      retryReads: true,
     };
 
-    console.log("Calling mongoose.connect with URI...");
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      console.log("Mongoose connected successfully.");
+      console.log('[DB] Connected successfully.');
       return mongoose;
     }).catch(err => {
-      console.error("Mongoose connection promise rejected:", err.message);
+      console.error('[DB] Connection failed:', err.message);
+      // Clear the failed promise so the next request retries
+      cached.promise = null;
+      cached.conn = null;
       throw err;
     });
   }
-  
-  console.log("Awaiting cached promise completion...");
+
   cached.conn = await cached.promise;
-  console.log("Database connection established.");
   return cached.conn;
 }
 

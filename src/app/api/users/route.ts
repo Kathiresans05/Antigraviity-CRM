@@ -25,10 +25,12 @@ export async function GET(req: Request) {
         // Get managed user IDs - use broad visibility unless strict is requested
         const managedIds = await getManagedUserIds(userId, userRole, isStrict);
 
-        let query: any = {};
-        if (managedIds && managedIds.length > 0) {
-            query = { _id: { $in: managedIds } };
+        // If no managed IDs were found (and user isn't Admin/HR who get all IDs), return empty
+        if (!managedIds || managedIds.length === 0) {
+            return NextResponse.json({ users: [] });
         }
+
+        const query = { _id: { $in: managedIds } };
 
         const users = await User.find(query, '_id name email role phone department joinDate isActive reportingManager teamLeader')
             .populate('reportingManager', 'name role')

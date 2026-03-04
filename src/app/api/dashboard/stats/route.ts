@@ -12,6 +12,7 @@ import Announcement from "@/models/Announcement";
 import Holiday from "@/models/Holiday";
 import moment from "moment";
 import { markAbsenteesToday } from "@/lib/attendance-utils";
+import { getManagedUserIds } from "@/lib/hierarchy";
 
 export const dynamic = 'force-dynamic';
 
@@ -50,42 +51,44 @@ export async function GET(req: Request) {
         let taskFilter: any = { status: { $nin: ['Completed', 'Done'] } };
         let projectFilter: any = {};
 
-        if (isManager) {
-            userFilter.reportingManager = userId;
+        const managedIds = await getManagedUserIds(userId, userRole, true);
 
-            // For tasks: assigned to team members OR created by the manager
-            const teamMembers = await User.find({ reportingManager: userId }).select('_id');
-            const teamMemberIds = teamMembers.map(m => m._id);
+        if (!isHRAdmin) {
+            userFilter._id = { $in: managedIds };
 
             taskFilter = {
                 ...taskFilter,
                 $or: [
-                    { assignedTo: { $in: teamMemberIds } },
+                    { assignedTo: { $in: managedIds } },
                     { createdBy: userId }
                 ]
             };
-
-            // For projects: projects where at least one team member is assigned (simplified for now)
-            // Ideally Project model should have manager or team field. 
-            // Since we don't have a clear mapping, we'll keep it global or filter by tasks.
-            // Let's stick to global for projects unless we find a specific manager field.
         }
 
         // 1. KPI Aggregation
         const totalEmployees = await User.countDocuments(userFilter);
 
-        const presentToday = await Attendance.countDocuments({
+        const attendanceTodayQuery: any = {
             date: { $gte: todayStart, $lte: todayEnd },
             status: { $in: ['Present', 'Late'] }
-        });
+        };
+        if (!isHRAdmin) attendanceTodayQuery.userId = { $in: managedIds };
 
-        const onLeaveToday = await Leave.countDocuments({
+        const presentToday = await Attendance.countDocuments(attendanceTodayQuery);
+
+        const leaveTodayQuery: any = {
             status: 'Approved',
             startDate: { $lte: todayEnd },
             endDate: { $gte: todayStart }
-        });
+        };
+        if (!isHRAdmin) leaveTodayQuery.userId = { $in: managedIds };
 
-        const pendingLeaves = await Leave.countDocuments({ status: 'Pending' });
+        const onLeaveToday = await Leave.countDocuments(leaveTodayQuery);
+
+        const pendingLeaveQuery: any = { status: 'Pending' };
+        if (!isHRAdmin) pendingLeaveQuery.userId = { $in: managedIds };
+
+        const pendingLeaves = await Leave.countDocuments(pendingLeaveQuery);
 
         const newJoineesMonth = await User.countDocuments({
             joinDate: { $gte: monthStart }
@@ -102,10 +105,13 @@ export async function GET(req: Request) {
         const totalWorkingEmployees = totalEmployees - onLeaveToday;
         const teamAttendanceRate = totalWorkingEmployees > 0 ? Math.round((presentToday / totalWorkingEmployees) * 100) : 0;
 
-        const lateLogins = await Attendance.countDocuments({
+        const lateLoginsQuery: any = {
             date: { $gte: todayStart, $lte: todayEnd },
             status: 'Late'
-        });
+        };
+        if (!isHRAdmin) lateLoginsQuery.userId = { $in: managedIds };
+
+        const lateLogins = await Attendance.countDocuments(lateLoginsQuery);
 
         const overdueTasksCount = await Task.countDocuments({
             ...taskFilter,
@@ -151,17 +157,23 @@ export async function GET(req: Request) {
             const dayStart = day.startOf('day').toDate();
             const dayEnd = day.endOf('day').toDate();
 
-            const pCount = await Attendance.countDocuments({
+            const attendanceQuery: any = {
                 date: { $gte: dayStart, $lte: dayEnd },
                 status: { $in: ['Present', 'Late'] }
-            });
+            };
+            if (!isHRAdmin) attendanceQuery.userId = { $in: managedIds };
+
+            const pCount = await Attendance.countDocuments(attendanceQuery);
 
             // "Absent" is team size - present - (on leave that day)
-            const onLeaveThatDay = await Leave.countDocuments({
+            const leaveQuery: any = {
                 status: 'Approved',
                 startDate: { $lte: dayEnd },
                 endDate: { $gte: dayStart }
-            });
+            };
+            if (!isHRAdmin) leaveQuery.userId = { $in: managedIds };
+
+            const onLeaveThatDay = await Leave.countDocuments(leaveQuery);
 
             const aCount = Math.max(0, totalEmployees - pCount - onLeaveThatDay);
 

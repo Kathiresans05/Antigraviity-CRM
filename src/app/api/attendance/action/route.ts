@@ -111,24 +111,33 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "No pending correction found" }, { status: 400 });
             }
 
-            record.clockInTime = record.correctionDetails.requestedTimeIn;
-            record.clockOutTime = record.correctionDetails.requestedTimeOut;
+            const requestedIn = record.correctionDetails.requestedTimeIn;
+            const requestedOut = record.correctionDetails.requestedTimeOut;
+            const clockInMom = moment(requestedIn);
+            const clockOutMom = moment(requestedOut);
 
-            if (record.clockOutTime && record.clockInTime) {
-                const totalMins = moment(record.clockOutTime).diff(moment(record.clockInTime), 'minutes');
-                const netMins = Math.max(0, totalMins - (record.breakMinutes || 0));
-                record.totalHours = parseFloat((netMins / 60).toFixed(2));
-                if (record.totalHours >= 8) {
-                    record.status = 'Present';
-                } else if (record.totalHours >= 7) {
-                    record.status = 'Early Logout';
-                } else {
-                    record.status = 'Half Day';
-                }
+            const totalDurationMins = clockOutMom.diff(clockInMom, 'minutes');
+            const netMins = Math.max(0, totalDurationMins - (record.breakMinutes || 0));
+            const hours = netMins / 60;
+
+            record.clockInTime = requestedIn;
+            record.clockOutTime = requestedOut;
+            record.totalHours = parseFloat(hours.toFixed(2));
+
+            // Determine final status
+            if (netMins < 4 * 60) {
+                record.status = 'Absent';
+            } else if (netMins < 8 * 60) {
+                record.status = 'Half Day';
+            } else if (totalDurationMins < 9 * 60) {
+                record.status = 'Early Logout';
+            } else {
+                const threshold = moment(requestedIn).startOf('day').hour(10).minute(0);
+                record.status = clockInMom.isAfter(threshold) ? 'Late' : 'Present';
             }
 
             record.correctionRequested = false;
-            record.autoClosed = false; // Reset if it was auto-closed
+            record.autoClosed = false;
             record.correctionDetails.status = 'Approved';
 
             if (!record.auditLog) record.auditLog = [];

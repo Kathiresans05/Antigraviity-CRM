@@ -69,7 +69,7 @@ export async function GET(req: Request) {
                 const records = await DailyChecklist.find({
                     userId: { $in: managedIds },
                     date: { $gte: todayStart, $lte: todayEnd }
-                }).populate('userId', 'name email');
+                }).populate('userId', 'name email role teamLeader reportingManager');
 
                 // Always return the list for management roles
                 return NextResponse.json({ records });

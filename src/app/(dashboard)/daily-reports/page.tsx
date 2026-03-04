@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import {
     CheckSquare, Search, Filter, Loader2, Users, Calendar,
@@ -12,16 +12,50 @@ import Modal from "@/components/Modal";
 import moment from "moment";
 import clsx from "clsx";
 
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+    Present: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500", label: "Present" },
+    Late: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500", label: "Late" },
+    'Half Day': { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500", label: "Half Day" },
+    'Early Logout': { bg: "bg-orange-50", text: "text-orange-700", dot: "bg-orange-500", label: "Early Logout" },
+    Absent: { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500", label: "Absent" },
+    'On Leave': { bg: "bg-violet-50", text: "text-violet-700", dot: "bg-violet-500", label: "On Leave" },
+    'Auto Closed': { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400", label: "Auto Closed" },
+    'Holiday': { bg: "bg-indigo-50", text: "text-indigo-700", dot: "bg-indigo-500", label: "Holiday" },
+    'Offline': { bg: "bg-slate-50", text: "text-slate-400", dot: "bg-slate-300", label: "Offline" },
+};
+
 export default function DailyReportsPage() {
     const { data: session } = useSession();
     const [activeTab, setActiveTab] = useState<"checklists" | "summaries">("checklists");
-    const [checklists, setChecklists] = useState([]);
-    const [attendance, setAttendance] = useState([]);
+    const [checklists, setChecklists] = useState<any[]>([]);
+    const [attendance, setAttendance] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [selectedRecord, setSelectedRecord] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [now, setNow] = useState(Date.now());
+
+    // Tick every 30s to update live Net Hours for active employees
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 30000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const attendanceMap = React.useMemo(() => {
+        const map: Record<string, any> = {};
+        attendance.forEach(att => {
+            if (!att.userId) return;
+            const uId = typeof att.userId === 'object' ? att.userId._id : att.userId;
+            const key = `${uId}_${moment(att.date).format('YYYY-MM-DD')}`;
+            map[key] = att;
+        });
+        return map;
+    }, [attendance]);
+    const [expandedTls, setExpandedTls] = useState<string[]>([]);
+
+    const managerId = (session?.user as any)?.id;
+    const userRole = (session?.user as any)?.role;
 
     useEffect(() => {
         if (activeTab === "checklists") {
@@ -47,14 +81,73 @@ export default function DailyReportsPage() {
         setLoading(true);
         try {
             const res = await axios.get("/api/attendance");
-            // Filter only for today's records or let manager see recent ones
-            // For managers, we want to see the logout summaries
             setAttendance(res.data.records || []);
         } catch (error) {
             console.error("Failed to fetch attendance records", error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const exportToCSV = () => {
+        const allRecords: any[] = [];
+        attendanceReports.forEach((rec: any) => {
+            allRecords.push(rec);
+        });
+
+        const headers = ['Employee', 'Department', 'Date', 'Clock In', 'Clock Out', 'Net Hours', 'Breaks (mins)', 'Status', 'Daily Summary'];
+        const rows = allRecords.map((r: any) => [
+            r.userId?.name || 'Unknown',
+            r.userId?.department || 'General',
+            moment(r.date).format('DD MMM YYYY'),
+            r.clockInTime ? moment(r.clockInTime).format('hh:mm A') : '--',
+            r.clockOutTime ? moment(r.clockOutTime).format('hh:mm A') : (r.clockInTime ? 'Active' : '--'),
+            r.totalHours ? r.totalHours.toFixed(2) : '0',
+            Math.round(r.breakMinutes || 0),
+            r.status || '--',
+            `"${(r.workStatusUpload || '').replace(/"/g, "'")}"`,
+        ]);
+
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Team_Attendance_${moment().format('MMM_YYYY')}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const isDirectReport = (user: any) => {
+        if (!user) return false;
+        const managerIdStr = String(managerId);
+        const uManagerId = user.reportingManager?._id || user.reportingManager;
+        const uTLId = user.teamLeader?._id || user.teamLeader;
+
+        // TL: strictly only show employees whose teamLeader is this TL
+        if (userRole === 'TL') {
+            return !!(uTLId && String(uTLId) === managerIdStr);
+        }
+
+        const reportsDirectly = uManagerId && String(uManagerId) === managerIdStr;
+        const managementRoles = ['Manager', 'Admin', 'HR Manager', 'HR', 'Assigned Manager'];
+        const isManagementView = managementRoles.includes(userRole || '');
+
+        if (isManagementView) {
+            // Managers see TLs directly reporting to them + employees without TL
+            return !!(reportsDirectly);
+        }
+
+        return !!(reportsDirectly);
+    };
+
+    const getSubordinates = (tlId: string, data: any[]) => {
+        return data.filter((record: any) => {
+            const user = record.userId;
+            if (!user) return false;
+            const uTLId = user.teamLeader?._id || user.teamLeader;
+            return uTLId && String(uTLId) === String(tlId) && user.role === 'Employee';
+        });
     };
 
     const filteredChecklists = checklists.filter((checklist: any) => {
@@ -67,17 +160,35 @@ export default function DailyReportsPage() {
         return matchesSearch;
     });
 
+    const checklistReports = filteredChecklists.filter(c => isDirectReport(c.userId));
+
     const filteredAttendance = attendance.filter((record: any) => {
         const userName = record.userId?.name || record.userId?.email || "";
         const matchesSearch = userName.toLowerCase().includes(searchQuery.toLowerCase());
-        // For work summaries, we mostly care about those who have clocked out or have a summary
         return matchesSearch;
     });
 
+    const attendanceReports = filteredAttendance.filter(a => isDirectReport(a.userId));
+
+    // For TLs: show only their team members (already filtered above)
+    // For Managers: show TLs + their subordinates
+    const allAttendanceRecords = React.useMemo(() => {
+        if (userRole === 'TL') {
+            return attendanceReports;
+        }
+        const flat: any[] = [];
+        attendanceReports.forEach(mainRecord => {
+            flat.push(mainRecord);
+            const subs = getSubordinates(mainRecord.userId?._id, filteredAttendance);
+            flat.push(...subs);
+        });
+        return flat;
+    }, [attendanceReports, filteredAttendance, userRole]);
+
     const stats = {
-        total: checklists.length,
-        completed: checklists.filter((c: any) => c.items.every((i: any) => i.completed)).length,
-        pending: checklists.length - checklists.filter((c: any) => c.items.every((i: any) => i.completed)).length,
+        total: checklistReports.length,
+        completed: checklistReports.filter((c: any) => c.items.every((i: any) => i.completed)).length,
+        pending: checklistReports.length - checklistReports.filter((c: any) => c.items.every((i: any) => i.completed)).length,
     };
 
     if (loading && (activeTab === "checklists" ? checklists.length === 0 : attendance.length === 0)) {
@@ -119,9 +230,13 @@ export default function DailyReportsPage() {
                                 </p>
                             </div>
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-[#1F6F8B] text-white text-xs font-bold rounded-md hover:bg-[#1e293b] transition-colors shadow-sm">
+                        <button
+                            onClick={exportToCSV}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-md hover:bg-emerald-700 transition-colors shadow-sm"
+                            title="Export as Excel/CSV for salary calculation"
+                        >
                             <Download className="w-3.5 h-3.5" />
-                            Export
+                            Export XL
                         </button>
                     </div>
                 </div>
@@ -188,196 +303,356 @@ export default function DailyReportsPage() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
-                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/4">Employee Details</th>
-                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Today's Progress</th>
-                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Checklist Status</th>
+                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[22%]">Employee Details</th>
+                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[12%] text-center">Clock In</th>
+                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[12%] text-center">Clock Out</th>
+                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[15%]">Today's Progress</th>
+                                    <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[20%]">Work Summary</th>
                                     <th className="px-6 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredChecklists.map((checklist: any) => {
+                                {checklistReports.map((checklist: any) => {
                                     const count = checklist.items.filter((i: any) => i.completed).length;
                                     const total = checklist.items.length;
                                     const pct = Math.round((count / total) * 100);
                                     const userName = checklist.userId?.name || checklist.userId?.email || "Unknown";
+                                    const isTL = checklist.userId?.role === 'TL';
+                                    const isExpanded = expandedTls.includes(checklist.userId?._id);
+                                    const subordinates = getSubordinates(checklist.userId?._id, filteredChecklists);
+
+                                    const attKey = `${checklist.userId?._id}_${moment(checklist.date).format('YYYY-MM-DD')}`;
+                                    const attRecord = attendanceMap[attKey];
 
                                     return (
-                                        <tr key={checklist._id} className="hover:bg-slate-50/50 transition-colors group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100 shadow-sm">
-                                                        {userName.charAt(0).toUpperCase()}
+                                        <React.Fragment key={checklist._id}>
+                                            <tr className={clsx("hover:bg-slate-50/50 transition-colors group", isExpanded && "bg-blue-50/10")}>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        {subordinates.length > 0 && (
+                                                            <button
+                                                                onClick={() => setExpandedTls(prev => prev.includes(checklist.userId?._id) ? prev.filter(id => id !== checklist.userId?._id) : [...prev, checklist.userId?._id])}
+                                                                className="p-1 hover:bg-slate-100 rounded text-slate-400"
+                                                            >
+                                                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                                                            </button>
+                                                        )}
+                                                        <div className={clsx(
+                                                            "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border shadow-sm",
+                                                            isTL ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                        )}>
+                                                            {userName.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-800 text-[14px] hover:text-[#1F6F8B] cursor-pointer transition-colors">
+                                                                {userName}
+                                                                {isTL && <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded uppercase">TL</span>}
+                                                            </p>
+                                                            <p className="text-[11px] text-slate-500 font-medium">Reporting to you</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-bold text-slate-800 text-[14px] hover:text-[#1F6F8B] cursor-pointer transition-colors">{userName}</p>
-                                                        <p className="text-[11px] text-slate-500 font-medium">Reporting to you</p>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className="text-[13px] font-bold text-slate-600">
+                                                        {attRecord?.clockInTime ? moment(attRecord.clockInTime).format("hh:mm A") : "--:--"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className="text-[13px] font-bold text-slate-600">
+                                                        {attRecord?.clockOutTime ? (
+                                                            moment(attRecord.clockOutTime).format("hh:mm A")
+                                                        ) : (attRecord?.clockInTime && moment(attRecord.clockInTime).isValid()) ? (
+                                                            <span className="text-emerald-500 font-black">Active</span>
+                                                        ) : (
+                                                            "--:--"
+                                                        )}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="space-y-1">
+                                                        <div className="flex justify-between text-[10px] font-bold">
+                                                            <span className={pct === 100 ? 'text-emerald-600' : 'text-slate-500'}>{pct}%</span>
+                                                            <span className="text-slate-400">{count}/{total}</span>
+                                                        </div>
+                                                        <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-700 ${pct === 100 ? 'bg-emerald-500' : 'bg-[#1F6F8B]'}`}
+                                                                style={{ width: `${pct}%` }}
+                                                            ></div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="space-y-2 max-w-[200px]">
-                                                    <div className="flex justify-between text-[11px] font-bold">
-                                                        <span className={pct === 100 ? 'text-emerald-600' : 'text-slate-500'}>{pct}% Complete</span>
-                                                        <span className="text-slate-400">{count}/{total}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-[11px] text-slate-500 line-clamp-1 italic font-medium flex-1" title={attRecord?.workStatusUpload}>
+                                                            {attRecord?.workStatusUpload || "--"}
+                                                        </p>
+                                                        {attRecord?.workStatusFile && (
+                                                            <a
+                                                                href={attRecord.workStatusFile}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-[#1F6F8B] hover:text-slate-900"
+                                                                title="Download ZIP"
+                                                            >
+                                                                <Download className="w-3.5 h-3.5" />
+                                                            </a>
+                                                        )}
                                                     </div>
-                                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full transition-all duration-700 ${pct === 100 ? 'bg-emerald-500' : 'bg-[#1F6F8B]'}`}
-                                                            style={{ width: `${pct}%` }}
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-wrap gap-1 max-w-[300px]">
-                                                    {checklist.items.slice(0, 4).map((item: any) => (
-                                                        <div
-                                                            key={item.id}
-                                                            className={`w-2 h-2 rounded-full transition-all ${item.completed ? 'bg-emerald-400' : 'bg-slate-200'}`}
-                                                            title={item.title}
-                                                        ></div>
-                                                    ))}
-                                                    {total > 4 && <span className="text-[10px] text-slate-400 font-bold ml-1">+{total - 4}</span>}
-                                                </div>
-                                                <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">Items Tracked</p>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedRecord(checklist);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    className="text-[12px] font-bold text-[#1F6F8B] hover:underline flex items-center gap-1 ml-auto group-hover:translate-x-1 transition-transform"
-                                                >
-                                                    Review Report
-                                                    <ArrowRight className="w-3.5 h-3.5" />
-                                                </button>
-                                            </td>
-                                        </tr>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedRecord(checklist);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                        className="text-[12px] font-bold text-[#1F6F8B] hover:underline flex items-center gap-1 ml-auto group-hover:translate-x-1 transition-transform"
+                                                    >
+                                                        Review Report
+                                                        <ArrowRight className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && subordinates.map((sub: any) => {
+                                                const sCount = sub.items.filter((i: any) => i.completed).length;
+                                                const sTotal = sub.items.length;
+                                                const sPct = Math.round((sCount / sTotal) * 100);
+                                                const sAttKey = `${sub.userId?._id}_${moment(sub.date).format('YYYY-MM-DD')}`;
+                                                const sAttRecord = attendanceMap[sAttKey];
+                                                return (
+                                                    <tr key={sub._id} className="bg-slate-50/30 group/sub">
+                                                        <td className="px-6 py-3 pl-16">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">
+                                                                    {sub.userId?.name?.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-semibold text-slate-700">{sub.userId?.name}</p>
+                                                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Team Member</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="text-[11px] font-bold text-slate-400">
+                                                                {sAttRecord?.clockInTime ? moment(sAttRecord.clockInTime).format('hh:mm A') : '--:--'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="text-[11px] font-bold text-slate-400">
+                                                                {sAttRecord?.clockOutTime ? (
+                                                                    moment(sAttRecord.clockOutTime).format('hh:mm A')
+                                                                ) : (sAttRecord?.clockInTime && moment(sAttRecord.clockInTime).isValid()) ? (
+                                                                    <span className="text-emerald-500 font-bold uppercase text-[9px]">Active</span>
+                                                                ) : (
+                                                                    '--:--'
+                                                                )}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3">
+                                                            <div className="h-1 w-24 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-emerald-400" style={{ width: `${sPct}%` }}></div>
+                                                            </div>
+                                                            <div className="flex justify-between mt-1">
+                                                                <span className="text-[9px] font-bold text-slate-400">{sPct}%</span>
+                                                                <span className="text-[9px] font-bold text-slate-300">{sCount}/{sTotal}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-[10px] text-slate-400 line-clamp-1 italic italic flex-1" title={sAttRecord?.workStatusUpload}>
+                                                                    {sAttRecord?.workStatusUpload || "--"}
+                                                                </p>
+                                                                {sAttRecord?.workStatusFile && (
+                                                                    <a href={sAttRecord.workStatusFile} target="_blank" rel="noopener noreferrer" className="text-slate-300 hover:text-[#1F6F8B]">
+                                                                        <Download className="w-3 h-3" />
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-right">
+                                                            <button
+                                                                onClick={() => { setSelectedRecord(sub); setIsModalOpen(true); }}
+                                                                className="text-[11px] font-bold text-slate-400 hover:text-[#1F6F8B]"
+                                                            >
+                                                                View
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>
                         </table>
                     ) : (
-                        <div className="grid grid-cols-1 divide-y divide-slate-100">
-                            {filteredAttendance.length > 0 ? filteredAttendance.map((record: any) => (
-                                <div key={record._id} className="p-6 hover:bg-slate-50/50 transition-all group">
-                                    <div className="flex flex-col lg:flex-row gap-6">
-                                        {/* Left: User Info */}
-                                        <div className="lg:w-1/4 flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-lg border border-slate-200 shrink-0">
-                                                {(record.userId?.name || "?").charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 group-hover:text-[#1F6F8B] transition-colors">{record.userId?.name || "Unknown User"}</h4>
-                                                <p className="text-[11px] font-medium text-slate-500 mt-0.5">{record.userId?.department || "General"}</p>
-                                                <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
-                                                    <Calendar className="w-3 h-3 text-slate-400" />
-                                                    <span className="text-[10px] font-bold text-slate-600">{moment(record.date).format("MMM DD, YYYY")}</span>
-                                                </div>
-                                            </div>
-                                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Date</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Clock In</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Clock Out</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Break</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Net Hours</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Summary</th>
+                                        <th className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">ZIP File</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {(() => {
+                                        const seen = new Set<string>();
+                                        const allRecords: any[] = [];
+                                        attendanceReports.forEach(mainRecord => {
+                                            if (!seen.has(mainRecord._id)) {
+                                                seen.add(mainRecord._id);
+                                                allRecords.push(mainRecord);
+                                            }
+                                            const subs = getSubordinates(mainRecord.userId?._id, filteredAttendance);
+                                            subs.forEach((sub: any) => {
+                                                if (!seen.has(sub._id)) {
+                                                    seen.add(sub._id);
+                                                    allRecords.push(sub);
+                                                }
+                                            });
+                                        });
 
-                                        {/* Center: Punch Stats */}
-                                        <div className="lg:w-1/3 grid grid-cols-3 gap-4">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-1.5 text-slate-400">
-                                                    <Clock className="w-3.5 h-3.5" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Punch In</span>
-                                                </div>
-                                                <p className="text-sm font-bold text-slate-700">
-                                                    {record.clockInTime ? moment(record.clockInTime).format("hh:mm A") : "--:--"}
-                                                </p>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-1.5 text-slate-400">
-                                                    <Clock className="w-3.5 h-3.5" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Punch Out</span>
-                                                </div>
-                                                <p className="text-sm font-bold text-slate-700">
-                                                    {record.clockOutTime ? moment(record.clockOutTime).format("hh:mm A") : "Active"}
-                                                </p>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-1.5 text-slate-400">
-                                                    <Hourglass className="w-3.5 h-3.5" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Net Hours</span>
-                                                </div>
-                                                <p className="text-sm font-bold text-[#1F6F8B]">
-                                                    {record.totalHours ? `${record.totalHours}h` : "--"}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-3 pt-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex items-center gap-1.5 text-slate-400">
-                                                        <Coffee className="w-3.5 h-3.5" />
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider">Breaks Taken:</span>
-                                                    </div>
-                                                    <span className="text-xs font-bold text-slate-600">{Math.round(record.breakMinutes || 0)} mins</span>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        return allRecords.length > 0 ? allRecords.map((record: any, idx: number) => {
+                                            const isTL = record.userId?.role === 'TL';
+                                            const statusCfg = STATUS_CONFIG[record.status] || STATUS_CONFIG.Offline;
+                                            const userName = record.userId?.name || 'Unknown';
 
-                                        {/* Right: Work Summary */}
-                                        <div className="flex-1 bg-slate-50/50 p-4 rounded-xl border border-slate-100 relative group/summary">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-1.5 text-slate-400">
-                                                    <FileText className="w-3.5 h-3.5" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Daily Summary</span>
-                                                </div>
-                                                {record.workStatusFile && (
-                                                    <a
-                                                        href={record.workStatusFile}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
-                                                    >
-                                                        <Download className="w-3 h-3" /> Attachment
-                                                    </a>
-                                                )}
-                                            </div>
-                                            <p className="text-[13px] text-slate-600 font-medium line-clamp-3 leading-relaxed">
-                                                {record.workStatusUpload || <span className="text-slate-400 italic font-normal">No summary provided for this session yet.</span>}
-                                            </p>
-                                            {record.workStatusUpload && record.workStatusUpload.length > 150 && (
-                                                <button className="mt-2 text-[11px] font-bold text-slate-400 hover:text-[#1F6F8B] transition-colors">Read More</button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-                                    <div className="p-4 bg-slate-50 rounded-full">
-                                        <FileText className="w-12 h-12 text-slate-300" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-slate-800">No summaries found</h3>
-                                        <p className="text-sm text-slate-400 max-w-xs mx-auto">No work summaries have been logged by your team yet.</p>
-                                    </div>
-                                </div>
-                            )}
+                                            return (
+                                                <tr key={`${record._id}_${idx}`} className="hover:bg-slate-50/70 transition-colors group">
+                                                    {/* Employee */}
+                                                    <td className="px-5 py-3">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div className={clsx(
+                                                                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border flex-shrink-0",
+                                                                isTL ? "bg-blue-100 text-[#1F6F8B] border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                            )}>
+                                                                {userName.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-slate-800 text-[13px] flex items-center gap-1.5">
+                                                                    {userName}
+                                                                    {isTL && <span className="px-1 py-0.5 bg-blue-50 text-[#1F6F8B] text-[9px] rounded uppercase font-black border border-blue-100">TL</span>}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Date */}
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className="text-[12px] font-bold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                                                            {moment(record.date).format('DD MMM')}
+                                                        </span>
+                                                    </td>
+                                                    {/* Clock In */}
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className="text-[13px] font-bold text-slate-700">
+                                                            {record.clockInTime ? moment(record.clockInTime).format('hh:mm A') : '--:--'}
+                                                        </span>
+                                                    </td>
+                                                    {/* Clock Out */}
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className="text-[13px] font-bold text-slate-700">
+                                                            {record.clockOutTime
+                                                                ? moment(record.clockOutTime).format('hh:mm A')
+                                                                : (record.clockInTime && moment(record.clockInTime).isValid())
+                                                                    ? <span className="text-emerald-500 font-bold uppercase text-[10px]">Active</span>
+                                                                    : '--:--'}
+                                                        </span>
+                                                    </td>
+                                                    {/* Break */}
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className="text-[12px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                                                            {Math.round(record.breakMinutes || 0)}m
+                                                        </span>
+                                                    </td>
+                                                    {/* Net Hours - live for active */}
+                                                    <td className="px-5 py-3 text-center">
+                                                        {(() => {
+                                                            const isActive = record.clockInTime && !record.clockOutTime;
+                                                            if (isActive) {
+                                                                const elapsedMs = now - new Date(record.clockInTime).getTime();
+                                                                const breakMs = (record.breakMinutes || 0) * 60000;
+                                                                const netHours = Math.max(0, (elapsedMs - breakMs) / 3600000);
+                                                                return (
+                                                                    <span className="text-[14px] font-black text-emerald-600 flex items-center justify-center gap-1">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                                                                        {netHours.toFixed(2)}h
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <span className="text-[14px] font-black text-[#1F6F8B]">
+                                                                    {record.totalHours ? `${record.totalHours.toFixed(2)}h` : '--'}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                    {/* Status */}
+                                                    <td className="px-5 py-3">
+                                                        <div className={clsx('inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider', statusCfg.bg, statusCfg.text, 'border-white/50 shadow-sm')}>
+                                                            <div className={clsx('w-1.5 h-1.5 rounded-full', statusCfg.dot)} />
+                                                            {statusCfg.label}
+                                                        </div>
+                                                    </td>
+                                                    {/* Summary */}
+                                                    <td className="px-5 py-3 max-w-[180px]">
+                                                        <p className="text-[12px] text-slate-600 line-clamp-2 font-medium italic" title={record.workStatusUpload}>
+                                                            {record.workStatusUpload || '--'}
+                                                        </p>
+                                                    </td>
+                                                    {/* ZIP File */}
+                                                    <td className="px-5 py-3 text-right">
+                                                        {record.workStatusFile ? (
+                                                            <a
+                                                                href={record.workStatusFile}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#1F6F8B]/10 text-[#1F6F8B] rounded text-[10px] font-bold hover:bg-[#1F6F8B]/20 transition-colors border border-[#1F6F8B]/20"
+                                                            >
+                                                                <Download className="w-3 h-3" />
+                                                                ZIP
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-300">—</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }) : (
+                                            <tr>
+                                                <td colSpan={9} className="px-6 py-20 text-center">
+                                                    <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                                                    <p className="text-slate-400 font-medium">No work summaries found for your team.</p>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })()}
+                                </tbody>
+                            </table>
                         </div>
                     )}
 
-                    {(activeTab === "checklists" ? filteredChecklists.length === 0 : filteredAttendance.length === 0) && (
-                        <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-                            <div className="p-4 bg-slate-50 rounded-full">
-                                <Users className="w-12 h-12 text-slate-300" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800">No data found</h3>
-                                <p className="text-sm text-slate-400 max-w-xs mx-auto">Try adjusting your filters or search.</p>
-                            </div>
-                        </div>
-                    )}
+
                 </div>
 
-                {/* Footer/Pagination */}
-                <div className="flex items-center px-4 py-2 text-[11px] text-slate-400 font-medium">
-                    <p>
-                        Showing {activeTab === "checklists" ? filteredChecklists.length : filteredAttendance.length} records
-                    </p>
-                </div>
+                {(activeTab === "checklists" ? filteredChecklists.length === 0 : filteredAttendance.length === 0) && (
+                    <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
+                        <div className="p-4 bg-slate-50 rounded-full">
+                            <Users className="w-12 h-12 text-slate-300" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800">No data found</h3>
+                            <p className="text-sm text-slate-400 max-w-xs mx-auto">Try adjusting your filters or search.</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Checklist View Modal */}
@@ -455,6 +730,6 @@ export default function DailyReportsPage() {
                     </div>
                 )}
             </Modal>
-        </div>
+        </div >
     );
 }

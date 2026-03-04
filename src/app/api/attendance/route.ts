@@ -93,20 +93,30 @@ export async function POST(req: Request) {
             const clockOutTime = new Date();
             const clockInMoment = moment(existingRecord.clockInTime);
             const clockOutMoment = moment(clockOutTime);
-            const totalMins = clockOutMoment.diff(clockInMoment, 'seconds') / 60;
-            const netMins = totalMins - (existingRecord.breakMinutes || 0);
+
+            // totalDurationMins: Total time from Clock In to Clock Out (including breaks)
+            const totalDurationMins = clockOutMoment.diff(clockInMoment, 'minutes');
+            // netMins: Time excluding breaks
+            const netMins = Math.max(0, totalDurationMins - (existingRecord.breakMinutes || 0));
             const hours = netMins / 60;
-            let status = existingRecord.status;
-            if (hours < 5) {
-                status = 'Absent';
-            } else if (hours < 7) {
-                status = 'Half Day';
-            } else if (hours < 8) {
-                status = 'Early Logout';
-            }
+
+            // Update record fields
             existingRecord.clockOutTime = clockOutTime;
             existingRecord.totalHours = parseFloat(hours.toFixed(2));
-            existingRecord.status = status;
+
+            // Determine final status
+            if (netMins < 4 * 60) {
+                existingRecord.status = 'Absent';
+            } else if (netMins < 8 * 60) {
+                existingRecord.status = 'Half Day';
+            } else if (totalDurationMins < 9 * 60) {
+                existingRecord.status = 'Early Logout';
+            } else {
+                // Determine if 'Late' or 'Present' based on original clock-in
+                const threshold = moment(existingRecord.clockInTime).startOf('day').hour(10).minute(0);
+                existingRecord.status = clockInMoment.isAfter(threshold) ? 'Late' : 'Present';
+            }
+
             existingRecord.workStatusUpload = workStatus.trim();
             if (workStatusFile) existingRecord.workStatusFile = workStatusFile;
             await existingRecord.save();
@@ -170,13 +180,13 @@ export async function GET(req: Request) {
         // Get managed user IDs for hierarchical visibility
         const managedIds = await getManagedUserIds(userId, userRole);
 
-        // Check if we are filtering or showing all
-        let query: any = {};
-        if (managedIds && managedIds.length > 0) {
-            query = { userId: { $in: managedIds } };
-        }
+        // Always include the current user's own records (getManagedUserIds in strict mode may not include self)
+        const queryIds = Array.from(new Set([userId, ...managedIds]));
 
-        const records = await Attendance.find(query).sort({ date: -1 }).populate('userId', 'name email department');
+        const query = { userId: { $in: queryIds } };
+
+
+        const records = await Attendance.find(query).sort({ date: -1 }).populate('userId', 'name email role department teamLeader reportingManager');
 
         // Check for an unclosed session (yesterday or older, where clockOutTime is null) for the CURRENT user
         const todayStart = moment().startOf('day').toDate();

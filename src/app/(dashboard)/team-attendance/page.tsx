@@ -8,7 +8,7 @@ import {
     Users, UserCheck, UserX, Calendar as CalendarIcon,
     Search, Download, Clock, ChevronLeft, ChevronRight,
     AlertCircle, ArrowUpDown, Filter, MoreHorizontal, RefreshCw, Square, CheckCircle, XCircle,
-    Activity, Gift
+    Activity, Gift, ChevronDown
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import moment from "moment";
@@ -41,6 +41,7 @@ export default function TeamAttendancePage() {
     const [selectedRecord, setSelectedRecord] = useState<any>(null);
     const [showCorrectionModal, setShowCorrectionModal] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
+    const [expandedTls, setExpandedTls] = useState<string[]>([]);
     const [holidays, setHolidays] = useState<any[]>([]);
 
     const fetchData = async () => {
@@ -157,17 +158,47 @@ export default function TeamAttendancePage() {
             const search = searchTerm.toLowerCase();
 
             const matchesSearch = name.includes(search) || email.includes(search) || dept.includes(search);
-
             let matchesStatus = statusFilter === "All" || r.status === statusFilter;
-
-            // Special case for Pending Fix
-            if (statusFilter === "Pending Fix") {
-                matchesStatus = r.correctionRequested && r.correctionDetails?.status === 'Pending';
-            }
 
             return matchesSearch && matchesStatus;
         });
     }, [mergedRecords, searchTerm, statusFilter]);
+
+    const userRole = session?.user?.role;
+    const managerId = session?.user?.id;
+
+    const topLevelRecords = useMemo(() => {
+        return filteredRecords.filter((r: any) => {
+            const u = r.userDetails || r.userId;
+            const uManagerId = u.reportingManager?._id || u.reportingManager;
+            const uTLId = u.teamLeader?._id || u.teamLeader;
+
+            // If user is TL, show their assigned employees
+            if (userRole === 'TL') {
+                return u.role === 'Employee' && uTLId && String(uTLId) === String(managerId);
+            }
+
+            // If user is Manager:
+            if (['Manager', 'Assigned Manager'].includes(userRole as string)) {
+                if (u.role === 'TL') return true;
+                if (u.role === 'Employee') return !uTLId; // Orphan employee
+            }
+
+            return true;
+        });
+    }, [filteredRecords, userRole, managerId]);
+
+    const getSubordinateRecords = (tlId: string) => filteredRecords.filter((r: any) => {
+        const u = r.userDetails || r.userId;
+        const uTLId = u.teamLeader?._id || u.teamLeader;
+        return uTLId && String(uTLId) === String(tlId) && u.role === 'Employee';
+    });
+
+    const toggleExpand = (id: string) => {
+        setExpandedTls(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
 
     /* ─── Stats (Based on search/date, NOT status filter) ────── */
     const stats = useMemo(() => {
@@ -185,11 +216,19 @@ export default function TeamAttendancePage() {
         const leave = baseRecords.filter(r => r.status === 'On Leave').length;
         const late = baseRecords.filter(r => r.status === 'Late').length;
         const holiday = baseRecords.filter(r => r.status === 'Holiday').length;
-        const corrections = baseRecords.filter(r => r.correctionRequested && r.correctionDetails?.status === 'Pending').length;
-        const total = baseRecords.length;
 
-        return { present, absent, leave, late, holiday, corrections, total };
-    }, [mergedRecords, searchTerm]);
+        // Total Team KPI: Count top-level items for managers
+        let total = baseRecords.length;
+        if (['Manager', 'Assigned Manager'].includes(userRole as string)) {
+            total = baseRecords.filter((r: any) => {
+                const u = r.userDetails || r.userId;
+                const uTLId = u.teamLeader?._id || u.teamLeader;
+                return u.role === 'TL' || (u.role === 'Employee' && !uTLId);
+            }).length;
+        }
+
+        return { present, absent, leave, late, holiday, total };
+    }, [mergedRecords, searchTerm, userRole]);
 
     const handleCorrectionAction = async (action: 'approveCorrection' | 'rejectCorrection') => {
         if (!selectedRecord) return;
@@ -313,11 +352,6 @@ export default function TeamAttendancePage() {
                         label={`Holidays`} value={stats.holiday} color="#6366f1" icon={<Gift className="w-5 h-5" />} badge="Fixed" subLabel="Calendar"
                         isActive={statusFilter === "Holiday"} onClick={() => setStatusFilter("Holiday")}
                     />
-                    <SummaryCard
-                        label="Pending Fix" value={stats.corrections} color="#ea580c" icon={<AlertCircle />}
-                        badge={stats.corrections > 0 ? "Fix Needed" : "None"} subLabel="Review Needed"
-                        isActive={statusFilter === "Pending Fix"} onClick={() => setStatusFilter("Pending Fix")}
-                    />
                 </div>
 
                 {/* Simplified Filter & Navigation Bar */}
@@ -376,6 +410,7 @@ export default function TeamAttendancePage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
+                                    <th className="w-10 px-4"></th>
                                     <th className="px-6 py-4 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Employee</th>
                                     <th className="px-6 py-4 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Department</th>
                                     <th className="px-6 py-4 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-widest">First In</th>
@@ -388,96 +423,145 @@ export default function TeamAttendancePage() {
                             <tbody className="divide-y divide-slate-100">
                                 {loading && !refreshing ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-24 text-center">
+                                        <td colSpan={8} className="px-6 py-24 text-center">
                                             <div className="flex flex-col items-center">
                                                 <div className="w-8 h-8 border-3 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-4" />
                                                 <p className="text-[13px] font-semibold text-slate-600">Syncing records...</p>
                                             </div>
                                         </td>
                                     </tr>
-                                ) : filteredRecords.length === 0 ? (
+                                ) : topLevelRecords.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-24 text-center text-slate-400">
+                                        <td colSpan={8} className="px-6 py-24 text-center text-slate-400">
                                             <Activity className="w-12 h-12 mx-auto mb-4 opacity-10" />
                                             <p className="text-base font-semibold text-slate-800">No records found</p>
                                             <p className="text-[13px] font-medium mt-1">Try a different filter or date range</p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredRecords.map((record: any) => {
+                                    topLevelRecords.map((record: any) => {
                                         const user = record.userDetails || record.userId;
+                                        const subordinates = getSubordinateRecords(user._id);
+                                        const isExpanded = expandedTls.includes(user._id);
+                                        const hasSubordinates = subordinates.length > 0;
                                         const statusCfg = STATUS_CONFIG[record.status] || STATUS_CONFIG.Offline;
+
                                         return (
-                                            <tr key={record._id} className="hover:bg-slate-50 transition-all group">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 border border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
-                                                            {user?.name?.charAt(0).toUpperCase()}
+                                            <React.Fragment key={record._id}>
+                                                <tr className={clsx("hover:bg-slate-50 transition-all group", isExpanded && "bg-blue-50/30")}>
+                                                    <td className="w-10 px-4 text-center">
+                                                        {hasSubordinates && (
+                                                            <button onClick={() => toggleExpand(user._id)} className="p-1 hover:bg-white rounded transition-all">
+                                                                {isExpanded ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-[12px] font-bold flex-shrink-0 border border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
+                                                                {user?.name?.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[14px] font-semibold text-slate-900 leading-tight">{user?.name}</p>
+                                                                <p className="text-[11px] font-medium text-slate-400 mt-0.5">{user?.email}</p>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-[14px] font-semibold text-slate-900 leading-tight">{user?.name}</p>
-                                                            <p className="text-[11px] font-medium text-slate-400 mt-0.5">{user?.email}</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-[12px] font-medium text-slate-600 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
-                                                        {user?.department || 'General'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={clsx(
-                                                        "text-[13px] font-semibold tabular-nums",
-                                                        record.clockInTime ? "text-emerald-600" : "text-slate-300"
-                                                    )}>
-                                                        {record.clockInTime ? moment(record.clockInTime).format('hh:mm A') : '--:--'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={clsx(
-                                                        "text-[13px] font-semibold tabular-nums",
-                                                        record.clockOutTime ? "text-slate-900" : "text-slate-300"
-                                                    )}>
-                                                        {record.clockOutTime ? moment(record.clockOutTime).format('hh:mm A') : '--:--'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-center">
-                                                    <div className="flex flex-col items-center">
-                                                        <span className="text-[14px] font-bold text-slate-800 tabular-nums">
-                                                            {record.totalHours ? `${record.totalHours.toFixed(1)}h` : '0h'}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-[12px] font-medium text-slate-600 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                                                            {user?.department || 'General'}
                                                         </span>
-                                                        <div className="w-12 h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-[#408dfb] rounded-full transition-all duration-1000"
-                                                                style={{ width: `${Math.min((record.totalHours || 0) / 8 * 100, 100)}%` }}
-                                                            />
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className={clsx(
+                                                            "text-[13px] font-semibold tabular-nums",
+                                                            record.clockInTime ? "text-emerald-600" : "text-slate-300"
+                                                        )}>
+                                                            {record.clockInTime ? moment(record.clockInTime).format('hh:mm A') : '--:--'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className={clsx(
+                                                            "text-[13px] font-semibold tabular-nums",
+                                                            record.clockOutTime ? "text-slate-900" : "text-slate-300"
+                                                        )}>
+                                                            {record.clockOutTime ? moment(record.clockOutTime).format('hh:mm A') : '--:--'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="text-[14px] font-bold text-slate-800 tabular-nums">
+                                                                {record.totalHours ? `${record.totalHours.toFixed(1)}h` : '0h'}
+                                                            </span>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className={clsx("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] font-semibold uppercase tracking-wider", statusCfg.bg, "border-white/50 shadow-sm", statusCfg.text)}>
-                                                        <div className={clsx("w-1.5 h-1.5 rounded-full", statusCfg.dot)} />
-                                                        {statusCfg.label}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    {record.correctionRequested && record.correctionDetails?.status === 'Pending' ? (
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedRecord(record);
-                                                                setShowCorrectionModal(true);
-                                                            }}
-                                                            className="px-3 py-1.5 bg-amber-500 text-white text-[10px] font-bold uppercase rounded-md tracking-wider hover:bg-amber-600 transition-all shadow-sm"
-                                                        >
-                                                            Fix Needed
-                                                        </button>
-                                                    ) : (
-                                                        <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all">
-                                                            <MoreHorizontal className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className={clsx("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all text-[11px] font-semibold uppercase tracking-wider", statusCfg.bg, "border-white/50 shadow-sm", statusCfg.text)}>
+                                                            <div className={clsx("w-1.5 h-1.5 rounded-full", statusCfg.dot)} />
+                                                            {statusCfg.label}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        {record.correctionRequested && record.correctionDetails?.status === 'Pending' ? (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedRecord(record);
+                                                                    setShowCorrectionModal(true);
+                                                                }}
+                                                                className="px-3 py-1.5 bg-amber-500 text-white text-[10px] font-bold uppercase rounded-md tracking-wider hover:bg-amber-600 transition-all shadow-sm"
+                                                            >
+                                                                Fix Needed
+                                                            </button>
+                                                        ) : (
+                                                            <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all">
+                                                                <MoreHorizontal className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+
+                                                {/* Nested Subordinates */}
+                                                {isExpanded && subordinates.map((sub: any) => {
+                                                    const subUser = sub.userDetails || sub.userId;
+                                                    const subStatusCfg = STATUS_CONFIG[sub.status] || STATUS_CONFIG.Offline;
+                                                    return (
+                                                        <tr key={sub._id} className="bg-slate-50/50 border-l-4 border-blue-600/20">
+                                                            <td className="px-4"></td>
+                                                            <td className="px-6 py-3 pl-10">
+                                                                <div className="flex items-center gap-2.5 opacity-80">
+                                                                    <div className="w-7 h-7 rounded bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold">
+                                                                        {subUser?.name?.charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[13px] font-bold text-slate-700">{subUser?.name}</p>
+                                                                        <p className="text-[10px] font-medium text-slate-400">{subUser?.role}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-3">
+                                                                <span className="text-[11px] font-medium text-slate-500">{subUser?.department}</span>
+                                                            </td>
+                                                            <td className="px-6 py-3 text-center">
+                                                                <span className="text-[12px] font-bold text-emerald-600/70">{sub.clockInTime ? moment(sub.clockInTime).format('hh:mm A') : '--:--'}</span>
+                                                            </td>
+                                                            <td className="px-6 py-3 text-center">
+                                                                <span className="text-[12px] font-bold text-slate-400">{sub.clockOutTime ? moment(sub.clockOutTime).format('hh:mm A') : '--:--'}</span>
+                                                            </td>
+                                                            <td className="px-6 py-3 text-center text-[12px] font-bold text-slate-600">
+                                                                {sub.totalHours ? `${sub.totalHours.toFixed(1)}h` : '0h'}
+                                                            </td>
+                                                            <td className="px-6 py-3">
+                                                                <div className={clsx("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold border uppercase", subStatusCfg.bg, subStatusCfg.text)}>
+                                                                    {subStatusCfg.label}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-3 text-right">
+                                                                <button className="text-[10px] font-bold text-slate-400 hover:text-blue-600 uppercase tracking-tight">View</button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </React.Fragment>
                                         );
                                     })
                                 )}

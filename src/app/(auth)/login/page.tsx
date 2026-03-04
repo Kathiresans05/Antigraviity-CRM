@@ -118,7 +118,7 @@ export default function LoginPage() {
                     { /* Demo Credentials Hint */}
                     <div className="pt-4 text-center border-t border-gray-100">
                         <p className="text-xs text-gray-400 font-medium">Demo Access</p>
-                        <p className="text-xs text-gray-500 mt-1">Admin: <span className="font-semibold text-gray-700">admin@test.com</span> / <span className="font-semibold text-gray-700">password123</span></p>
+                        <p className="text-xs text-gray-500 mt-1">Admin: <span className="font-semibold text-gray-700">admin@admin.com</span> / <span className="font-semibold text-gray-700">admin123</span></p>
                         <p className="text-xs text-gray-500">Employee: <span className="font-semibold text-gray-700">emp@test.com</span> / <span className="font-semibold text-gray-700">password123</span></p>
                     </div>
                 </form>

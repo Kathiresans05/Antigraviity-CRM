@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
     Users, Briefcase, TrendingUp, Clock, CheckSquare,
     Search, Bell, Plus, ChevronDown, MoreHorizontal,
-    Eye, Check, X, FileText, BarChart3, PieChart
+    Eye, Check, X, FileText, BarChart3, PieChart, AlertTriangle
 } from "lucide-react";
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -198,8 +198,8 @@ export default function ManagerDashboard({ session, data: initialData }: any) {
                 <KPICard title="Active Projects" value={stats.activeProjects || 0} trend="8%" icon={Briefcase} color="green" sparklineData={[40, 30, 55, 45, 70, 65]} />
                 <KPICard title="Pending Tasks" value={stats.pendingTasks || 0} trend="5%" icon={Clock} color="orange" sparklineData={[20, 40, 30, 50, 45, 60]} />
                 <KPICard title="Leave Requests" value={stats.pendingLeaves || 0} trend="2%" icon={FileText} color="blue" sparklineData={[10, 20, 15, 25, 20, 35]} />
-                <KPICard title="Attendance %" value={`${stats.teamAttendanceRate || 0}%`} trend="4%" icon={CheckSquare} color="green" sparklineData={[85, 90, 88, 92, 94, 96]} />
-                <KPICard title="Completion" value={`${stats.projectCompletionRate || 0}%`} trend="15%" icon={TrendingUp} color="purple" sparklineData={[60, 70, 65, 75, 80, 82]} />
+                <KPICard title="Overdue Tasks" value={stats.overdueTasks || 0} trend="4%" icon={AlertTriangle} color="rose" sparklineData={[15, 10, 18, 12, 14, 8]} />
+                <KPICard title="Completion Rate" value={`${stats.projectCompletionRate || 0}%`} trend="15%" icon={TrendingUp} color="purple" sparklineData={[60, 70, 65, 75, 80, 82]} />
             </div>
 
             {/* 3. Analytics Grid */}
@@ -275,10 +275,10 @@ export default function ManagerDashboard({ session, data: initialData }: any) {
                             <thead className="bg-gray-50/50">
                                 <tr className="text-left">
                                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Employee</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tasks</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Completion</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Action</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Assigned</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Overdue</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Performance</th>
+                                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">View</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -295,20 +295,31 @@ export default function ManagerDashboard({ session, data: initialData }: any) {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm font-bold text-gray-700">{emp.tasks}</td>
+                                        <td className="px-6 py-4 text-center text-sm font-bold text-gray-700">{emp.tasks || 0}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={clsx(
+                                                "text-xs font-bold",
+                                                (emp.overdue || 0) > 0 ? "text-rose-600" : "text-gray-400"
+                                            )}>
+                                                {emp.overdue || 0}
+                                            </span>
+                                        </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                                    <div className="bg-blue-500 h-1.5" style={{ width: `${emp.completion}%` }}></div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden w-24">
+                                                    <div
+                                                        className={clsx(
+                                                            "h-full transition-all duration-500",
+                                                            (emp.completionRate || 0) >= 80 ? "bg-emerald-500" : "bg-blue-500"
+                                                        )}
+                                                        style={{ width: `${emp.completionRate || 0}%` }}
+                                                    />
                                                 </div>
-                                                <span className="text-[11px] font-bold text-gray-700">{emp.completion}%</span>
+                                                <span className="text-[10px] font-bold text-gray-500">{emp.completionRate || 0}%</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={emp.status} />
-                                        </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                                            <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
                                                 <Eye className="w-4 h-4" />
                                             </button>
                                         </td>

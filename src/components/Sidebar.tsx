@@ -102,6 +102,7 @@ const TL_LINKS = [
             { name: "My Team", href: "/my-team", icon: Users },
             { name: "Projects", href: "/projects", icon: Briefcase },
             { name: "Tasks", href: "/tasks", icon: ListTodo },
+            { name: "Daily Reports", href: "/daily-reports", icon: FileText },
             { name: "Attendance", href: "/attendance", icon: Clock },
             { name: "Team Attendance", href: "/team-attendance", icon: Users },
             { name: "Leave Tracker", href: "/leave-tracker", icon: Calendar },

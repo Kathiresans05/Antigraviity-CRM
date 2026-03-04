@@ -53,7 +53,9 @@ const STATUS_CONFIG: Record<string, { label: string, bg: string, text: string, d
     Absent: { label: 'Absent', bg: 'bg-slate-50', text: 'text-slate-400', dot: 'bg-slate-300' },
     'On Leave': { label: 'On Leave', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
     Holiday: { label: 'Holiday', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
-    'Early Logout': { label: 'Early Logout', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' }
+    'Early Logout': { label: 'Early Logout', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
+    'Auto Closed': { label: 'Auto Closed', bg: 'bg-slate-50', text: 'text-slate-500', dot: 'bg-slate-400' },
+    default: { label: 'Unknown', bg: 'bg-gray-50', text: 'text-gray-400', dot: 'bg-gray-300' },
 };
 
 export default function AttendancePage() {
@@ -315,7 +317,7 @@ export default function AttendancePage() {
                 new Date(r.date).toDateString() === new Date().toDateString() &&
                 !r.clockOutTime &&
                 r.status !== 'Absent' && r.status !== 'Auto Closed' && r.status !== 'On Leave' &&
-                (r.userId?._id === session?.user?.id || r.userId === session?.user?.id)
+                (String(r.userId?._id) === String(session?.user?.id) || String(r.userId) === String(session?.user?.id))
             );
 
             if (todayRecord) {
@@ -354,9 +356,13 @@ export default function AttendancePage() {
         try {
             await axios.post("/api/attendance", { action: "clockIn" });
             setIsClockedIn(true);
+            toast.success("Clocked in successfully!");
             fetchRecords();
-        } catch (error) {
-            alert("Error clocking in or already clocked in.");
+        } catch (error: any) {
+            const msg = error?.response?.data?.error || "Failed to clock in. Please try again.";
+            toast.error(msg);
+            // If already clocked in, sync the state
+            fetchRecords();
         }
         setLoading(false);
     };
@@ -588,10 +594,12 @@ export default function AttendancePage() {
                         title="Attendance" value={`${stats.attendancePct.toFixed(1)}%`} color="#1F6F8B" icon={<TrendingUp />}
                     />
                     <KPICard
-                        title="Working Hours" value={`${stats.totalHours.toFixed(1)}h`} color="#059669" icon={<Timer />}
+                        title="Today Hours"
+                        value={isClockedIn ? workingHours : `${(safeTodayNetHours).toFixed(1)}h`}
+                        color="#059669" icon={<Timer />}
                     />
                     <KPICard
-                        title="Late Arrival" value={stats.lateIn} color="#f43f5e" icon={<Timer />}
+                        title="Late Arrival" value={dashboardStats.late ?? stats.lateIn} color="#f43f5e" icon={<Timer />}
                         isActive={statusFilter === 'Late'} onClick={() => setStatusFilter(statusFilter === 'Late' ? null : 'Late')}
                     />
                     <KPICard
@@ -601,7 +609,9 @@ export default function AttendancePage() {
                         title="Monthly Leaves" value={dashboardStats.monthlyLeaveTaken ?? 0} color="#6366f1" icon={<CalendarX />}
                     />
                     <KPICard
-                        title="Today Break" value={`${Math.round(dashboardStats.todayBreak ?? 0)}m`} color="#f59e0b" icon={<Coffee />}
+                        title="Today Break"
+                        value={isClockedIn ? breakHours : `${Math.round(dashboardStats.todayBreak ?? 0)}m`}
+                        color="#f59e0b" icon={<Coffee />}
                     />
                     <KPICard
                         title="Early Exits" value={dashboardStats.earlyExits ?? 0} color="#f97316" icon={<LogOutIcon />}
@@ -653,9 +663,27 @@ export default function AttendancePage() {
                                 options={{
                                     responsive: true,
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1F6F8B', padding: 12, titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 13 }, displayColors: false } },
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            backgroundColor: '#1F6F8B', padding: 12,
+                                            titleFont: { size: 14, weight: 'bold' },
+                                            bodyFont: { size: 13 }, displayColors: false,
+                                            callbacks: { label: (ctx: any) => `${ctx.parsed.y.toFixed(1)} hrs` }
+                                        }
+                                    },
                                     scales: {
-                                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { font: { size: 10, weight: 'bold' }, color: '#94a3b8', padding: 10 } },
+                                        y: {
+                                            beginAtZero: true,
+                                            max: 9,
+                                            grid: { color: '#f1f5f9' },
+                                            border: { display: false },
+                                            ticks: {
+                                                font: { size: 10, weight: 'bold' },
+                                                color: '#94a3b8', padding: 10,
+                                                callback: (val: any) => `${val}h`
+                                            }
+                                        },
                                         x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: 'bold' }, color: '#c1c1c1', padding: 10 } }
                                     }
                                 }}
@@ -738,8 +766,8 @@ export default function AttendancePage() {
                                 <thead>
                                     <tr className="bg-gray-50/50 border-b border-gray-100 uppercase">
                                         <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Log Date</th>
-                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Punch In</th>
-                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Punch Out</th>
+                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Clock In</th>
+                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Clock Out</th>
                                         <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Break</th>
                                         <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Shift</th>
                                         <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Status</th>
@@ -748,7 +776,7 @@ export default function AttendancePage() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     {processedRecords.length > 0 ? processedRecords.map((record: any) => {
-                                        const statusCfg = STATUS_CONFIG[record.effectiveStatus] || STATUS_CONFIG.Offline;
+                                        const statusCfg = STATUS_CONFIG[record.effectiveStatus] || STATUS_CONFIG.default;
                                         return (
                                             <tr key={record._id} className="hover:bg-gray-50/50 transition-all group">
                                                 <td className="px-8 py-4">

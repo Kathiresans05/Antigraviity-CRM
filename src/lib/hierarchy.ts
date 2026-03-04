@@ -22,7 +22,7 @@ export async function getManagedUserIds(userId: string, role: string, strict: bo
 
     const managedIdsSet = new Set<string>();
     // Only add self if NOT in strict mode (which is usually for 'My Team' views)
-    if (!strict && userId) managedIdsSet.add(userId);
+    if (!strict && userId && !isHRAdmin) managedIdsSet.add(userId);
 
     // If not strict management view, Managers/TLs can also see everyone? 
     // Usually no, but let's follow the 'strict' flag.
