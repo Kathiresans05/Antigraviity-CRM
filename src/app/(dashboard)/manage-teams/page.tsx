@@ -133,6 +133,18 @@ export default function ManageTeamsPage() {
 
         if (isAlreadyAssignedToThisNode) return false;
 
+        // --- ENFORCE HIERARCHY ---
+        // 1. TLs can only have Employees assigned to them
+        if (isSelectedTl && e.role !== 'Employee') return false;
+
+        // 2. Managers/HR/Admin can have TLs or Employees assigned
+        const isHigherRole = ['Manager', 'Assigned Manager', 'Admin', 'HR', 'HR Manager'].includes(employees.find(u => u._id === selectedTl)?.role || "");
+        if (isHigherRole) {
+            // Managers shouldn't report to Managers generally, but they definitely shouldn't report to TLs.
+            // Let's restrict Managers to only managing lower level roles.
+            if (['Manager', 'Assigned Manager', 'Admin', 'HR', 'HR Manager'].includes(e.role)) return false;
+        }
+
         const matchesSearch = searchTerm === "" ||
             e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             e.email.toLowerCase().includes(searchTerm.toLowerCase());

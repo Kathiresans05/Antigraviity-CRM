@@ -32,26 +32,39 @@ export async function getManagedUserIds(userId: string, role: string, strict: bo
     }
 
     // Recursive fetch for Managers/TLs
-    async function fetchSubordinates(parentIds: string[]) {
+    async function fetchSubordinates(parentIds: string[], parentRole: string) {
         if (!parentIds || parentIds.length === 0) return;
 
-        const subordinates = await User.find({
+        let query: any = {
             $or: [
                 { reportingManager: { $in: parentIds } },
                 { teamLeader: { $in: parentIds } }
             ],
             _id: { $nin: Array.from(managedIdsSet) }
-        }).select('_id');
+        };
+
+        // ENFORCE HIERARCHY: TLs should only ever resolve Employees/Interns as subordinates
+        if (parentRole === 'TL') {
+            query.role = { $in: ['Employee', 'Intern'] };
+        }
+
+        const subordinates = await User.find(query).select('_id role');
 
         if (subordinates.length > 0) {
             const subIds = subordinates.map(u => u._id.toString());
             subIds.forEach(id => managedIdsSet.add(id));
-            await fetchSubordinates(subIds);
+
+            // For recursive depth, we pass the roles of the subordinates found
+            // This ensures if a Manager is at the top, they can find TLs, and then find Employees under those TLs.
+            // But if a TL is at the top, they stop after finding Employees.
+            for (const sub of subordinates) {
+                await fetchSubordinates([sub._id.toString()], sub.role);
+            }
         }
     }
 
     try {
-        await fetchSubordinates([userId]);
+        await fetchSubordinates([userId], role);
     } catch (err) {
         console.error("[Hierarchy] Error in recursion:", err);
     }

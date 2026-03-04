@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import {
     Users, Mail, Phone, Briefcase, ExternalLink,
@@ -22,7 +22,8 @@ interface TeamMember {
     phone?: string;
     department?: string;
     isActive: boolean;
-    reportingManager?: string;
+    reportingManager?: any;
+    teamLeader?: any;
     attendanceStatus?: 'Present' | 'Late' | 'Absent' | 'Offline' | 'Half Day';
     clockIn?: string;
     clockOut?: string;
@@ -113,14 +114,33 @@ export default function TeamOverviewPage() {
 
     const isHRAdmin = ["Admin", "HR", "HR Manager"].includes(userRole);
 
-    const directReports = team.filter(u =>
-        (u.reportingManager && String(u.reportingManager) === String(managerId)) ||
-        (isHRAdmin && !u.reportingManager)
-    );
+    const directReports = team.filter(u => {
+        const isSelf = String(u._id) === String(managerId);
+        if (isSelf) return false;
 
-    const getSubordinates = (tlId: string) => team.filter(u =>
-        u.reportingManager && String(u.reportingManager) === String(tlId)
-    );
+        const uManagerId = u.reportingManager?._id || u.reportingManager;
+        const isReferredByManager = (uManagerId && String(uManagerId) === String(managerId));
+        const isHRBypass = (isHRAdmin && !uManagerId);
+
+        if (!isReferredByManager && !isHRBypass) return false;
+
+        // Enforce Hierarchy Display:
+        // 1. If current user is TL, only show Employees
+        if (userRole === 'TL') return u.role === 'Employee';
+
+        // 2. If current user is Manager, show TLs and Employees (prevent Managers reporting to Managers in this view)
+        if (['Manager', 'Assigned Manager'].includes(userRole)) {
+            return u.role === 'TL' || u.role === 'Employee';
+        }
+
+        return true;
+    });
+
+    const getSubordinates = (tlId: string) => team.filter(u => {
+        // Subordinates of a TL should ONLY be Employees
+        const uManagerId = u.reportingManager?._id || u.reportingManager;
+        return uManagerId && String(uManagerId) === String(tlId) && u.role === 'Employee';
+    });
 
     const StatusBadge = ({ status }: { status?: string }) => {
         const colors = {
@@ -232,7 +252,7 @@ export default function TeamOverviewPage() {
                                 const isTL = subordinates.length > 0;
 
                                 return (
-                                    <>
+                                    <React.Fragment key={tl._id}>
                                         <tr key={tl._id} className={clsx("group transition-colors", isExpanded ? "bg-blue-50/20" : "hover:bg-slate-50/50")}>
                                             <td className="px-6 py-4 text-center">
                                                 {isTL && (
@@ -326,7 +346,7 @@ export default function TeamOverviewPage() {
                                                 </td>
                                             </tr>
                                         ))}
-                                    </>
+                                    </React.Fragment>
                                 );
                             })
                         )}

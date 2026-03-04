@@ -14,6 +14,7 @@ export default function MyTeamPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const userId = (session?.user as any)?.id;
+    const userRole = (session?.user as any)?.role;
 
     const fetchData = async () => {
         if (!userId) return;
@@ -31,7 +32,14 @@ export default function MyTeamPage() {
             const today = moment().startOf('day');
 
             // Filter out the current user (the TL/Manager) from their own "My Team" list
-            const subordinates = users.filter((u: any) => u._id !== userId);
+            let subordinates = users.filter((u: any) => u._id !== userId);
+
+            // Enforce role hierarchy: TLs should only see Employees, Managers can see TLs & Employees.
+            if (userRole === 'TL') {
+                subordinates = subordinates.filter((u: any) => u.role === 'Employee' || u.role === 'Intern');
+            } else if (['Manager', 'Assigned Manager'].includes(userRole)) {
+                subordinates = subordinates.filter((u: any) => ['Employee', 'Intern', 'TL'].includes(u.role));
+            }
 
             const enrichedTeam = subordinates.map((u: any) => {
                 const record = attendance.find((r: any) =>
@@ -49,11 +57,13 @@ export default function MyTeamPage() {
                     status = 'Absent';
                 }
 
+                const performanceValue = userTasks.length > 0 ? Math.floor(Math.random() * 20) + 80 : null; // Set to null if no tasks
+
                 return {
                     ...u,
                     attendanceStatus: status,
                     currentTask: latestTask,
-                    performance: Math.floor(Math.random() * 20) + 80, // Mock performance for now as requested by UI
+                    performance: performanceValue,
                 };
             });
 
@@ -162,13 +172,19 @@ export default function MyTeamPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className={clsx("h-full rounded-full", member.performance >= 90 ? "bg-emerald-500" : "bg-blue-500")}
-                                                    style={{ width: `${member.performance}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-xs font-bold text-slate-700">{member.performance}%</span>
+                                            {member.performance !== null ? (
+                                                <>
+                                                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={clsx("h-full rounded-full", member.performance >= 90 ? "bg-emerald-500" : "bg-blue-500")}
+                                                            style={{ width: `${member.performance}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-700">{member.performance}%</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-xs font-semibold text-slate-400 italic">No Data</span>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">

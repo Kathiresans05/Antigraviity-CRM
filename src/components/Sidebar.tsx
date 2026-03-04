@@ -102,7 +102,9 @@ const TL_LINKS = [
             { name: "My Team", href: "/my-team", icon: Users },
             { name: "Projects", href: "/projects", icon: Briefcase },
             { name: "Tasks", href: "/tasks", icon: ListTodo },
-            { name: "Attendance", href: "/team-attendance", icon: Clock },
+            { name: "Attendance", href: "/attendance", icon: Clock },
+            { name: "Team Attendance", href: "/team-attendance", icon: Users },
+            { name: "Leave Tracker", href: "/leave-tracker", icon: Calendar },
             { name: "Leave Approvals", href: "/leave-approvals", icon: Calendar },
             { name: "Reports", href: "/reports", icon: BarChart2 },
             { name: "Meetings", href: "/meetings", icon: Users },
@@ -188,7 +190,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     return (
         <aside className={clsx(
             "flex flex-col h-screen fixed top-0 left-0 z-40 transition-all duration-300 ease-in-out",
-            "bg-[#1F6F8B] shadow-2xl",
+            "bg-[#0f172a] shadow-2xl",
             collapsed ? "w-[72px]" : "w-[256px]"
         )}>
             {/* Header / Logo */}
@@ -241,8 +243,8 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                                                 "group flex items-center gap-3 rounded-xl transition-all duration-200 relative",
                                                 collapsed ? "p-2.5 justify-center" : "px-3.5 py-2",
                                                 isActive
-                                                    ? "bg-white/10 text-white font-semibold shadow-sm"
-                                                    : "text-blue-100/70 hover:bg-white/[0.05] hover:text-white"
+                                                    ? "bg-[#1F6F8B] text-white font-semibold shadow-sm"
+                                                    : "text-blue-100/70 hover:bg-[#1F6F8B]/50 hover:text-white"
                                             )}
                                         >
                                             <Icon className={clsx(
@@ -283,7 +285,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                         <div className="w-9 h-9 rounded-xl bg-[#1e293b] border border-white/10 flex items-center justify-center text-blue-400 font-bold shadow-inner text-sm">
                             {userName.charAt(0).toUpperCase()}
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#1F6F8B] rounded-full"></div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0f172a] rounded-full"></div>
                     </div>
 
                     {!collapsed && (
