@@ -491,7 +491,9 @@ export default function TeamAttendancePage() {
                                                     <td className="px-6 py-4 text-center">
                                                         <div className="flex flex-col items-center">
                                                             <span className="text-[14px] font-bold text-slate-800 tabular-nums">
-                                                                {record.totalHours ? `${record.totalHours.toFixed(1)}h` : '0h'}
+                                                                {record.totalHours > 0 && record.totalHours < 1
+                                                                    ? `${Math.round(record.totalHours * 60)} minutes`
+                                                                    : record.totalHours ? `${record.totalHours.toFixed(1)}h` : '0h'}
                                                             </span>
                                                         </div>
                                                     </td>
@@ -548,7 +550,9 @@ export default function TeamAttendancePage() {
                                                                 <span className="text-[12px] font-bold text-slate-400">{sub.clockOutTime ? moment(sub.clockOutTime).format('hh:mm A') : '--:--'}</span>
                                                             </td>
                                                             <td className="px-6 py-3 text-center text-[12px] font-bold text-slate-600">
-                                                                {sub.totalHours ? `${sub.totalHours.toFixed(1)}h` : '0h'}
+                                                                {sub.totalHours > 0 && sub.totalHours < 1
+                                                                    ? `${Math.round(sub.totalHours * 60)} minutes`
+                                                                    : sub.totalHours ? `${sub.totalHours.toFixed(1)}h` : '0h'}
                                                             </td>
                                                             <td className="px-6 py-3">
                                                                 <div className={clsx("inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold border uppercase", subStatusCfg.bg, subStatusCfg.text)}>

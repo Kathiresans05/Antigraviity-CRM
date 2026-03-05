@@ -80,11 +80,18 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
             }
 
+            const timeIn = requestedTimeIn ? new Date(requestedTimeIn) : record.clockInTime;
+            const timeOut = requestedTimeOut ? new Date(requestedTimeOut) : record.clockOutTime;
+
+            if (timeIn && timeOut && !moment(timeOut).isAfter(moment(timeIn))) {
+                return NextResponse.json({ error: "Clock Out time must be later than Clock In." }, { status: 400 });
+            }
+
             record.correctionRequested = true;
             record.correctionDetails = {
                 reason,
-                requestedTimeIn: requestedTimeIn ? new Date(requestedTimeIn) : record.clockInTime,
-                requestedTimeOut: requestedTimeOut ? new Date(requestedTimeOut) : record.clockOutTime,
+                requestedTimeIn: timeIn,
+                requestedTimeOut: timeOut,
                 status: 'Pending'
             };
 
@@ -115,6 +122,10 @@ export async function POST(req: Request) {
             const requestedOut = record.correctionDetails.requestedTimeOut;
             const clockInMom = moment(requestedIn);
             const clockOutMom = moment(requestedOut);
+
+            if (!clockOutMom.isAfter(clockInMom)) {
+                return NextResponse.json({ error: "Clock Out time must be later than Clock In." }, { status: 400 });
+            }
 
             const totalDurationMins = clockOutMom.diff(clockInMom, 'minutes');
             const netMins = Math.max(0, totalDurationMins - (record.breakMinutes || 0));

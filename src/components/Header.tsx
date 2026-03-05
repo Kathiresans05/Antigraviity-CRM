@@ -106,7 +106,7 @@ export default function Header({ title = "Dashboard" }: { title?: string }) {
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/40 transition-all placeholder:text-gray-400"
                     />
                     {/* Search Results Dropdown */}
-                    {showDropdown && (
+                    {mounted && showDropdown && (
                         <div
                             ref={dropdownRef}
                             className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50"
@@ -151,7 +151,7 @@ export default function Header({ title = "Dashboard" }: { title?: string }) {
 
             <div className="flex items-center gap-4">
                 {/* Quick Add - Only for HR/Admin */}
-                {["Admin", "HR", "HR Manager", "Manager"].includes((session?.user as any)?.role) && (
+                {mounted && ["Admin", "HR", "HR Manager", "Manager"].includes((session?.user as any)?.role) && (
                     <Menu as="div" className="relative hidden md:block">
                         <Menu.Button className="flex items-center gap-2 bg-[#1f6f8b] hover:bg-[#1a5d75] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95">
                             <Plus className="w-4 h-4" />
@@ -198,49 +198,51 @@ export default function Header({ title = "Dashboard" }: { title?: string }) {
                 )}
 
                 {/* Notifications */}
-                <Menu as="div" className="relative">
-                    <Menu.Button className="relative p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all group focus:outline-none">
-                        <Bell className="w-5 h-5 group-hover:scale-110" />
-                        <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
-                    </Menu.Button>
-                    <Transition
-                        as={Fragment}
-                        enter="transition ease-out duration-100"
-                        enterFrom="transform opacity-0 scale-95"
-                        enterTo="transform opacity-100 scale-100"
-                        leave="transition ease-in duration-75"
-                        leaveFrom="transform opacity-100 scale-100"
-                        leaveTo="transform opacity-0 scale-95"
-                    >
-                        <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none overflow-hidden z-20">
-                            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                                <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
-                                <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">New</span>
-                            </div>
-                            <div className="max-h-80 overflow-y-auto">
-                                {/* Dummy notifications */}
-                                <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer">
-                                    <p className="text-sm font-semibold text-gray-800 leading-tight">New company policy updated</p>
-                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Please review the new HR guidelines in the documents portal.</p>
-                                    <p className="text-[10px] text-gray-400 mt-2 font-medium">2 hours ago</p>
+                {mounted && (
+                    <Menu as="div" className="relative">
+                        <Menu.Button className="relative p-2.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all group focus:outline-none">
+                            <Bell className="w-5 h-5 group-hover:scale-110" />
+                            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
+                        </Menu.Button>
+                        <Transition
+                            as={Fragment}
+                            enter="transition ease-out duration-100"
+                            enterFrom="transform opacity-0 scale-95"
+                            enterTo="transform opacity-100 scale-100"
+                            leave="transition ease-in duration-75"
+                            leaveFrom="transform opacity-100 scale-100"
+                            leaveTo="transform opacity-0 scale-95"
+                        >
+                            <Menu.Items className="absolute right-0 mt-2 w-80 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none overflow-hidden z-20">
+                                <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                    <h3 className="text-sm font-bold text-gray-900">Notifications</h3>
+                                    <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">New</span>
                                 </div>
-                                <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
-                                    <p className="text-sm font-semibold text-gray-800 leading-tight">System maintenance scheduled</p>
-                                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Expect a 15-minute downtime tonight at 12:00 AM.</p>
-                                    <p className="text-[10px] text-gray-400 mt-2 font-medium">5 hours ago</p>
+                                <div className="max-h-80 overflow-y-auto">
+                                    {/* Dummy notifications */}
+                                    <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer">
+                                        <p className="text-sm font-semibold text-gray-800 leading-tight">New company policy updated</p>
+                                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">Please review the new HR guidelines in the documents portal.</p>
+                                        <p className="text-[10px] text-gray-400 mt-2 font-medium">2 hours ago</p>
+                                    </div>
+                                    <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                                        <p className="text-sm font-semibold text-gray-800 leading-tight">System maintenance scheduled</p>
+                                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">Expect a 15-minute downtime tonight at 12:00 AM.</p>
+                                        <p className="text-[10px] text-gray-400 mt-2 font-medium">5 hours ago</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="p-3 bg-gray-50 border-t border-gray-100 shrink-0 text-center">
-                                <Link
-                                    href="/announcements"
-                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
-                                >
-                                    View all announcements
-                                </Link>
-                            </div>
-                        </Menu.Items>
-                    </Transition>
-                </Menu>
+                                <div className="p-3 bg-gray-50 border-t border-gray-100 shrink-0 text-center">
+                                    <Link
+                                        href="/announcements"
+                                        className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                                    >
+                                        View all announcements
+                                    </Link>
+                                </div>
+                            </Menu.Items>
+                        </Transition>
+                    </Menu>
+                )}
 
                 {/* Profile Dropdown */}
                 {mounted ? (

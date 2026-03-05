@@ -62,6 +62,7 @@ export default function AttendancePage() {
     const { data: session } = useSession();
     const router = useRouter();
     const [isClockedIn, setIsClockedIn] = useState(false);
+    const [isAttendanceCompleted, setIsAttendanceCompleted] = useState(false);
     const [isOnBreak, setIsOnBreak] = useState(false);
     const [workingHours, setWorkingHours] = useState("00:00:00");
     const [breakHours, setBreakHours] = useState("00:00:00");
@@ -322,6 +323,7 @@ export default function AttendancePage() {
 
             if (todayRecord) {
                 setIsClockedIn(true);
+                setIsAttendanceCompleted(false);
                 setIsOnBreak(!!todayRecord.isOnBreak);
                 setBreakMinutes(todayRecord.breakMinutes || 0);
                 setClockInTime(new Date(todayRecord.clockInTime));
@@ -340,7 +342,15 @@ export default function AttendancePage() {
                     });
                 }
             } else {
+                // Check if they already clocked out for today
+                const completedToday = res.data.records.find((r: any) =>
+                    new Date(r.date).toDateString() === new Date().toDateString() &&
+                    r.clockOutTime &&
+                    (String(r.userId?._id) === String(session?.user?.id) || String(r.userId) === String(session?.user?.id))
+                );
+
                 setIsClockedIn(false);
+                setIsAttendanceCompleted(!!completedToday);
                 setIsOnBreak(false);
                 setClockInTime(null);
                 setWorkingHours("00:00:00");
@@ -424,7 +434,15 @@ export default function AttendancePage() {
             return;
         }
 
-        setLoading(true);
+        if (isClockedIn && clockInTime) {
+            const now = new Date();
+            if (now <= clockInTime) {
+                toast.error("Clock Out time must be later than Clock In.");
+                setLoading(false);
+                return;
+            }
+        }
+
         try {
             await axios.post("/api/attendance", { action: "clockOut", workStatus, workStatusFile: fileData?.data });
             setIsClockedIn(false);
@@ -432,8 +450,8 @@ export default function AttendancePage() {
             setWorkStatus("");
             setFileData(null);
             fetchRecords();
-        } catch (error) {
-            alert("Error clocking out. Please try again.");
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || "Error clocking out. Please try again.");
         }
         setLoading(false);
     };
@@ -534,11 +552,25 @@ export default function AttendancePage() {
                         ) : (
                             <button
                                 onClick={handleClockIn}
-                                disabled={loading}
-                                className="px-10 py-3.5 bg-[#1F6F8B] text-white rounded-xl text-[13px] font-bold uppercase tracking-widest hover:bg-[#16556b] transition-all shadow-lg shadow-gray-200 flex items-center gap-3"
+                                disabled={loading || isAttendanceCompleted}
+                                className={cn(
+                                    "px-10 py-3.5 rounded-xl text-[13px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-3",
+                                    isAttendanceCompleted
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200"
+                                        : "bg-[#1F6F8B] text-white hover:bg-[#16556b] shadow-gray-200"
+                                )}
                             >
-                                <Play className="w-4 h-4 fill-current" />
-                                Clock In Now
+                                {isAttendanceCompleted ? (
+                                    <>
+                                        <CheckCircle className="w-4 h-4" />
+                                        Attendance Completed
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="w-4 h-4 fill-current" />
+                                        Clock In Now
+                                    </>
+                                )}
                             </button>
                         )}
                     </div>
@@ -817,7 +849,9 @@ export default function AttendancePage() {
                                                 <td className="px-8 py-4 text-center">
                                                     <div className="flex flex-col items-center">
                                                         <span className="text-[14px] font-bold text-gray-900 tracking-tight">
-                                                            {record.effectiveHours?.toFixed(1)}h
+                                                            {record.effectiveHours > 0 && record.effectiveHours < 1
+                                                                ? `${Math.round(record.effectiveHours * 60)} minutes`
+                                                                : `${record.effectiveHours?.toFixed(1)}h`}
                                                         </span>
                                                         <div className="w-12 h-1 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
                                                             <div className="h-full bg-[#1F6F8B] transition-all duration-1000" style={{ width: `${Math.min((record.effectiveHours / 8) * 100, 100)}%` }} />
@@ -940,15 +974,21 @@ export default function AttendancePage() {
                             <form
                                 onSubmit={async (e) => {
                                     e.preventDefault();
-                                    if (!correctionReason.trim()) return toast.error("Reason is required");
+                                    const timeIn = correctionTimeIn ? new Date(`${new Date(selectedRecordForCorrection.date).toDateString()} ${correctionTimeIn}`) : (selectedRecordForCorrection.clockInTime ? new Date(selectedRecordForCorrection.clockInTime) : null);
+                                    const timeOut = correctionTimeOut ? new Date(`${new Date(selectedRecordForCorrection.date).toDateString()} ${correctionTimeOut}`) : (selectedRecordForCorrection.clockOutTime ? new Date(selectedRecordForCorrection.clockOutTime) : null);
+
+                                    if (timeIn && timeOut && timeOut <= timeIn) {
+                                        return toast.error("Clock Out time must be later than Clock In.");
+                                    }
+
                                     setLoading(true);
                                     try {
                                         await axios.post("/api/attendance/action", {
                                             action: "requestCorrection",
                                             recordId: selectedRecordForCorrection._id,
                                             reason: correctionReason,
-                                            requestedTimeIn: correctionTimeIn ? new Date(`${new Date(selectedRecordForCorrection.date).toDateString()} ${correctionTimeIn}`).toISOString() : null,
-                                            requestedTimeOut: correctionTimeOut ? new Date(`${new Date(selectedRecordForCorrection.date).toDateString()} ${correctionTimeOut}`).toISOString() : null,
+                                            requestedTimeIn: timeIn?.toISOString(),
+                                            requestedTimeOut: timeOut?.toISOString(),
                                         });
                                         toast.success("Successfully sent for HR approval");
                                         setShowCorrectionModal(false);

@@ -26,8 +26,11 @@ export async function POST(req: Request) {
 
         if (action === 'clockIn') {
             const existingRecord = await Attendance.findOne({ userId, date: today });
-            if (existingRecord && existingRecord.status !== 'Absent' && existingRecord.status !== 'On Leave') {
-                return NextResponse.json({ error: "Already clocked in today." }, { status: 400 });
+            if (existingRecord && existingRecord.clockInTime) {
+                if (existingRecord.clockOutTime) {
+                    return NextResponse.json({ error: "You have already clocked out for today. Multiple sessions are not allowed." }, { status: 400 });
+                }
+                return NextResponse.json({ error: "You are already clocked in." }, { status: 400 });
             }
             const now = moment();
             const lateThreshold = moment().startOf('day').hour(10).minute(0);
@@ -37,6 +40,10 @@ export async function POST(req: Request) {
             let record;
             if (existingRecord && (existingRecord.status === 'Absent' || existingRecord.status === 'On Leave')) {
                 existingRecord.clockInTime = now.toDate();
+                existingRecord.clockOutTime = null; // Clear old clock-out
+                existingRecord.totalHours = 0;      // Reset hours
+                existingRecord.breakMinutes = 0;   // Reset breaks
+                existingRecord.isOnBreak = false;  // Reset break status
                 existingRecord.status = newStatus;
                 await existingRecord.save();
                 record = existingRecord;
@@ -93,6 +100,10 @@ export async function POST(req: Request) {
             const clockOutTime = new Date();
             const clockInMoment = moment(existingRecord.clockInTime);
             const clockOutMoment = moment(clockOutTime);
+
+            if (!clockOutMoment.isAfter(clockInMoment)) {
+                return NextResponse.json({ error: "Clock Out time must be later than Clock In." }, { status: 400 });
+            }
 
             // totalDurationMins: Total time from Clock In to Clock Out (including breaks)
             const totalDurationMins = clockOutMoment.diff(clockInMoment, 'minutes');
