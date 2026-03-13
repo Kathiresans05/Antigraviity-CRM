@@ -5,6 +5,7 @@ import connectToDatabase from "@/lib/mongodb";
 import Attendance from "@/models/Attendance";
 import moment from "moment";
 import { getManagedUserIds } from "@/lib/hierarchy";
+import { getShiftStartMoment, calculateLateMinutes, SHIFT_START_TIME } from "@/lib/attendance-utils";
 import Leave from "@/models/Leave";
 import Holiday from "@/models/Holiday";
 import User from "@/models/User";
@@ -24,6 +25,12 @@ export async function POST(req: Request) {
         const today = moment().startOf('day').toDate();
         const userId = session.user.id;
 
+        // Verify user status
+        const currentUser = await User.findById(userId);
+        if (!currentUser || currentUser.status === 'inactive') {
+            return NextResponse.json({ error: "Your account is inactive. Attendance actions are disabled." }, { status: 403 });
+        }
+
         if (action === 'clockIn') {
             const existingRecord = await Attendance.findOne({ userId, date: today });
             if (existingRecord && existingRecord.clockInTime) {
@@ -33,24 +40,30 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "You are already clocked in." }, { status: 400 });
             }
             const now = moment();
-            const lateThreshold = moment().startOf('day').hour(10).minute(0);
-            const isLate = now.isAfter(lateThreshold);
-            const newStatus = isLate ? 'Late' : 'Present';
+            const shiftStart = getShiftStartMoment(today);
+            const { lateMinutes, isLate } = calculateLateMinutes(now, shiftStart);
+            const newStatus = 'ACTIVE';
 
             let record;
-            if (existingRecord && (existingRecord.status === 'Absent' || existingRecord.status === 'On Leave')) {
+            if (existingRecord && (existingRecord.status === 'ABSENT' || existingRecord.status === 'On Leave' || existingRecord.status === 'Absent')) {
                 existingRecord.clockInTime = now.toDate();
-                existingRecord.clockOutTime = null; // Clear old clock-out
-                existingRecord.totalHours = 0;      // Reset hours
-                existingRecord.breakMinutes = 0;   // Reset breaks
-                existingRecord.isOnBreak = false;  // Reset break status
+                existingRecord.clockOutTime = null;
+                existingRecord.totalHours = 0;
+                existingRecord.breakMinutes = 0;
+                existingRecord.breaks = [];
+                existingRecord.isOnBreak = false;
+                existingRecord.lateMinutes = lateMinutes;
+                existingRecord.isLate = isLate;
                 existingRecord.status = newStatus;
                 await existingRecord.save();
                 record = existingRecord;
             } else {
                 record = await Attendance.create({
                     userId, date: today, clockInTime: now.toDate(),
-                    status: newStatus
+                    status: newStatus,
+                    lateMinutes: lateMinutes,
+                    isLate: isLate,
+                    shiftStartTime: SHIFT_START_TIME // Optional: save for records
                 });
             }
             return NextResponse.json({ message: "Clocked in successfully", record });
@@ -58,11 +71,12 @@ export async function POST(req: Request) {
         } else if (action === 'startBreak') {
             const record = await Attendance.findOne({ userId, date: today, clockOutTime: null });
             if (!record) return NextResponse.json({ error: "Not clocked in." }, { status: 400 });
-            const alreadyOnBreak = record.isOnBreak || (record.breakStartTime && !record.breakEndTime);
+            const alreadyOnBreak = record.isOnBreak;
             if (alreadyOnBreak) return NextResponse.json({ error: "Already on break." }, { status: 400 });
+
             const updated = await Attendance.findByIdAndUpdate(
                 record._id,
-                { $set: { breakStartTime: new Date(), isOnBreak: true, breakEndTime: null } },
+                { $set: { breakStartTime: new Date(), isOnBreak: true } },
                 { new: true }
             );
             return NextResponse.json({ message: "Break started", record: updated });
@@ -70,15 +84,19 @@ export async function POST(req: Request) {
         } else if (action === 'endBreak') {
             const record = await Attendance.findOne({ userId, date: today, clockOutTime: null });
             if (!record) return NextResponse.json({ error: "Not clocked in." }, { status: 400 });
-            const onBreak = record.isOnBreak || (record.breakStartTime && !record.breakEndTime);
-            if (!onBreak) return NextResponse.json({ error: "Not on break." }, { status: 400 });
-            const breakStart = record.breakStartTime || record.updatedAt;
-            const breakSecs = moment().diff(moment(breakStart), 'seconds');
-            const breakMins = breakSecs / 60;
-            const totalBreak = (record.breakMinutes || 0) + breakMins;
+            if (!record.isOnBreak) return NextResponse.json({ error: "Not on break." }, { status: 400 });
+
+            const breakStart = record.breakStartTime;
+            const breakEnd = new Date();
+            const durationMins = moment(breakEnd).diff(moment(breakStart), 'minutes');
+
             const updated = await Attendance.findByIdAndUpdate(
                 record._id,
-                { $set: { breakEndTime: new Date(), isOnBreak: false, breakMinutes: totalBreak } },
+                {
+                    $push: { breaks: { startTime: breakStart, endTime: breakEnd, duration: durationMins } },
+                    $inc: { breakMinutes: durationMins },
+                    $set: { isOnBreak: false, breakStartTime: null, breakEndTime: breakEnd }
+                },
                 { new: true }
             );
             return NextResponse.json({ message: "Break ended", record: updated });
@@ -91,12 +109,19 @@ export async function POST(req: Request) {
             if (!existingRecord) {
                 return NextResponse.json({ error: "No active clock-in found for today, or already clocked out." }, { status: 400 });
             }
+
             // If still on break, end it first
             if (existingRecord.isOnBreak) {
-                const breakSecs = moment().diff(moment(existingRecord.breakStartTime), 'seconds');
-                existingRecord.breakMinutes = (existingRecord.breakMinutes || 0) + (breakSecs / 60);
+                const breakStart = existingRecord.breakStartTime;
+                const breakEnd = new Date();
+                const durationMins = moment(breakEnd).diff(moment(breakStart), 'minutes');
+                existingRecord.breaks.push({ startTime: breakStart, endTime: breakEnd, duration: durationMins });
+                existingRecord.breakMinutes = (existingRecord.breakMinutes || 0) + durationMins;
                 existingRecord.isOnBreak = false;
+                existingRecord.breakStartTime = null;
+                existingRecord.breakEndTime = breakEnd;
             }
+
             const clockOutTime = new Date();
             const clockInMoment = moment(existingRecord.clockInTime);
             const clockOutMoment = moment(clockOutTime);
@@ -105,31 +130,31 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "Clock Out time must be later than Clock In." }, { status: 400 });
             }
 
-            // totalDurationMins: Total time from Clock In to Clock Out (including breaks)
-            const totalDurationMins = clockOutMoment.diff(clockInMoment, 'minutes');
-            // netMins: Time excluding breaks
-            const netMins = Math.max(0, totalDurationMins - (existingRecord.breakMinutes || 0));
-            const hours = netMins / 60;
+            // Calculate stats using the utility
+            const tempRecord = {
+                ...existingRecord.toObject(),
+                clockOutTime: clockOutTime
+            };
+            const { calculateAttendanceStats } = await import('@/lib/attendance-utils');
+            const stats = calculateAttendanceStats(tempRecord);
+
+            // Business Rules Validation - Removed strict block to allow early logout
+            // The status (Full Day, Half Day, Absent) is already calculated by calculateAttendanceStats
 
             // Update record fields
             existingRecord.clockOutTime = clockOutTime;
-            existingRecord.totalHours = parseFloat(hours.toFixed(2));
-
-            // Determine final status
-            if (netMins < 4 * 60) {
-                existingRecord.status = 'Absent';
-            } else if (netMins < 8 * 60) {
-                existingRecord.status = 'Half Day';
-            } else if (totalDurationMins < 9 * 60) {
-                existingRecord.status = 'Early Logout';
-            } else {
-                // Determine if 'Late' or 'Present' based on original clock-in
-                const threshold = moment(existingRecord.clockInTime).startOf('day').hour(10).minute(0);
-                existingRecord.status = clockInMoment.isAfter(threshold) ? 'Late' : 'Present';
-            }
+            existingRecord.grossPresenceMinutes = stats.grossPresenceMinutes;
+            existingRecord.netWorkMinutes = stats.netWorkMinutes;
+            existingRecord.totalHours = stats.totalHours;
+            existingRecord.lateMinutes = stats.lateMinutes;
+            existingRecord.earlyLogoutMinutes = stats.earlyLogoutMinutes;
+            existingRecord.isLate = stats.isLate;
+            existingRecord.isEarlyOut = stats.isEarlyOut;
+            existingRecord.status = stats.status;
 
             existingRecord.workStatusUpload = workStatus.trim();
             if (workStatusFile) existingRecord.workStatusFile = workStatusFile;
+
             await existingRecord.save();
 
             // Notify Reporting Manager
@@ -144,15 +169,12 @@ export async function POST(req: Request) {
                         workStatus.trim(),
                         moment(existingRecord.clockInTime).format('hh:mm A'),
                         moment(clockOutTime).format('hh:mm A'),
-                        parseFloat(hours.toFixed(2)),
+                        stats.totalHours,
                         workStatusFile
                     );
-                } else {
-                    console.log(`[ATTENDANCE_API]: No reporting manager found for ${employee?.name || userId}. Skipping email.`);
                 }
             } catch (notifyErr) {
                 console.error("[ATTENDANCE_API]: Failed to notify manager:", notifyErr);
-                // Don't fail the clock-out just because notification failed
             }
 
             return NextResponse.json({ message: "Clocked out successfully", record: existingRecord });
@@ -185,19 +207,120 @@ export async function GET(req: Request) {
         // Auto-mark absentees if after 11:00 AM
         await import('@/lib/attendance-utils').then(m => m.markAbsenteesToday());
 
+        const { searchParams } = new URL(req.url);
+        const filter = searchParams.get('filter');
+
         const userId = session.user.id;
         const userRole = (session.user as any).role;
+        const isAdminHR = ['Admin', 'HR', 'HR Manager'].includes(userRole);
 
-        // Get managed user IDs for hierarchical visibility
-        const managedIds = await getManagedUserIds(userId, userRole);
+        let query: any = {};
 
-        // Always include the current user's own records (getManagedUserIds in strict mode may not include self)
-        const queryIds = Array.from(new Set([userId, ...managedIds]));
+        if (filter === 'present-today') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
+            query = {
+                date: { $gte: todayStart, $lte: todayEnd },
+                status: { $in: ['Present', 'Late', 'ACTIVE', 'FULL_DAY', 'HALF_DAY', 'Active'] }
+            };
+        } else if (filter === 'late-arrival' || filter === 'late') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
+            query = {
+                date: { $gte: todayStart, $lte: todayEnd },
+                isLate: true
+            };
+        } else if (filter === 'early-exit') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
+            query = {
+                date: { $gte: todayStart, $lte: todayEnd },
+                isEarlyOut: true
+            };
+        } else if (filter === 'on-time') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
+            query = {
+                date: { $gte: todayStart, $lte: todayEnd },
+                clockInTime: { $exists: true, $ne: null },
+                isLate: false
+            };
+        } else if (filter === 'on-break') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
+            query = {
+                date: { $gte: todayStart, $lte: todayEnd },
+                isOnBreak: true
+            };
+        } else if (filter === 'auto-closed') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
+            query = {
+                date: { $gte: todayStart, $lte: todayEnd },
+                $or: [{ autoClosed: true }, { status: 'Auto Closed' }]
+            };
+        } else if (filter === 'absent-today') {
+            const todayStart = moment().startOf('day').toDate();
+            const todayEnd = moment().endOf('day').toDate();
 
-        const query = { userId: { $in: queryIds } };
+            // 1. Get all active users (potentially filtered by hierarchy if not Admin/HR)
+            let userQuery: any = { status: 'active' };
+            if (!isAdminHR) {
+                const managedIds = await getManagedUserIds(userId, userRole);
+                const queryIds = Array.from(new Set([userId, ...managedIds]));
+                userQuery._id = { $in: queryIds };
+            }
+            const activeUsers = await User.find(userQuery).select('name email role department employeeCode designation teamLeader reportingManager');
 
+            // 2. Get today's attendance records for these users
+            const todayAttendance = await Attendance.find({
+                date: { $gte: todayStart, $lte: todayEnd },
+                userId: { $in: activeUsers.map(u => u._id) }
+            });
 
-        const records = await Attendance.find(query).sort({ date: -1 }).populate('userId', 'name email role department teamLeader reportingManager');
+            // 3. Identify absentees
+            const presentUserIds = new Set(
+                todayAttendance
+                    .filter(a => !['Absent', 'ABSENT', 'Auto Closed'].includes(a.status))
+                    .map(a => a.userId.toString())
+            );
+
+            const absentees = activeUsers.filter(u => !presentUserIds.has(u._id.toString()));
+
+            // 4. Transform into attendance-like records for the frontend
+            const records = absentees.map(u => {
+                const existingRecord = todayAttendance.find(a => a.userId.toString() === u._id.toString());
+                return {
+                    _id: existingRecord?._id || `absent-${u._id}`,
+                    userId: u,
+                    date: todayStart,
+                    status: existingRecord?.status || 'Absent',
+                    clockInTime: existingRecord?.clockInTime || null,
+                    clockOutTime: existingRecord?.clockOutTime || null,
+                    totalHours: existingRecord?.totalHours || 0,
+                    isAbsentView: true // Flag for frontend
+                };
+            });
+
+            return NextResponse.json({ records, unclosedSession: null, stats: {} });
+
+        } else {
+            // Default behavior: hierarchical visibility or general list
+            const managedIds = await getManagedUserIds(userId, userRole);
+            const queryIds = Array.from(new Set([userId, ...managedIds]));
+            query.userId = { $in: queryIds };
+        }
+
+        // Apply hierarchical restrictions for non-Admin/HR on filtered views
+        if (filter && !isAdminHR && !query.userId) {
+            const managedIds = await getManagedUserIds(userId, userRole);
+            const queryIds = Array.from(new Set([userId, ...managedIds]));
+            query.userId = { $in: queryIds };
+        }
+
+        const records = await Attendance.find(query)
+            .sort({ date: -1 })
+            .populate('userId', 'name email role department employeeCode teamLeader reportingManager');
 
         // Check for an unclosed session (yesterday or older, where clockOutTime is null) for the CURRENT user
         const todayStart = moment().startOf('day').toDate();
@@ -254,17 +377,16 @@ export async function GET(req: Request) {
         }
 
         const stats = {
-            present: monthRecords.filter(r => r.status === 'Present' || r.status === 'Late').length,
-            absent: monthRecords.filter(r => r.status === 'Absent').length,
-            late: monthRecords.filter(r => r.status === 'Late').length,
+            present: monthRecords.filter(r => ['FULL_DAY', 'HALF_DAY', 'Present', 'Late', 'ACTIVE'].includes(r.status)).length,
+            absent: monthRecords.filter(r => ['ABSENT', 'Absent'].includes(r.status)).length,
+            late: monthRecords.filter(r => r.isLate).length,
             autoClosed: monthRecords.filter(r => r.autoClosed || r.status === 'Auto Closed').length,
             totalHours: totalWorkedMonthly,
             leaveBalance,
             monthlyLeaveTaken,
             todayBreak,
-            earlyExits: monthRecords.filter(r => r.status === 'Early Logout').length,
-            missedPunches: monthRecords.filter(r => r.autoClosed || r.status === 'Auto Closed').length,
-            averageLoginTime
+            earlyExits: monthRecords.filter(r => r.isEarlyOut || r.status === 'Early Logout').length,
+            onTimeCheckins: monthRecords.filter(r => r.clockInTime && !r.isLate).length,
         };
 
         return NextResponse.json({ records, unclosedSession, stats });

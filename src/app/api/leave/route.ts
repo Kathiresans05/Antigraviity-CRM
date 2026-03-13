@@ -16,7 +16,7 @@ export async function POST(req: Request) {
         await connectToDatabase();
         const data = await req.json();
 
-        const { startDate, endDate, ...restData } = data;
+        const { startDate, endDate, totalDays, ...restData } = data;
 
         // Check for overlapping leaves
         const overlappingLeave = await Leave.findOne({
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
             userId: session.user.id,
             startDate,
             endDate,
+            totalDays,
             ...restData
         });
 
@@ -58,6 +59,8 @@ export async function GET(req: Request) {
 
         const userRole = (session.user as any).role;
         const userId = (session.user as any).id;
+        const { searchParams } = new URL(req.url);
+        const filter = searchParams.get('filter');
 
         // Employee sees own records, Admin/HR sees all, Manager/TL sees subordinates
         let query = {};
@@ -76,7 +79,18 @@ export async function GET(req: Request) {
             query = { userId: userId };
         }
 
-        const records = await Leave.find(query).sort({ appliedOn: -1 }).populate('userId', 'name email');
+        if (filter === 'today') {
+            const moment = (await import('moment')).default;
+            const today = moment().startOf('day').toDate();
+            query = {
+                ...query,
+                startDate: { $lte: today },
+                endDate: { $gte: today },
+                status: 'Approved'
+            };
+        }
+
+        const records = await Leave.find(query).sort({ appliedOn: -1 }).populate('userId', 'name email department employeeCode');
 
         return NextResponse.json({ records });
 

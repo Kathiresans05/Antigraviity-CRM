@@ -6,6 +6,7 @@ import connectToDatabase from "@/lib/mongodb";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
 import { getManagedUserIds } from "@/lib/hierarchy";
+import moment from "moment";
 
 export async function GET(req: Request) {
     try {
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
 
         const query = { _id: { $in: managedIds } };
 
-        const users = await User.find(query, '_id name email role phone department joinDate isActive reportingManager teamLeader')
+        const users = await User.find(query, '_id name email role phone department joinDate isActive status onboardingStatus reportingManager teamLeader documents')
             .populate('reportingManager', 'name role')
             .populate('teamLeader', 'name role')
             .sort({ name: 1 });
@@ -126,9 +127,10 @@ export async function POST(req: Request) {
 
         if (existing) {
             if (existing.isActive) {
-                return NextResponse.json({ error: "An active employee with this email already exists." }, { status: 409 });
+                return NextResponse.json({ error: `An active employee with email ${email} already exists.` }, { status: 409 });
             }
             // Update the existing inactive user (upsert behavior for onboarding)
+            existing.name = name || `${firstName} ${lastName}`;
             if (password) {
                 const hashedPassword = await bcrypt.hash(password, 10);
                 existing.password = hashedPassword;
@@ -171,6 +173,10 @@ export async function POST(req: Request) {
             existing.salaryDetails = salaryDetails || existing.salaryDetails;
             existing.probationPeriod = probationPeriod || existing.probationPeriod;
 
+            if (existing.joinDate && existing.probationPeriod) {
+                existing.probationEndDate = moment(existing.joinDate).add(existing.probationPeriod, 'months').toDate();
+            }
+
             user = await existing.save();
         } else {
             // draft fallback password: a random hash if not provided
@@ -196,7 +202,7 @@ export async function POST(req: Request) {
                 middleName,
                 lastName,
                 gender,
-                dob: dob ? new Date(dob) : undefined,
+                dob: ifValidDate(dob),
                 bloodGroup,
                 maritalStatus,
                 nationality,
@@ -217,7 +223,9 @@ export async function POST(req: Request) {
                 pfAccount,
                 esiAccount,
                 salaryDetails: salaryDetails || {},
-                probationPeriod: probationPeriod || 6
+                probationPeriod: probationPeriod || 6,
+                probationEndDate: moment(joinDate || new Date()).add(probationPeriod || 6, 'months').toDate(),
+                probationStatus: 'Review Pending'
             });
         }
 
@@ -234,8 +242,15 @@ export async function POST(req: Request) {
         }, { status: 201 });
 
     } catch (error: any) {
+        console.error("CREATE_USER_ERROR:", error);
         return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
     }
+}
+
+function ifValidDate(date: any) {
+    if (!date) return undefined;
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? undefined : d;
 }
 
 export async function PATCH(req: Request) {
@@ -252,7 +267,7 @@ export async function PATCH(req: Request) {
 
         await connectToDatabase();
 
-        const { id, name, email, password, phone, department, role, isActive, reportingManager, teamLeader } = await req.json();
+        const { id, name, email, password, phone, department, role, isActive, status, reportingManager, teamLeader } = await req.json();
 
         if (!id) {
             return NextResponse.json({ error: "User ID is required." }, { status: 400 });
@@ -271,8 +286,20 @@ export async function PATCH(req: Request) {
         if (role !== undefined) updateData.role = role;
 
         let justActivated = false;
-        if (isActive !== undefined) {
+        if (status !== undefined) {
+            updateData.status = status;
+            updateData.isActive = (status === 'active');
+            
+            if (status === 'active' && existingUser.status !== 'active') {
+                updateData.onboardingStatus = 'Completed';
+                updateData.hrApproval = 'Approved';
+                justActivated = true;
+            } else if (status === 'inactive' && existingUser.status === 'active') {
+                updateData.onboardingStatus = 'Inactive';
+            }
+        } else if (isActive !== undefined) {
             updateData.isActive = isActive;
+            updateData.status = isActive ? 'active' : 'inactive';
             // Transition from pending to active (Approval logic)
             if (isActive === true && !existingUser.isActive) {
                 updateData.onboardingStatus = 'Completed';

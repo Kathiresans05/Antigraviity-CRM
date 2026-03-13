@@ -8,7 +8,7 @@ import User from "@/models/User";
 export async function GET() {
     try {
         await connectToDatabase();
-        const totalEmployees = await User.countDocuments({ isActive: true });
+        const totalEmployees = await User.countDocuments({ status: 'active' });
         const announcements = await Announcement.find().sort({ createdAt: -1 }).lean();
 
         const processedAnnouncements = announcements.map((ann: any) => {

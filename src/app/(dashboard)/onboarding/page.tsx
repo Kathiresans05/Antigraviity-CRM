@@ -91,7 +91,7 @@ export default function OnboardingPage() {
     const saveDraft = async (manualOnboardingStatus?: string) => {
         // Only save if we have name and email
         if (!formData.firstName || !formData.lastName || !formData.email) {
-            return false;
+            return { ok: false, error: "Name and email are required" };
         }
 
         try {
@@ -122,15 +122,20 @@ export default function OnboardingPage() {
                 body: JSON.stringify(payload)
             });
 
-            return res.ok;
-        } catch (error) {
+            const data = await res.json();
+            if (!res.ok) {
+                return { ok: false, error: data.error || "Failed to save draft" };
+            }
+
+            return { ok: true };
+        } catch (error: any) {
             console.error("Draft save error:", error);
-            return false;
+            return { ok: false, error: "Network error or server unavailable" };
         }
     };
 
     const nextStep = async () => {
-        // For Step 1, we must have basic info before saving draft
+        // Validation per step
         if (currentStep === 1) {
             if (!formData.firstName || !formData.lastName || !formData.email) {
                 toast.error("Please fill in mandatory fields before proceeding");
@@ -138,8 +143,32 @@ export default function OnboardingPage() {
             }
         }
 
-        // Show a small "Saving..." toast for draft progress
-        const savePromise = saveDraft();
+        if (currentStep === 2) {
+            if (!formData.employeeCode) {
+                toast.error("Employee ID is required");
+                return;
+            }
+        }
+
+        if (currentStep === 5) {
+            if (!formData.password) {
+                toast.error("Password is required");
+                return;
+            }
+            if (formData.password !== formData.confirmPassword) {
+                toast.error("Passwords do not match");
+                return;
+            }
+        }
+
+        setIsSubmitting(true);
+        const result = await saveDraft();
+        setIsSubmitting(false);
+
+        if (!result.ok && currentStep < 6) {
+            toast.error(result.error || "Failed to save progress. Please try again.");
+            return;
+        }
 
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     };
@@ -190,11 +219,12 @@ export default function OnboardingPage() {
                 const upRes = await fetch("/api/documents", { method: "POST", body: docForm });
                 if (upRes.ok) {
                     const upData = await upRes.json();
-                    if (docName === "Aadhar Card") docsUrls.aadharCard = upData.fileUrl;
-                    if (docName === "PAN Card") docsUrls.panCard = upData.fileUrl;
-                    if (docName === "Resume") docsUrls.resume = upData.fileUrl;
-                    if (docName === "Offer Letter") docsUrls.offerLetter = upData.fileUrl;
-                    if (docName === "Certificates") docsUrls.certificates = upData.fileUrl;
+                    const docInfo = { url: upData.fileUrl, status: 'Uploaded', uploadedAt: new Date() };
+                    if (docName === "Aadhar Card") docsUrls.aadharCard = docInfo;
+                    if (docName === "PAN Card") docsUrls.panCard = docInfo;
+                    if (docName === "Resume") docsUrls.resume = docInfo;
+                    if (docName === "Offer Letter") docsUrls.offerLetter = docInfo;
+                    if (docName === "Certificates") docsUrls.certificates = docInfo;
                 } else {
                     const errData = await upRes.json().catch(() => ({}));
                     toast.error(`Failed to upload ${docName}: ${errData.details || errData.error || "Unknown error"}`);
@@ -355,20 +385,24 @@ export default function OnboardingPage() {
                                 const isCompleted = currentStep > stepNum;
 
                                 return (
-                                    <div key={step.title} className="flex items-center flex-shrink-0 last:flex-1">
+                                    <div 
+                                        key={step.title} 
+                                        className="flex items-center flex-shrink-0 last:flex-1 cursor-pointer group/step"
+                                        onClick={() => setCurrentStep(stepNum)}
+                                    >
                                         <div className="flex items-center gap-3">
                                             <div className={clsx(
                                                 "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300",
                                                 isActive ? "bg-[#1F6F8B] text-white ring-4 ring-[#1F6F8B]/10" :
                                                     isCompleted ? "bg-emerald-500 text-white" :
-                                                        "bg-white border border-slate-300 text-slate-400"
+                                                        "bg-white border border-slate-300 text-slate-400 group-hover/step:border-[#1F6F8B]/50"
                                             )}>
                                                 {isCompleted ? <Check className="w-4 h-4" /> : stepNum}
                                             </div>
                                             <div className="flex flex-col pr-6">
                                                 <span className={clsx(
-                                                    "text-[11px] font-bold uppercase tracking-wider whitespace-nowrap",
-                                                    isActive ? "text-[#1F6F8B]" : isCompleted ? "text-emerald-600" : "text-slate-400"
+                                                    "text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors",
+                                                    isActive ? "text-[#1F6F8B]" : isCompleted ? "text-emerald-600" : "text-slate-400 group-hover/step:text-[#1F6F8B]"
                                                 )}>{step.title}</span>
                                             </div>
                                         </div>
@@ -968,9 +1002,9 @@ export default function OnboardingPage() {
                         <div className="flex gap-4">
                             <button
                                 onClick={async () => {
-                                    const ok = await saveDraft();
-                                    if (ok) toast.success("Draft saved successfully");
-                                    else toast.error("Failed to save draft");
+                                    const result = await saveDraft();
+                                    if (result.ok) toast.success("Draft saved successfully");
+                                    else toast.error(result.error || "Failed to save draft");
                                 }}
                                 className="px-5 py-2.5 text-[13px] font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 rounded transition-all shadow-sm"
                             >

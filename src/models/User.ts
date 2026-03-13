@@ -11,9 +11,15 @@ const UserSchema = new mongoose.Schema({
     employeeCode: { type: String }, // For the header card
     joinDate: { type: Date, default: Date.now },
     isActive: { type: Boolean, default: true },
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     onboardingStatus: { type: String, enum: ['Pending', 'In Progress', 'Pending Approval', 'Completed'], default: 'Pending' },
     managerApproval: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
     hrApproval: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Pending' },
+    
+    // Probation Management
+    probationStatus: { type: String, enum: ['Review Pending', 'Confirmed', 'Extended'], default: 'Review Pending' },
+    probationEndDate: { type: Date },
+    probationNotes: { type: String },
 
     // Personal Information
     salutation: { type: String },
@@ -59,11 +65,36 @@ const UserSchema = new mongoose.Schema({
     pfAccount: { type: String },
     esiAccount: { type: String },
     documents: {
-        aadharCard: { type: String },
-        panCard: { type: String },
-        resume: { type: String },
-        offerLetter: { type: String },
-        certificates: { type: String }
+        aadharCard: {
+            url: { type: String },
+            status: { type: String, enum: ['Pending', 'Uploaded', 'Verified', 'Rejected'], default: 'Pending' },
+            uploadedAt: { type: Date },
+            feedback: { type: String }
+        },
+        panCard: {
+            url: { type: String },
+            status: { type: String, enum: ['Pending', 'Uploaded', 'Verified', 'Rejected'], default: 'Pending' },
+            uploadedAt: { type: Date },
+            feedback: { type: String }
+        },
+        resume: {
+            url: { type: String },
+            status: { type: String, enum: ['Pending', 'Uploaded', 'Verified', 'Rejected'], default: 'Pending' },
+            uploadedAt: { type: Date },
+            feedback: { type: String }
+        },
+        offerLetter: {
+            url: { type: String },
+            status: { type: String, enum: ['Pending', 'Uploaded', 'Verified', 'Rejected'], default: 'Pending' },
+            uploadedAt: { type: Date },
+            feedback: { type: String }
+        },
+        certificates: {
+            url: { type: String },
+            status: { type: String, enum: ['Pending', 'Uploaded', 'Verified', 'Rejected'], default: 'Pending' },
+            uploadedAt: { type: Date },
+            feedback: { type: String }
+        }
     },
     salaryDetails: {
         basePay: { type: Number },

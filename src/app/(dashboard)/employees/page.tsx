@@ -4,11 +4,20 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     Search, Plus, Users, Mail, Phone, Briefcase,
-    CheckCircle, XCircle, Eye, EyeOff, X, UserPlus, ExternalLink, Edit
+    CheckCircle, XCircle, Eye, EyeOff, X, UserPlus, ExternalLink, Edit, FileWarning,
+    Upload, Download, Trash2, FileText, Check, AlertCircle
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import EmployeeEditModal from "@/components/EmployeeEditModal";
+
+interface DocumentInfo {
+    url?: string;
+    status: 'Pending' | 'Uploaded' | 'Verified' | 'Rejected';
+    uploadedAt?: string;
+    feedback?: string;
+}
 
 interface Employee {
     _id: string;
@@ -19,11 +28,19 @@ interface Employee {
     department?: string;
     joinDate?: string;
     isActive: boolean;
+    status?: 'active' | 'inactive';
     onboardingStatus: string;
     reportingManager?: {
         name: string;
         role: string;
     } | string | null;
+    documents?: {
+        aadharCard?: DocumentInfo;
+        panCard?: DocumentInfo;
+        resume?: DocumentInfo;
+        offerLetter?: DocumentInfo;
+        certificates?: DocumentInfo;
+    };
 }
 
 const DEPARTMENTS = ["Engineering", "Design", "Product", "Marketing", "HR", "Sales", "Finance", "Support", "Operations", "Information Technology (IT)", "DevOps", "Cybersecurity"];
@@ -32,29 +49,45 @@ const AVATAR_COLORS = [
     "bg-orange-500", "bg-blue-500", "bg-pink-500", "bg-yellow-500", "bg-blue-500"
 ];
 
+function IOSSwitch({ checked, onChange, disabled }: { checked: boolean, onChange: () => void, disabled?: boolean }) {
+    return (
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!disabled) onChange();
+            }}
+            disabled={disabled}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                checked ? "bg-emerald-500" : "bg-gray-200"
+            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+            <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    checked ? "translate-x-4" : "translate-x-1"
+                }`}
+            />
+        </button>
+    );
+}
+
 function EmployeesContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: session } = useSession();
-    const canManage = session?.user && ['Admin', 'Manager', 'HR', 'HR Manager'].includes((session?.user as any).role);
+    const canManage = !!(session?.user && ['Admin', 'Manager', 'HR', 'HR Manager'].includes((session?.user as any).role));
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDepartment, setFilterDepartment] = useState("");
     const [filterRole, setFilterRole] = useState("");
-    const [filterStatus, setFilterStatus] = useState("Active");
-    const [showModal, setShowModal] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState("");
-    const [successMsg, setSuccessMsg] = useState("");
+    const [filterStatus, setFilterStatus] = useState("All");
+    const [showDocsModal, setShowDocsModal] = useState(false);
+    const [selectedEmployeeForDocs, setSelectedEmployeeForDocs] = useState<Employee | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-
-    const [form, setForm] = useState({
-        name: "", email: "", password: "",
-        phone: "", department: "", role: "Employee",
-        reportingManager: ""
-    });
+    const [initialFormData, setInitialFormData] = useState<any>(null);
+    const [successMsg, setSuccessMsg] = useState("");
 
     const fetchEmployees = async () => {
         try {
@@ -71,51 +104,42 @@ function EmployeesContent() {
     useEffect(() => { fetchEmployees(); }, []);
 
     useEffect(() => {
-        if (searchParams.get("add") === "true") {
-            setShowModal(true);
+        const editId = searchParams.get("edit");
+        if (editId && employees.length > 0) {
+            const emp = employees.find(e => e._id === editId);
+            if (emp) {
+                setEditingId(emp._id);
+                setInitialFormData(emp);
+                setShowEditModal(true);
+            }
+            // Clean up URL
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("edit");
+            router.replace(`/employees${params.toString() ? `?${params.toString()}` : ""}`);
+        }
+    }, [searchParams, employees, router]);
+
+    useEffect(() => {
+        const addParam = searchParams.get("add");
+        const filterParam = searchParams.get("filter");
+
+        if (addParam === "true") {
             setEditingId(null);
-            setForm({
-                name: "", email: "", password: "",
-                phone: "", department: "", role: "Employee",
-                reportingManager: session?.user?.role === 'Manager' ? (session.user as any).id : ""
-            });
-            // Optional: clean up the URL
+            setInitialFormData(null);
+            setShowEditModal(true);
             router.replace("/employees");
+        } else if (filterParam === "pending-docs") {
+            setFilterStatus("All");
+            // We'll handle the actual filtering in the 'filtered' memo
         }
     }, [searchParams, router, session]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSubmitting(true);
-        setError("");
+    const toggleActive = async (id: string, currentStatus: string | undefined, currentActive: boolean) => {
+        const newStatus = (currentStatus === 'active' || (currentStatus === undefined && currentActive)) ? 'inactive' : 'active';
         try {
-            if (editingId) {
-                await axios.patch("/api/users", { id: editingId, ...form });
-                setSuccessMsg(`✅ ${form.name} updated successfully!`);
-            } else {
-                await axios.post("/api/users", form);
-                setSuccessMsg(`✅ ${form.name} added successfully!`);
-            }
-            setForm({ name: "", email: "", password: "", phone: "", department: "", role: "Employee", reportingManager: "" });
-            setEditingId(null);
-            setShowModal(false);
-            fetchEmployees();
-            setTimeout(() => setSuccessMsg(""), 4000);
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to save employee.");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const toggleActive = async (id: string, current: boolean) => {
-        try {
-            await axios.patch("/api/users", { id, isActive: !current });
-            setEmployees(prev => prev.map(e => e._id === id ? { ...e, isActive: !current } : e));
+            await axios.patch("/api/users", { id, status: newStatus });
+            setEmployees(prev => prev.map(e => e._id === id ? { ...e, status: newStatus, isActive: newStatus === 'active' } : e));
         } catch (e) {
             console.error("Failed to toggle status", e);
         }
@@ -123,10 +147,22 @@ function EmployeesContent() {
 
     const filtered = (employees || []).filter(e => {
         if (!e) return false;
-        if (filterStatus === "Active" && !e.isActive) return false;
-        if (filterStatus === "Inactive" && e.isActive) return false;
+        const isActive = e.status === 'active' || (e.status === undefined && e.isActive);
+        if (filterStatus === "Active" && !isActive) return false;
+        if (filterStatus === "Inactive" && isActive) return false;
         if (filterDepartment && e.department !== filterDepartment) return false;
         if (filterRole && e.role !== filterRole) return false;
+
+        // Dashboard Filter: Pending Docs
+        if (searchParams.get("filter") === "pending-docs") {
+            const docs = e.documents || {};
+            const required = ['aadharCard', 'panCard', 'resume', 'offerLetter'];
+            const hasPending = required.some(key => {
+                const doc = (docs as any)[key];
+                return !doc || doc.status !== 'Verified';
+            });
+            if (!hasPending) return false;
+        }
 
         const name = (e.name || "").toLowerCase();
         const email = (e.email || "").toLowerCase();
@@ -163,7 +199,7 @@ function EmployeesContent() {
                         <Users className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                        <h2 className="text-base font-bold text-gray-900">Employees</h2>
+                        <h2 className="text-base font-bold text-gray-900">Employee Directory</h2>
                         <p className="text-xs text-gray-500">
                             {filtered.length} visible · {(employees || []).length} total
                         </p>
@@ -216,10 +252,14 @@ function EmployeesContent() {
                                 <Users className="w-4 h-4" /> Manage Teams
                             </Link>
                             <button
-                                onClick={() => { setShowModal(true); setError(""); }}
+                                onClick={() => { 
+                                    setEditingId(null);
+                                    setInitialFormData(null);
+                                    setShowEditModal(true);
+                                }}
                                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
                             >
-                                <UserPlus className="w-4 h-4" /> Add Employee
+                                <Edit className="w-4 h-4" /> Edit Employee
                             </button>
                         </div>
                     )}
@@ -300,33 +340,35 @@ function EmployeesContent() {
                                         {emp.joinDate ? new Date(emp.joinDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                                     </td>
                                     <td className="px-6 py-4">
-                                        {emp.isActive ? (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
+                                        <div className="flex items-center gap-3">
+                                            <IOSSwitch 
+                                                checked={emp.status === 'active' || (emp.status === undefined && emp.isActive)} 
+                                                onChange={() => toggleActive(emp._id, emp.status, emp.isActive)}
+                                                disabled={!canManage}
+                                            />
+                                            <span className={`text-xs font-bold transition-colors ${ (emp.status === 'active' || (emp.status === undefined && emp.isActive)) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                                {(emp.status === 'active' || (emp.status === undefined && emp.isActive)) ? 'Active' : 'Inactive'}
                                             </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Inactive
-                                            </span>
-                                        )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {canManage && (
                                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => {
+                                                        setSelectedEmployeeForDocs(emp);
+                                                        setShowDocsModal(true);
+                                                    }}
+                                                    className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                    title="Manage Documents"
+                                                >
+                                                    <FileWarning className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
                                                         setEditingId(emp._id);
-                                                        setForm({
-                                                            name: emp.name,
-                                                            email: emp.email,
-                                                            password: "", // Empty means no change
-                                                            phone: emp.phone || "",
-                                                            department: emp.department || "",
-                                                            role: emp.role,
-                                                            reportingManager: (emp as any).reportingManager || ""
-                                                        });
-                                                        setShowModal(true);
-                                                        setError("");
+                                                        setInitialFormData(emp);
+                                                        setShowEditModal(true);
                                                     }}
                                                     className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                     title="Edit Employee"
@@ -334,11 +376,11 @@ function EmployeesContent() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => toggleActive(emp._id, emp.isActive)}
-                                                    title={emp.isActive ? "Deactivate" : "Activate"}
-                                                    className={`p-1.5 rounded-lg transition-colors ${emp.isActive ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                                                    onClick={() => toggleActive(emp._id, emp.status, emp.isActive)}
+                                                    title={(emp.status === 'active' || (emp.status === undefined && emp.isActive)) ? "Deactivate" : "Activate"}
+                                                    className={`p-1.5 rounded-lg transition-colors ${(emp.status === 'active' || (emp.status === undefined && emp.isActive)) ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                                                 >
-                                                    {emp.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                                    {(emp.status === 'active' || (emp.status === undefined && emp.isActive)) ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                                                 </button>
                                             </div>
                                         )}
@@ -355,120 +397,220 @@ function EmployeesContent() {
                 </div>
             </div>
 
-            {/* Add Employee Modal */}
-            {showModal && (
+            {/* Shared Employee Edit Modal */}
+            <EmployeeEditModal 
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                editingId={editingId}
+                employees={employees}
+                initialData={initialFormData}
+                onSuccess={(msg) => {
+                    setSuccessMsg(`✅ ${msg}`);
+                    fetchEmployees();
+                    setTimeout(() => setSuccessMsg(""), 4000);
+                }}
+            />
+
+            {/* Employee Documents Modal */}
+            {showDocsModal && selectedEmployeeForDocs && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transition-all duration-200">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Employee' : 'Add New Employee'}</h3>
-                                <p className="text-xs text-gray-500 mt-0.5">{editingId ? 'Update employee details and reporting lines' : 'Create a new employee account'}</p>
-                            </div>
-                            <button onClick={() => setShowModal(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2.5 rounded-lg text-sm flex items-center gap-2">
-                                    <XCircle className="w-4 h-4 flex-shrink-0" /> {error}
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-2">
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-                                    <input
-                                        name="name" required value={form.name} onChange={handleChange}
-                                        placeholder="e.g. Priya Sharma"
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                                    />
-                                </div>
-                                <div className="col-span-2">
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email Address <span className="text-red-500">*</span></label>
-                                    <input
-                                        name="email" type="email" required value={form.email} onChange={handleChange}
-                                        placeholder="priya@company.com"
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                                    />
-                                </div>
-                                <div className="col-span-2 relative">
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                                        {editingId ? "Reset Password" : "Password"} {!editingId && <span className="text-red-500">*</span>}
-                                    </label>
-                                    <input
-                                        name="password" type={showPassword ? "text" : "password"}
-                                        required={!editingId}
-                                        value={form.password} onChange={handleChange}
-                                        placeholder={editingId ? "Leave blank to keep current" : "Min. 6 characters"}
-                                        className="w-full px-3 py-2.5 pr-10 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                                    />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-8 text-gray-400 hover:text-gray-600">
-                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                    {editingId && <p className="text-[10px] text-amber-600 font-medium mt-1">Leave blank to keep existing password</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Phone</label>
-                                    <input
-                                        name="phone" value={form.phone} onChange={handleChange}
-                                        placeholder="+91 99999 00000"
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Department</label>
-                                    <select
-                                        name="department" value={form.department} onChange={handleChange}
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                                    >
-                                        <option value="">Select dept…</option>
-                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Role</label>
-                                    <select
-                                        name="role" value={form.role} onChange={handleChange}
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                                    >
-                                        <option value="Employee">Employee</option>
-                                        <option value="HR">HR</option>
-                                        <option value="HR Manager">HR Manager</option>
-                                        <option value="Manager">Manager</option>
-                                        <option value="TL">TL</option>
-                                        <option value="Assigned Manager">Assigned Manager</option>
-                                        <option value="Admin">Admin</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Reporting Manager</label>
-                                    <select
-                                        name="reportingManager" value={form.reportingManager} onChange={handleChange}
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all font-medium"
-                                    >
-                                        <option value="">Select manager…</option>
-                                        {employees.filter(e => ['Admin', 'Manager', 'HR Manager', 'TL'].includes(e.role)).map(e => (
-                                            <option key={e._id} value={e._id}>{e.name} ({e.role})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={submitting} className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50 flex items-center gap-2">
-                                    {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : editingId ? <CheckCircle className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                                    {submitting ? "Saving…" : editingId ? "Save Changes" : "Add Employee"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    <EmployeeDocumentsModal 
+                        employee={selectedEmployeeForDocs} 
+                        onClose={() => {
+                            setShowDocsModal(false);
+                            setSelectedEmployeeForDocs(null);
+                            fetchEmployees(); // Refresh to get updated doc status
+                        }}
+                        canManage={canManage}
+                    />
                 </div>
             )}
+        </div>
+    );
+}
+
+function EmployeeDocumentsModal({ employee, onClose, canManage }: { employee: Employee, onClose: () => void, canManage: boolean }) {
+    const [docs, setDocs] = useState(employee.documents || {});
+    const [uploading, setUploading] = useState<string | null>(null);
+    const [submittingStatus, setSubmittingStatus] = useState<string | null>(null);
+
+    const documentTypes = [
+        { id: 'aadharCard', name: 'Aadhar Card', required: true },
+        { id: 'panCard', name: 'PAN Card', required: true },
+        { id: 'resume', name: 'Resume / CV', required: true },
+        { id: 'offerLetter', name: 'Offer Letter', required: true },
+        { id: 'certificates', name: 'Educational Certificates', required: false },
+    ];
+
+    const handleUpload = async (type: string, file: File) => {
+        setUploading(type);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('documentType', type);
+
+            const res = await axios.post(`/api/users/${employee._id}/documents`, formData);
+            setDocs(res.data.user.documents);
+        } catch (e) {
+            console.error("Upload failed", e);
+            alert("Failed to upload document. Please try again.");
+        } finally {
+            setUploading(null);
+        }
+    };
+
+    const handleStatusUpdate = async (type: string, status: string) => {
+        setSubmittingStatus(type);
+        try {
+            const res = await axios.patch(`/api/users/${employee._id}/documents`, {
+                documentType: type,
+                status
+            });
+            setDocs(res.data.user.documents);
+        } catch (e) {
+            console.error("Status update failed", e);
+        } finally {
+            setSubmittingStatus(null);
+        }
+    };
+
+    const getStatusStyles = (status: string) => {
+        switch (status) {
+            case 'Verified': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+            case 'Uploaded': return 'bg-blue-50 text-blue-700 border-blue-100';
+            case 'Rejected': return 'bg-rose-50 text-rose-700 border-rose-100';
+            default: return 'bg-gray-50 text-gray-500 border-gray-100';
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transition-all duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                        {employee.name.split(" ").map(n => n[0]).join("")}
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900">{employee.name}</h3>
+                        <p className="text-sm text-gray-500">{employee.role} • {employee.department}</p>
+                    </div>
+                </div>
+                <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                    <X className="w-6 h-6" />
+                </button>
+            </div>
+
+            <div className="p-6">
+                <div className="overflow-hidden border border-gray-100 rounded-xl shadow-sm">
+                    <table className="w-full text-sm text-left">
+                        <thead>
+                            <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100">
+                                <th className="px-6 py-4 font-semibold">Document Name</th>
+                                <th className="px-6 py-4 font-semibold">Status</th>
+                                <th className="px-6 py-4 font-semibold">Last Updated</th>
+                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {documentTypes.map((type) => {
+                                const doc = (docs as any)[type.id];
+                                const status = doc?.status || 'Pending';
+                                
+                                return (
+                                    <tr key={type.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${status === 'Verified' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-50 text-gray-400'}`}>
+                                                    <FileText className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-gray-900">{type.name}</p>
+                                                    {type.required && !doc?.url && <p className="text-[10px] text-rose-500 font-bold uppercase">Required</p>}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusStyles(status)}`}>
+                                                {status === 'Pending' && <AlertCircle className="w-3 h-3 mr-1" />}
+                                                {status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-500">
+                                            {doc?.uploadedAt ? new Date(doc.uploadedAt).toLocaleString() : '—'}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {doc?.url ? (
+                                                    <>
+                                                        <a 
+                                                            href={doc.url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            title="View Document"
+                                                        >
+                                                            <ExternalLink className="w-4 h-4" />
+                                                        </a>
+                                                        {canManage && status === 'Uploaded' && (
+                                                            <div className="flex items-center gap-1 ml-2 border-l pl-2 border-gray-100">
+                                                                <button
+                                                                    onClick={() => handleStatusUpdate(type.id, 'Verified')}
+                                                                    disabled={submittingStatus === type.id}
+                                                                    className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                                    title="Verify"
+                                                                >
+                                                                    <Check className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleStatusUpdate(type.id, 'Rejected')}
+                                                                    disabled={submittingStatus === type.id}
+                                                                    className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                                    title="Reject"
+                                                                >
+                                                                    <XCircle className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : null}
+                                                
+                                                <label className={`cursor-pointer p-1.5 rounded-lg transition-all ${uploading === type.id ? 'bg-gray-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}>
+                                                    <input 
+                                                        type="file" 
+                                                        className="hidden" 
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleUpload(type.id, file);
+                                                        }}
+                                                        disabled={!!uploading}
+                                                    />
+                                                    {uploading === type.id ? (
+                                                        <div className="w-4 h-4 border-2 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+                                                    ) : (
+                                                        <Upload className="w-4 h-4" />
+                                                    )}
+                                                </label>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 flex justify-between items-center">
+                <p className="text-xs text-gray-500">
+                    <span className="font-bold text-gray-700">Note:</span> Files must be PDF or Images (Max 5MB).
+                </p>
+                <button 
+                    onClick={onClose}
+                    className="px-6 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-sm"
+                >
+                    Close
+                </button>
+            </div>
         </div>
     );
 }

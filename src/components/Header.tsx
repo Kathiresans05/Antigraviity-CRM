@@ -153,7 +153,7 @@ export default function Header({ title = "Dashboard" }: { title?: string }) {
                 {/* Quick Add - Only for HR/Admin */}
                 {mounted && ["Admin", "HR", "HR Manager", "Manager"].includes((session?.user as any)?.role) && (
                     <Menu as="div" className="relative hidden md:block">
-                        <Menu.Button className="flex items-center gap-2 bg-[#1f6f8b] hover:bg-[#1a5d75] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95">
+                        <Menu.Button className="flex items-center gap-2 bg-[#1f6f8b] hover:bg-[#1a5d75] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95">
                             <Plus className="w-4 h-4" />
                             <span>Quick Add</span>
                             <ChevronDown className="w-3.5 h-3.5 opacity-60" />

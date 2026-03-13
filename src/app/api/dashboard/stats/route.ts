@@ -47,7 +47,7 @@ export async function GET(req: Request) {
         const currentUserId = session.user.id;
 
         // Query Filters
-        let userFilter: any = { isActive: true };
+        let userFilter: any = { status: 'active' };
         let taskFilter: any = { status: { $nin: ['Completed', 'Done'] } };
         let projectFilter: any = {};
 
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 
         const attendanceTodayQuery: any = {
             date: { $gte: todayStart, $lte: todayEnd },
-            status: { $in: ['Present', 'Late'] }
+            status: { $in: ['Present', 'Late', 'ACTIVE', 'FULL_DAY', 'HALF_DAY', 'Active'] }
         };
         if (!isHRAdmin) attendanceTodayQuery.userId = { $in: managedIds };
 
@@ -107,11 +107,18 @@ export async function GET(req: Request) {
 
         const lateLoginsQuery: any = {
             date: { $gte: todayStart, $lte: todayEnd },
-            status: 'Late'
+            isLate: true
         };
         if (!isHRAdmin) lateLoginsQuery.userId = { $in: managedIds };
 
         const lateLogins = await Attendance.countDocuments(lateLoginsQuery);
+
+        const autoClosedTodayQuery: any = {
+            date: { $gte: todayStart, $lte: todayEnd },
+            $or: [{ autoClosed: true }, { status: 'Auto Closed' }]
+        };
+        if (!isHRAdmin) autoClosedTodayQuery.userId = { $in: managedIds };
+        const autoClosedToday = await Attendance.countDocuments(autoClosedTodayQuery);
 
         const overdueTasksCount = await Task.countDocuments({
             ...taskFilter,
@@ -126,16 +133,22 @@ export async function GET(req: Request) {
         }
         const probationEndingMonth = await User.countDocuments({
             ...userFilter,
-            joinDate: {
-                $gte: moment().subtract(3, 'months').startOf('month').toDate(),
-                $lte: moment().subtract(3, 'months').endOf('month').toDate()
+            status: 'active',
+            probationStatus: 'Review Pending',
+            probationEndDate: {
+                $gte: moment().startOf('day').toDate(),
+                $lte: moment().add(1, 'month').endOf('month').toDate()
             }
         });
 
         const allActiveUsers = await User.find(userFilter).select('documents');
         const pendingDocumentsCount = allActiveUsers.filter(u => {
             const docs = u.documents || {};
-            return !docs.aadharCard || !docs.panCard || !docs.resume || !docs.offerLetter;
+            const requiredDocs = ['aadharCard', 'panCard', 'resume', 'offerLetter'];
+            return requiredDocs.some(key => {
+                const doc = (docs as any)[key];
+                return !doc || doc.status !== 'Verified';
+            });
         }).length;
 
         const workAnniversariesMonth = await User.countDocuments({
@@ -159,7 +172,11 @@ export async function GET(req: Request) {
 
             const attendanceQuery: any = {
                 date: { $gte: dayStart, $lte: dayEnd },
-                status: { $in: ['Present', 'Late'] }
+                $or: [
+                    { status: { $in: ['Present', 'Late'] } },
+                    { isLate: true },
+                    { clockInTime: { $exists: true, $ne: null } }
+                ]
             };
             if (!isHRAdmin) attendanceQuery.userId = { $in: managedIds };
 
@@ -228,7 +245,7 @@ export async function GET(req: Request) {
 
         // Department Distribution
         const deptDistribution = await User.aggregate([
-            { $match: { isActive: true, department: { $ne: null } } },
+            { $match: { status: 'active', department: { $ne: null } } },
             { $group: { _id: '$department', count: { $sum: 1 } } }
         ]);
 
@@ -289,7 +306,7 @@ export async function GET(req: Request) {
         const employeeSnapshot = await User.find(userFilter)
             .sort({ createdAt: -1 })
             .limit(5)
-            .select('name role department isActive');
+            .select('name role department status');
 
         // Fetch task stats per user for manager dashboard
         const enrichedSnapshot = await Promise.all(employeeSnapshot.map(async (emp) => {
@@ -302,7 +319,7 @@ export async function GET(req: Request) {
                 name: emp.name,
                 role: emp.role || "Employee",
                 dept: emp.department || "General",
-                status: emp.isActive ? "Active" : "Inactive",
+                status: emp.status === 'active' ? "Active" : "Inactive",
                 tasks: tasksCount,
                 completion: completionPerc,
                 attendance: Math.floor(Math.random() * (100 - 85 + 1)) + 85 // Mock attendance % until historical tracking is robust
@@ -403,6 +420,7 @@ export async function GET(req: Request) {
                 teamProductivity: performanceData[performanceData.length - 1], // Current month/week productivity
                 absentToday,
                 lateArrivals: lateLogins,
+                autoClosedToday,
                 probationEndingMonth,
                 pendingDocuments: pendingDocumentsCount,
                 workAnniversariesMonth,

@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
         await connectToDatabase();
 
-        const employees = await User.find({ isActive: true }).select('_id name department salaryDetails');
+        const employees = await User.find({ status: 'active' }).select('_id name department salaryDetails');
 
         const existingRecords = await Performance.find({ reviewCycle: CURRENT_CYCLE }).populate('userId', 'name department');
         const existingMap = new Map(

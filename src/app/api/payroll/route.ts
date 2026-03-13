@@ -25,7 +25,7 @@ export async function GET(req: Request) {
         const currentMonthYear = moment().format('MMMM YYYY');
 
         // Fetch active employees
-        const employees = await User.find({ isActive: true })
+        const employees = await User.find({ status: 'active' })
             .select('_id name email department salaryDetails');
 
         // Fetch existing payrolls for the current month
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
         const currentMonthYear = moment().format('MMMM YYYY');
 
         // Fetch active employees
-        const employees = await User.find({ isActive: true });
+        const employees = await User.find({ status: 'active' });
 
         // Fetch existing payrolls for the current month
         const existingPayrolls = await Payroll.find({ monthYear: currentMonthYear, status: 'Pending' });

@@ -13,6 +13,8 @@ import {
 import { toast } from "react-hot-toast";
 import moment from "moment";
 import clsx from "clsx";
+import { useSearchParams } from "next/navigation";
+import React from "react";
 
 /* ─── Zoho-style Status Config ────────────────────────────────── */
 const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
@@ -30,6 +32,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
 export default function TeamAttendancePage() {
     const { data: session } = useSession();
     const router = useRouter();
+    const isAdminHR = ['Admin', 'HR', 'HR Manager'].includes(session?.user?.role as string);
     const [teamMembers, setTeamMembers] = useState<any[]>([]);
     const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,6 +46,40 @@ export default function TeamAttendancePage() {
     const [actionLoading, setActionLoading] = useState(false);
     const [expandedTls, setExpandedTls] = useState<string[]>([]);
     const [holidays, setHolidays] = useState<any[]>([]);
+
+    const searchParams = useSearchParams();
+    const filterParam = searchParams.get('filter') || 'all';
+
+    // Map URL param to statusFilter
+    const paramToStatus: Record<string, string> = {
+        'present': 'Present',
+        'absent': 'Absent',
+        'leave': 'On Leave',
+        'late': 'Late',
+        'holiday': 'Holiday',
+        'all': 'All'
+    };
+
+    const statusToParam: Record<string, string> = {
+        'Present': 'present',
+        'Absent': 'absent',
+        'On Leave': 'leave',
+        'Late': 'late',
+        'Holiday': 'holiday',
+        'All': 'all'
+    };
+
+    useEffect(() => {
+        const targetStatus = paramToStatus[filterParam];
+        if (targetStatus && targetStatus !== statusFilter) {
+            setStatusFilter(targetStatus);
+        }
+    }, [filterParam]);
+
+    const handleFilterChange = (status: string) => {
+        const param = statusToParam[status] || 'all';
+        router.push(`/team-attendance?filter=${param}`);
+    };
 
     const fetchData = async () => {
         try {
@@ -214,7 +251,7 @@ export default function TeamAttendancePage() {
         const present = baseRecords.filter(r => ['Present', 'Late', 'Half Day'].includes(r.status)).length;
         const absent = baseRecords.filter(r => r.status === 'Absent').length;
         const leave = baseRecords.filter(r => r.status === 'On Leave').length;
-        const late = baseRecords.filter(r => r.status === 'Late').length;
+        const late = baseRecords.filter(r => r.isLate).length;
         const holiday = baseRecords.filter(r => r.status === 'Holiday').length;
 
         // Total Team KPI: Count top-level items for managers
@@ -288,6 +325,15 @@ export default function TeamAttendancePage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
+                            {isAdminHR && (
+                                <button
+                                    onClick={() => router.push("/admin/attendance")}
+                                    className="flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-all"
+                                >
+                                    <Activity className="w-3.5 h-3.5" />
+                                    Full Management
+                                </button>
+                            )}
                             <button
                                 onClick={fetchData}
                                 className="flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all shadow-sm"
@@ -329,28 +375,28 @@ export default function TeamAttendancePage() {
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
                     <SummaryCard
                         label="Total Team" value={stats.total} color="#475569" icon={<Users />} badge="+0%" subLabel="Active"
-                        isActive={statusFilter === "All"} onClick={() => setStatusFilter("All")}
+                        isActive={statusFilter === "All"} onClick={() => handleFilterChange("All")}
                     />
                     <SummaryCard
                         label={`Present ${relativeLabel}`} value={stats.present} color="#059669" icon={<UserCheck />} badge="Normal" subLabel={selectedDate.format("MMM D")}
-                        isActive={statusFilter === "Present"} onClick={() => setStatusFilter("Present")}
+                        isActive={statusFilter === "Present"} onClick={() => handleFilterChange("Present")}
                     />
                     <SummaryCard
                         label={`Absent ${relativeLabel}`} value={stats.absent} color="#dc2626" icon={<UserX />}
                         badge={stats.absent > 0 ? "Action Required" : "None"} subLabel="Daily Metric"
-                        isActive={statusFilter === "Absent"} onClick={() => setStatusFilter("Absent")}
+                        isActive={statusFilter === "Absent"} onClick={() => handleFilterChange("Absent")}
                     />
                     <SummaryCard
                         label={`On Leave ${relativeLabel}`} value={stats.leave} color="#7c3aed" icon={<CalendarIcon />} badge="0%" subLabel="Approved"
-                        isActive={statusFilter === "On Leave"} onClick={() => setStatusFilter("On Leave")}
+                        isActive={statusFilter === "On Leave"} onClick={() => handleFilterChange("On Leave")}
                     />
                     <SummaryCard
                         label="Late In" value={stats.late} color="#d97706" icon={<Clock />} badge="Low" subLabel="Metric"
-                        isActive={statusFilter === "Late"} onClick={() => setStatusFilter("Late")}
+                        isActive={statusFilter === "Late"} onClick={() => handleFilterChange("Late")}
                     />
                     <SummaryCard
                         label={`Holidays`} value={stats.holiday} color="#6366f1" icon={<Gift className="w-5 h-5" />} badge="Fixed" subLabel="Calendar"
-                        isActive={statusFilter === "Holiday"} onClick={() => setStatusFilter("Holiday")}
+                        isActive={statusFilter === "Holiday"} onClick={() => handleFilterChange("Holiday")}
                     />
                 </div>
 
@@ -388,7 +434,7 @@ export default function TeamAttendancePage() {
                         <div className="relative group">
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                onChange={(e) => handleFilterChange(e.target.value)}
                                 className="pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 cursor-pointer appearance-none transition-all"
                                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '0.8rem' }}
                             >
@@ -702,8 +748,3 @@ function SummaryCard({
     );
 }
 
-import React from "react";
-
-function Loader2({ className }: { className?: string }) {
-    return <RefreshCw className={clsx("animate-spin", className)} />;
-}

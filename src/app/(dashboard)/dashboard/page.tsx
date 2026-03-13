@@ -6,7 +6,7 @@ import {
     ChevronDown, Eye, Edit, Trash2, Clock, CheckSquare,
     UserCheck, UserMinus, UserX, UserPlus, Gift, Calendar as CalendarIcon,
     ArrowUpRight, ArrowDownRight, MoreHorizontal, PieChart, BarChart3, HelpCircle, Bug, DollarSign,
-    ClipboardList, FileWarning, Trophy
+    ClipboardList, FileWarning, Trophy, ExternalLink
 } from "lucide-react";
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -20,6 +20,7 @@ import TLDashboard from "@/components/TLDashboard";
 import axios from "axios";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import EmployeeEditModal from "@/components/EmployeeEditModal";
 
 
 ChartJS.register(
@@ -83,6 +84,28 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
         setCurrentDate(new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
     }, []);
 
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+
+    const handleEditClick = async (empId: string) => {
+        try {
+            // We need full employee data, fetch it or find in table if available
+            const empSnapshot = data?.tables?.employeeSnapshot?.find((e: any) => e.id === empId);
+            if (empSnapshot) {
+                // Fetch full data for the modal
+                const res = await axios.get(`/api/users`);
+                const fullEmp = res.data?.users?.find((u: any) => u._id === empId);
+                if (fullEmp) {
+                    setSelectedEmployee(fullEmp);
+                    setShowEditModal(true);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch employee details for edit:", error);
+            toast.error("Failed to load employee details.");
+        }
+    };
+
     return (
         <div className="space-y-8 pb-10">
             {/* Holiday Banner */}
@@ -134,12 +157,12 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {[
                     { title: "Total Employees", value: data?.stats?.totalEmployees || 0, subtitle: "Active", icon: Users, color: "bg-blue-50 text-blue-600", trend: "+0%", href: "/employees" },
-                    { title: "Present Today", value: data?.stats?.presentToday || 0, subtitle: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), icon: UserCheck, color: "bg-emerald-50 text-emerald-600", trend: "Normal", href: "/attendance" },
-                    { title: "On Leave Today", value: data?.stats?.onLeaveToday || 0, subtitle: "Approved", icon: CalendarIcon, color: "bg-amber-50 text-amber-600", trend: "0%", href: "/leave-tracker" },
+                    { title: "Present Today", value: data?.stats?.presentToday || 0, subtitle: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), icon: UserCheck, color: "bg-emerald-50 text-emerald-600", trend: "Normal", href: "/admin/attendance?filter=present-today" },
+                    { title: "On Leave Today", value: data?.stats?.onLeaveToday || 0, subtitle: "Approved", icon: CalendarIcon, color: "bg-amber-50 text-amber-600", trend: "0%", href: "/leave-tracker?filter=today" },
                     { title: "Pending Leaves", value: data?.stats?.pendingLeaves || 0, subtitle: "Action Required", icon: Clock, color: "bg-rose-50 text-rose-600", trend: data?.stats?.pendingLeaves > 5 ? "High" : "Low", href: "#leave-requests" },
                     { title: "New Joinees", value: data?.stats?.newJoineesMonth || 0, subtitle: new Date().toLocaleDateString('en-US', { month: 'long' }), icon: UserPlus, color: "bg-purple-50 text-purple-600", trend: "This month", href: "/employees" },
                     { title: "Pending Onboarding", value: data?.stats?.pendingOnboarding || 0, subtitle: "Action Required", icon: UserCheck, color: "bg-blue-50 text-blue-600", trend: data?.stats?.pendingOnboarding > 0 ? "Pending" : "None", href: "#onboarding-approvals" },
-                    { title: "Birthdays", value: data?.stats?.birthdaysToday || 0, subtitle: "Coming Up", icon: Gift, color: "bg-pink-50 text-pink-600", trend: "Today", href: "/employees" },
+                    { title: "Birthdays", value: data?.stats?.birthdaysToday || 0, subtitle: "Coming Up", icon: Gift, color: "bg-pink-50 text-pink-600", trend: "Today", href: "/admin/employees/birthdays" },
                     {
                         title: "Absent Today",
                         value: data?.stats?.absentToday || 0,
@@ -147,16 +170,16 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                         icon: UserX,
                         color: data?.stats?.holidayToday ? "bg-indigo-50 text-indigo-600" : "bg-rose-50 text-rose-600",
                         status: data?.stats?.holidayToday ? "Holiday" : (data?.stats?.absentToday > 0 ? "Warning" : "Normal"),
-                        href: "/employees?status=absent"
+                        href: "/admin/attendance?filter=absent-today"
                     },
                     {
                         title: "Late Arrivals",
                         value: data?.stats?.lateArrivals || 0,
-                        subtitle: "After 9:30 AM",
+                        subtitle: "After 10:00 AM",
                         icon: Clock,
                         color: "bg-amber-50 text-amber-600",
                         status: (data?.stats?.lateArrivals > 10 ? "High" : data?.stats?.lateArrivals > 0 ? "Medium" : "Low"),
-                        href: "/attendance?status=Late"
+                        href: "/admin/attendance?filter=late-arrival"
                     },
                     {
                         title: "Probation Ending",
@@ -165,7 +188,7 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                         icon: ClipboardList,
                         color: "bg-purple-50 text-purple-600",
                         status: "Action Required",
-                        href: "/employees?filter=probation-ending"
+                        href: "/admin/employees/probation?filter=ending-soon"
                     },
                     {
                         title: "Pending Docs",
@@ -183,7 +206,7 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                         icon: Trophy,
                         color: "bg-indigo-50 text-indigo-600",
                         status: "Normal",
-                        href: "/employees?filter=anniversaries"
+                        href: "/admin/employees/anniversaries"
                     },
                 ].map((stat: any, idx) => (
                     <Link href={stat.href} key={idx} className="bg-white p-5 rounded-[12px] border border-gray-100 shadow-sm hover:shadow-md transition-all group block relative overflow-hidden">
@@ -214,49 +237,50 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                 ))}
             </div>
 
-            {/* 2. Analytics & Employee Snapshot Row */}
+            {/* 2. Employee Snapshot Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Attendance Trend */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-[12px] border border-gray-100 shadow-sm">
+                {/* Leave Distribution - Spanning more columns now since Attendance is gone */}
+                <div className="lg:col-span-3 bg-white p-6 rounded-[12px] border border-gray-100 shadow-sm relative overflow-hidden">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">Monthly Attendance</h3>
-                            <p className="text-xs font-semibold text-gray-500">Employee presence trend</p>
+                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">Leave Distribution</h3>
+                            <p className="text-xs font-semibold text-gray-500">Current month requests</p>
                         </div>
-                        <select className="text-xs font-semibold border-none bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 outline-none">
-                            <option>Last 6 Months</option>
-                            <option>Last Year</option>
-                        </select>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase">Paid</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase">Sick</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="h-[300px]">
-                        <Line data={performanceData} options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { grid: { color: "#f3f4f6" }, ticks: { font: { size: 10, weight: 700 } } },
-                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 700 } } }
-                            }
-                        }} />
-                    </div>
-                </div>
+                    
+                    <div className="flex flex-col md:flex-row items-center gap-10">
+                        <div className="h-[250px] w-full md:w-1/3 relative">
+                            <Doughnut data={leaveDistributionData} options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                cutout: '70%',
+                                plugins: { legend: { display: false } }
+                            }} />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                                <p className="text-3xl font-bold text-gray-900">
+                                    {data?.charts?.leaveDistribution?.data?.reduce((a: number, b: number) => a + b, 0) || 0}
+                                </p>
+                                <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Total</p>
+                            </div>
+                        </div>
 
-                {/* Leave Distribution */}
-                <div className="bg-white p-6 rounded-[12px] border border-gray-100 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1 leading-tight">Leave Distribution</h3>
-                    <p className="text-xs font-semibold text-gray-500 mb-6">Current month requests</p>
-                    <div className="h-[250px] relative">
-                        <Doughnut data={leaveDistributionData} options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            cutout: '70%',
-                            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11, weight: 700 } } } }
-                        }} />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mb-4">
-                            <p className="text-2xl font-bold text-gray-900">
-                                {data?.charts?.leaveDistribution?.data?.reduce((a: number, b: number) => a + b, 0) || 0}
-                            </p>
-                            <p className="text-[10px] font-bold text-gray-400">TOTAL</p>
+                        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
+                            {(data?.charts?.leaveDistribution?.labels || []).map((label: string, i: number) => (
+                                <div key={i} className="p-4 bg-gray-50/50 rounded-xl border border-gray-100/50 flex flex-col justify-center">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                                    <p className="text-2xl font-bold text-gray-900">{data?.charts?.leaveDistribution?.data[i] || 0}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -367,7 +391,10 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                 <div className="lg:col-span-2 bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden text-black">
                     <div className="p-6 border-b border-gray-50 flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-gray-900 leading-tight">Employee Snapshot</h3>
-                        <Link href="/employees" className="text-xs font-semibold text-blue-600 hover:underline">View All</Link>
+                        <Link href="/employees" className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors">
+                            Open Employee Directory
+                            <ExternalLink className="w-3 h-3" />
+                        </Link>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
@@ -407,7 +434,12 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 border-b">
-                                            <button className="p-1 px-3 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-[11px] font-semibold hover:bg-gray-100 transition-all">Edit</button>
+                                            <button 
+                                                onClick={() => handleEditClick(emp.id)}
+                                                className="p-1 px-3 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-[11px] font-bold hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
+                                            >
+                                                Edit
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -501,6 +533,17 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                     </div>
                 </div>
             </div>
+
+            <EmployeeEditModal 
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                editingId={selectedEmployee?._id || selectedEmployee?.id}
+                employees={data?.tables?.employeeSnapshot || []}
+                initialData={selectedEmployee}
+                onSuccess={(msg) => {
+                    toast.success(msg);
+                }}
+            />
         </div>
     );
 }
@@ -568,11 +611,16 @@ function EmployeeDashboard({ session, data }: any) {
                 {[
                     { label: "Total Tasks", value: ((data?.stats?.myPendingTasks ?? 0) + (data?.completedTasks ?? 0)) || (data ? 0 : 168), color: "#4a90d9", icon: CheckSquare },
                     { label: "Pending", value: data?.stats?.myPendingTasks ?? 48, color: "#e65100", icon: Clock },
-                    { label: "Completed", value: data?.completedTasks ?? 120, color: "#00875a", icon: TrendingUp },
-                    { label: "Active Projects", value: data?.myProjects?.length ?? 12, color: "#7b1fa2", icon: Briefcase },
-                    { label: "Completion Rate", value: `${(data?.completedTasks && data?.stats?.myPendingTasks !== undefined) ? Math.round((data.completedTasks / ((data.completedTasks + data.stats.myPendingTasks) || 1)) * 100) : 78}%`, color: "#0c66e4", icon: PieChart },
+                    { label: "On Time", value: data?.stats?.onTimeCheckins ?? 0, color: "#00875a", icon: UserCheck, href: "/admin/attendance?filter=on-time" },
+                    { label: "Early Exits", value: data?.stats?.earlyExits ?? 0, color: "#e65100", icon: Clock, href: "/admin/attendance?filter=early-exit" },
+                    { label: "Today Break", value: `${data?.stats?.todayBreak ?? 0}m`, color: "#4a90d9", icon: PieChart, href: "/admin/attendance?filter=on-break" },
+                    { label: "Auto Closed", value: data?.stats?.autoClosedToday ?? 0, color: "#6b7280", icon: Clock, href: "/admin/attendance?filter=auto-closed" },
                 ].map((card, idx) => (
-                    <div key={idx} className="bg-white rounded-lg border border-[#e0e0e0] px-4 py-3.5 hover:shadow-sm transition-shadow">
+                    <Link 
+                        href={(card as any).href || "#"} 
+                        key={idx} 
+                        className="bg-white rounded-lg border border-[#e0e0e0] px-4 py-3.5 hover:shadow-sm transition-shadow block"
+                    >
                         <div className="flex items-center gap-3">
                             <div
                                 className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -585,7 +633,7 @@ function EmployeeDashboard({ session, data }: any) {
                                 <p className="text-[13px] text-[#888] font-medium mt-0.5">{card.label}</p>
                             </div>
                         </div>
-                    </div>
+                    </Link>
                 ))}
             </div>
 

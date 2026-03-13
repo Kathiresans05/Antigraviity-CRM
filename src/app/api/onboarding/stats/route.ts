@@ -30,19 +30,19 @@ export async function GET(req: Request) {
 
         // 2. Pending Onboarding (inactive users awaiting activation)
         const pendingOnboarding = await User.countDocuments({
-            isActive: false
+            status: 'inactive'
         });
 
         // 3. Completed Onboarding (active users joined this month or recently)
         const completedOnboarding = await User.countDocuments({
-            isActive: true,
+            status: 'active',
             joinDate: { $gte: startOfMonth }
         });
 
         // 4. Probation Employees (assuming a standard 6-month probation period)
         const sixMonthsAgo = new Date(now.setMonth(now.getMonth() - 6));
         const probationEmployees = await User.countDocuments({
-            isActive: true,
+            status: 'active',
             joinDate: { $gte: sixMonthsAgo }
         });
 

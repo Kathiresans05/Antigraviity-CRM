@@ -24,7 +24,7 @@ export async function GET(req: Request) {
         const taskQuery = isAdmin ? {} : { assignedTo: userId };
 
         const [totalEmployees, allTasks] = await Promise.all([
-            User.countDocuments({ isActive: true, role: { $ne: 'Admin' } }),
+            User.countDocuments({ status: 'active', role: { $ne: 'Admin' } }),
             Task.find(taskQuery)
         ]);
 

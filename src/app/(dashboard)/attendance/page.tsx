@@ -18,39 +18,18 @@ import { twMerge } from 'tailwind-merge';
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    LineElement,
-    PointElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler,
-    ArcElement
-} from 'chart.js';
-import { Bar, Line, Doughnut } from 'react-chartjs-2';
-
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    LineElement,
-    PointElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler,
-    ArcElement
-);
 
 const STATUS_CONFIG: Record<string, { label: string, bg: string, text: string, dot: string }> = {
-    Present: { label: 'Full Day', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    Present: { label: 'Present', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    'Full Day': { label: 'Full Day', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    FULL_DAY: { label: 'Full Day', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     Late: { label: 'Late Arrival', bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
     'Half Day': { label: 'Half Day', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+    HALF_DAY: { label: 'Half Day', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
     Absent: { label: 'Absent', bg: 'bg-slate-50', text: 'text-slate-400', dot: 'bg-slate-300' },
+    ABSENT: { label: 'Absent', bg: 'bg-slate-50', text: 'text-slate-400', dot: 'bg-slate-300' },
+    ACTIVE: { label: 'Present', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    'Clocked In': { label: 'Present', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     'On Leave': { label: 'On Leave', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
     Holiday: { label: 'Holiday', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
     'Early Logout': { label: 'Early Logout', bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
@@ -129,14 +108,23 @@ export default function AttendancePage() {
 
         let effectiveStatus = r.status;
 
-        // Only apply hour-based overrides if they've clocked out (or it's a past day)
-        if (hasClockedOut && r.status !== 'On Leave' && r.status !== 'Holiday') {
-            if (hours < 5) {
+        // If it's a legacy late status or the record has isLate flag, prioritize showing Lateness during active session
+        // However, if clocked out, we prioritize the hour-based rules from backend but can still indicate late login
+        
+        // Normalize backend statuses to match STATUS_CONFIG keys if needed, 
+        // though we added the uppercase keys above, normalization is safer.
+        if (effectiveStatus === 'FULL_DAY') effectiveStatus = 'Full Day';
+        if (effectiveStatus === 'HALF_DAY') effectiveStatus = 'Half Day';
+        if (effectiveStatus === 'ABSENT') effectiveStatus = 'Absent';
+        if (effectiveStatus === 'ACTIVE') effectiveStatus = 'Present';
+
+        // Only apply "Early Logout" override if they've clocked out and were under 8 hours net
+        if (hasClockedOut && !['On Leave', 'Holiday', 'Absent'].includes(effectiveStatus)) {
+            if (hours < 8 && hours >= 4) {
+                 // The backend might call this HALF_DAY, but we show Early Logout for better UX if they are close to 8
+                 effectiveStatus = 'Early Logout';
+            } else if (hours < 4) {
                 effectiveStatus = 'Absent';
-            } else if (hours < 7) {
-                effectiveStatus = 'Half Day';
-            } else if (hours < 8) {
-                effectiveStatus = 'Early Logout';
             }
         }
 
@@ -168,64 +156,6 @@ export default function AttendancePage() {
     const progressPct = Math.min((todayNetHours / REQUIRED_HOURS) * 100, 100);
     const hoursLeft = Math.max(REQUIRED_HOURS - todayNetHours, 0);
 
-    // Calculate Weekly Efficiency Data
-    const generateWeeklyData = () => {
-        const labels: string[] = [];
-        const data: number[] = [];
-        const today = new Date();
-
-        // Loop backwards from 6 days ago up to today
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(today.getDate() - i);
-            const dateStr = d.toDateString();
-
-            labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
-
-            // Find record for this specific day
-            const record = records.find(r => new Date(r.date).toDateString() === dateStr);
-
-            if (record || i === 0) {
-                // Determine hours worked for this day (use live tracking for today if clocked in)
-                let hours = record?.totalHours || 0;
-                if (i === 0 && isClockedIn && !record?.clockOutTime) {
-                    hours = todayNetHours; // Use live hours for today
-                }
-
-                // Calculate efficiency percentage (cap at 100%)
-                const efficiency = Math.min((hours / REQUIRED_HOURS) * 100, 100);
-                data.push(Math.round(efficiency));
-            } else {
-                // If it's a past day with no record, efficiency is 0
-                data.push(0);
-            }
-        }
-
-        return { labels, data };
-    };
-
-    const weeklyData = generateWeeklyData();
-    const weeklyAvgEfficiency = weeklyData.data.reduce((a, b) => a + b, 0) / 7;
-
-    // Calculate Monthly Hours Data
-    const generateMonthlyData = () => {
-        const daysInSelectedMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-        const labels = Array.from({ length: daysInSelectedMonth }, (_, i) => i + 1);
-        const data = labels.map(day => {
-            const dateStr = new Date(selectedYear, selectedMonth, day).toDateString();
-            const record = monthRecords.find(r => new Date(r.date).toDateString() === dateStr);
-
-            // If the selected day is today, use live tracking hours
-            if (new Date().toDateString() === dateStr && isClockedIn && !todayRec?.clockOutTime) {
-                return parseFloat(todayNetHours.toFixed(2));
-            }
-
-            return record?.totalHours || 0;
-        });
-        return { labels, data };
-    };
-
-    const monthlyDataObj = generateMonthlyData();
 
 
     // Checkout Modal State
@@ -336,7 +266,7 @@ export default function AttendancePage() {
                 // 6:00 PM Warning Logic
                 const now = new Date();
                 if (now.getHours() >= 18 && !todayRecord.clockOutTime) {
-                    toast.error("Reminder: Please remember to Clock Out before you leave!", {
+                    toast.error("Reminder: Please remember to Logout before you leave!", {
                         duration: 6000,
                         icon: '⚠️'
                     });
@@ -364,14 +294,21 @@ export default function AttendancePage() {
     const handleClockIn = async () => {
         setLoading(true);
         try {
-            await axios.post("/api/attendance", { action: "clockIn" });
+            const res = await axios.post("/api/attendance", { action: "clockIn" });
             setIsClockedIn(true);
-            toast.success("Clocked in successfully!");
+            const lateMins: number = res.data?.record?.lateMinutes || 0;
+            if (lateMins > 0) {
+                toast(
+                    `⚠️ Late Login — ${lateMins} minute${lateMins !== 1 ? 's' : ''} past 10:00 AM.`,
+                    { duration: 6000, style: { background: '#fff7ed', color: '#c2410c', fontWeight: 700, border: '1px solid #fed7aa' } }
+                );
+            } else {
+                toast.success("Logged in on time!");
+            }
             fetchRecords();
         } catch (error: any) {
-            const msg = error?.response?.data?.error || "Failed to clock in. Please try again.";
+            const msg = error?.response?.data?.error || "Failed to login. Please try again.";
             toast.error(msg);
-            // If already clocked in, sync the state
             fetchRecords();
         }
         setLoading(false);
@@ -437,7 +374,7 @@ export default function AttendancePage() {
         if (isClockedIn && clockInTime) {
             const now = new Date();
             if (now <= clockInTime) {
-                toast.error("Clock Out time must be later than Clock In.");
+                toast.error("Logout time must be later than Login.");
                 setLoading(false);
                 return;
             }
@@ -451,7 +388,7 @@ export default function AttendancePage() {
             setFileData(null);
             fetchRecords();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Error clocking out. Please try again.");
+            toast.error(error.response?.data?.error || "Error logging out. Please try again.");
         }
         setLoading(false);
     };
@@ -545,7 +482,7 @@ export default function AttendancePage() {
                                         disabled={loading}
                                         className="px-6 py-3 bg-[#1F6F8B] text-white rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-[#16556b] transition-all shadow-md shadow-gray-100"
                                     >
-                                        Clock Out
+                                        Logout
                                     </button>
                                 </div>
                             </div>
@@ -554,10 +491,10 @@ export default function AttendancePage() {
                                 onClick={handleClockIn}
                                 disabled={loading || isAttendanceCompleted}
                                 className={cn(
-                                    "px-10 py-3.5 rounded-xl text-[13px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center gap-3",
+                                    "px-10 py-3.5 rounded-xl text-[13px] font-bold uppercase tracking-widest transition-all flex items-center gap-3",
                                     isAttendanceCompleted
                                         ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200"
-                                        : "bg-[#1F6F8B] text-white hover:bg-[#16556b] shadow-gray-200"
+                                        : "bg-[#1F6F8B] text-white hover:bg-[#16556b]"
                                 )}
                             >
                                 {isAttendanceCompleted ? (
@@ -568,7 +505,7 @@ export default function AttendancePage() {
                                 ) : (
                                     <>
                                         <Play className="w-4 h-4 fill-current" />
-                                        Clock In Now
+                                        Login Now
                                     </>
                                 )}
                             </button>
@@ -635,10 +572,10 @@ export default function AttendancePage() {
                         isActive={statusFilter === 'Late'} onClick={() => setStatusFilter(statusFilter === 'Late' ? null : 'Late')}
                     />
                     <KPICard
-                        title="Leave Balance" value={dashboardStats.leaveBalance ?? 18} color="#8b5cf6" icon={<Umbrella />}
+                        title="Present Days" value={dashboardStats.present ?? stats.present} color="#8b5cf6" icon={<UserCheck />}
                     />
                     <KPICard
-                        title="Monthly Leaves" value={dashboardStats.monthlyLeaveTaken ?? 0} color="#6366f1" icon={<CalendarX />}
+                        title="On Time Check-ins" value={dashboardStats.onTimeCheckins ?? 0} color="#6366f1" icon={<CheckCircle />}
                     />
                     <KPICard
                         title="Today Break"
@@ -655,119 +592,6 @@ export default function AttendancePage() {
                     />
                 </div>
 
-                {/* Main Analytics Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 bg-white p-8 rounded-xl border border-gray-100 shadow-sm">
-                        <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                                    <BarChart2 className="w-5 h-5 text-gray-900" />
-                                    Work Hours Analytics
-                                </h3>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-1 ml-1">Daily productivity logs</p>
-                            </div>
-                            <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                                <select
-                                    value={selectedMonth}
-                                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                                    className="text-[11px] font-black uppercase tracking-widest border-none bg-transparent rounded-xl px-5 py-2.5 focus:ring-0 outline-none appearance-none cursor-pointer pr-10"
-                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '0.8rem' }}
-                                >
-                                    {Array.from({ length: 12 }, (_, i) => (
-                                        <option key={i} value={i}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="h-[300px]">
-                            <Bar
-                                data={{
-                                    labels: monthlyDataObj.labels,
-                                    datasets: [{
-                                        label: 'Hours',
-                                        data: monthlyDataObj.data,
-                                        backgroundColor: '#1F6F8B',
-                                        borderRadius: 8,
-                                        hoverBackgroundColor: '#334155',
-                                        barThickness: 16
-                                    }]
-                                }}
-                                options={{
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: { display: false },
-                                        tooltip: {
-                                            backgroundColor: '#1F6F8B', padding: 12,
-                                            titleFont: { size: 14, weight: 'bold' },
-                                            bodyFont: { size: 13 }, displayColors: false,
-                                            callbacks: { label: (ctx: any) => `${ctx.parsed.y.toFixed(1)} hrs` }
-                                        }
-                                    },
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            max: 9,
-                                            grid: { color: '#f1f5f9' },
-                                            border: { display: false },
-                                            ticks: {
-                                                font: { size: 10, weight: 'bold' },
-                                                color: '#94a3b8', padding: 10,
-                                                callback: (val: any) => `${val}h`
-                                            }
-                                        },
-                                        x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: 'bold' }, color: '#c1c1c1', padding: 10 } }
-                                    }
-                                }}
-                            />
-                        </div>
-                    </div>
-
-
-                    <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm flex flex-col">
-                        <h3 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2 mb-8">
-                            <TrendingUp className="w-5 h-5 text-gray-900" />
-                            Efficiency
-                        </h3>
-                        <div className="flex-1 flex flex-col justify-center gap-12">
-                            <div className="relative w-48 h-48 mx-auto">
-                                <Doughnut
-                                    data={{
-                                        datasets: [{
-                                            data: [weeklyAvgEfficiency, 100 - weeklyAvgEfficiency],
-                                            backgroundColor: ['#1F6F8B', '#f1f5f9'],
-                                            borderWidth: 0,
-                                            circumference: 270,
-                                            rotation: 225,
-                                            cutout: '85%',
-                                            borderRadius: 20
-                                        }]
-                                    } as any}
-                                    options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } }}
-                                />
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-3xl font-bold text-gray-900 tracking-tight">{Math.round(weeklyAvgEfficiency)}%</span>
-                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">Weekly Score</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Team comparison</span>
-                                        <span className="text-[10px] font-bold text-emerald-600">+4.2%</span>
-                                    </div>
-                                    <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#1F6F8B] rounded-full" style={{ width: '78%' }} />
-                                    </div>
-                                </div>
-                                <p className="text-[11px] text-gray-400 font-medium text-center px-2 leading-relaxed">
-                                    Your efficiency is currently in the <span className="text-gray-900 font-bold">top 15%</span> of your department. Keep it up!
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* View/Log Controls - Premium Tabs */}
                 <div className="bg-gray-100/50 p-1.5 rounded-xl inline-flex border border-gray-200 shadow-sm ml-1">
@@ -798,8 +622,9 @@ export default function AttendancePage() {
                                 <thead>
                                     <tr className="bg-gray-50/50 border-b border-gray-100 uppercase">
                                         <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Log Date</th>
-                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Clock In</th>
-                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Clock Out</th>
+                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Login</th>
+                                        <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Late</th>
+                                        <th className="px-8 py-4 text-[9px] font-bold text-gray-400 tracking-wider">Logout</th>
                                         <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Break</th>
                                         <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Shift</th>
                                         <th className="px-8 py-4 text-center text-[9px] font-bold text-gray-400 tracking-wider">Status</th>
@@ -824,12 +649,22 @@ export default function AttendancePage() {
                                                 <td className="px-8 py-4">
                                                     {record.clockInTime ? (
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                                            <div className={cn("w-1 h-1 rounded-full", record.isLate ? "bg-orange-400" : "bg-emerald-500")} />
                                                             <span className="text-sm font-bold text-gray-700">
                                                                 {new Date(record.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                         </div>
                                                     ) : <span className="text-gray-200">--:--</span>}
+                                                </td>
+                                                {/* Late column */}
+                                                <td className="px-8 py-4 text-center">
+                                                    {record.isLate && record.lateMinutes > 0 ? (
+                                                        <span className="text-[11px] font-bold text-gray-900">
+                                                            {record.lateMinutes}m
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-200 font-bold text-[11px]">--</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-8 py-4">
                                                     {record.clockOutTime ? (
@@ -873,7 +708,7 @@ export default function AttendancePage() {
                                         );
                                     }) : (
                                         <tr>
-                                            <td colSpan={7} className="px-10 py-32 text-center text-slate-300">
+                                            <td colSpan={8} className="px-10 py-32 text-center text-slate-300">
                                                 <Activity className="w-16 h-16 mx-auto mb-4 opacity-10" />
                                                 <p className="text-lg font-black text-slate-900">No logs for this period</p>
                                                 <p className="text-sm font-medium mt-1">Select a different month to view history</p>
@@ -952,7 +787,7 @@ export default function AttendancePage() {
                                         className="flex-[2] py-5 text-[12px] font-black uppercase tracking-widest text-white bg-blue-600 rounded-[24px] hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-3 disabled:opacity-50 brand-shadow"
                                     >
                                         {loading ? <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-                                        Complete Clock Out
+                                        Complete Logout
                                     </button>
                                 </div>
                             </form>
@@ -1104,116 +939,156 @@ function StatusBadge({ status }: { status: string }) {
         </div>
     );
 }
-
-function AttendanceCalendar({ records, selectedMonth, selectedYear, isClockedIn, todayNetHours }: any) {
+ function AttendanceCalendar({ records, selectedMonth, selectedYear, isClockedIn, todayNetHours }: any) {
+    const [selectedDayDetails, setSelectedDayDetails] = useState<any>(null);
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).getDay();
     const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
     const today = new Date();
 
-    const getStatusConfig = (day: number) => {
+    const getStatusInfo = (day: number) => {
         const d = new Date(selectedYear, selectedMonth, day);
         const dateStr = d.toDateString();
         const isToday = dateStr === today.toDateString();
         const record = records.find((r: any) => new Date(r.date).toDateString() === dateStr);
 
-        if (!record) return { color: 'text-slate-400', bg: 'bg-white', label: '', isToday, statusLabel: '' };
+        if (!record) return { dotColor: 'bg-gray-200', label: '', isToday, record: null };
 
         const hours = (isToday && isClockedIn) ? todayNetHours : (record.totalHours || 0);
         const hasClockedOut = !!record.clockOutTime;
         let effectiveStatus = record.status;
 
-        if (hasClockedOut && record.status !== 'On Leave' && record.status !== 'Holiday') {
-            if (hours < 5) {
-                effectiveStatus = 'Absent';
-            } else if (hours < 7) {
-                effectiveStatus = 'Half Day';
-            } else if (hours < 8) {
+        if (hasClockedOut && !['On Leave', 'Holiday', 'Absent', 'ABSENT'].includes(effectiveStatus)) {
+            if (hours < 8 && hours >= 4) {
                 effectiveStatus = 'Early Logout';
+            } else if (hours < 4) {
+                effectiveStatus = 'Absent';
             }
         }
-        const statusLabel = (effectiveStatus === 'Present' || effectiveStatus === 'Late') ? 'Full Day' : effectiveStatus;
+        
+        const statusKey = (effectiveStatus === 'FULL_DAY' || effectiveStatus === 'Full Day') ? 'Full Day' : 
+                         (effectiveStatus === 'HALF_DAY' || effectiveStatus === 'Half Day') ? 'Half Day' :
+                         (effectiveStatus === 'ABSENT' || effectiveStatus === 'Absent') ? 'Absent' :
+                         (effectiveStatus === 'ACTIVE' || effectiveStatus === 'Present') ? 'Present' :
+                         effectiveStatus;
 
-        switch (effectiveStatus) {
-            case 'Present': return { color: 'text-emerald-700', dot: 'bg-emerald-500', bg: 'bg-emerald-50', isToday, statusLabel };
-            case 'Late': return { color: 'text-rose-700', dot: 'bg-rose-500', bg: 'bg-rose-50', isToday, statusLabel };
-            case 'Early Logout': return { color: 'text-orange-700', dot: 'bg-orange-500', bg: 'bg-orange-50', isToday, statusLabel };
-            case 'Half Day': return { color: 'text-amber-700', dot: 'bg-amber-500', bg: 'bg-amber-50', isToday, statusLabel };
-            case 'On Leave': return { color: 'text-violet-700', dot: 'bg-violet-500', bg: 'bg-violet-50', isToday, statusLabel };
-            default: return { color: 'text-slate-400', dot: '', bg: 'bg-slate-50', isToday, statusLabel };
+        switch (statusKey) {
+            case 'Present':
+            case 'Full Day': return { dotColor: 'bg-emerald-500', label: 'Present', isToday, record };
+            case 'Late': return { dotColor: 'bg-rose-500', label: 'Late', isToday, record };
+            case 'Early Logout': return { dotColor: 'bg-orange-500', label: 'Early Out', isToday, record };
+            case 'Half Day': return { dotColor: 'bg-amber-500', label: 'Half Day', isToday, record };
+            case 'On Leave': return { dotColor: 'bg-violet-500', label: 'Leave', isToday, record };
+            case 'Holiday': return { dotColor: 'bg-indigo-500', label: 'Holiday', isToday, record };
+            case 'Absent': return { dotColor: 'bg-rose-500', label: 'Absent', isToday, record };
+            default: return { dotColor: 'bg-gray-300', label: '', isToday, record };
         }
     };
 
     return (
-        <div className="bg-white rounded-[40px] border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-12 bg-slate-50/30">
-                <div className="grid grid-cols-7 gap-6 mb-10">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
-                            {day}
-                        </div>
-                    ))}
-                </div>
-
-                <div className="grid grid-cols-7 gap-6">
-                    {Array(firstDayOfMonth).fill(null).map((_, i) => (
-                        <div key={`empty-${i}`} className="aspect-square opacity-0" />
-                    ))}
-                    {days.map(day => {
-                        const config = getStatusConfig(day);
-                        return (
-                            <div key={day} className="relative aspect-square group cursor-pointer transition-all duration-300">
-                                <div className={cn(
-                                    "absolute inset-0 rounded-[32px] border transition-all duration-500",
-                                    "bg-white shadow-sm border-white group-hover:border-slate-200 group-hover:shadow-xl group-hover:shadow-slate-200/50",
-                                    config.isToday ? "border-slate-900 shadow-xl shadow-slate-100 ring-4 ring-slate-900/5" : ""
-                                )} />
-
-                                <div className="absolute inset-0 p-6 flex flex-col justify-between">
-                                    <span className={cn(
-                                        "text-2xl font-black transition-all",
-                                        config.isToday ? "text-slate-900" : "text-slate-300 group-hover:text-slate-900"
-                                    )}>
-                                        {day}
-                                    </span>
-
-                                    {config.dot && (
-                                        <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white shadow-sm self-start scale-90 -ml-1 origin-left", config.bg)}>
-                                            <div className={cn("w-1.5 h-1.5 rounded-full", config.dot)} />
-                                            <span className={cn("text-[9px] font-black uppercase tracking-widest", config.color)}>
-                                                {config.statusLabel}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {!config.dot && config.isToday && (
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-900/40">Active</span>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative">
+            {/* Calendar Grid Header */}
+            <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} className="py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        {day}
+                    </div>
+                ))}
             </div>
 
-            <div className="bg-white px-10 py-6 border-t border-slate-100 flex items-center justify-center gap-10 flex-wrap">
-                <LegendItem dot="bg-emerald-500" label="Full Day" />
-                <LegendItem dot="bg-rose-500" label="Late In" />
-                <LegendItem dot="bg-orange-500" label="Early Logout" />
-                <LegendItem dot="bg-amber-500" label="Half Day" />
-                <LegendItem dot="bg-violet-500" label="On Leave" />
+            {/* Calendar Days Grid */}
+            <div className="grid grid-cols-7 divide-x divide-y divide-gray-100 border-l border-t border-gray-100">
+                {Array(firstDayOfMonth).fill(null).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-24 bg-gray-50/20" />
+                ))}
+                {days.map(day => {
+                    const info = getStatusInfo(day);
+                    return (
+                        <div 
+                            key={day} 
+                            onClick={() => info.record && setSelectedDayDetails(info.record)}
+                            className={cn(
+                                "h-24 p-3 transition-all hover:bg-gray-50/80 cursor-default group relative",
+                                info.record && "cursor-pointer",
+                                info.isToday && "bg-blue-50/30"
+                            )}
+                        >
+                            <span className={cn(
+                                "text-sm font-bold",
+                                info.isToday ? "text-[#1F6F8B]" : "text-gray-400 group-hover:text-gray-900"
+                            )}>
+                                {day}
+                            </span>
+                            
+                            {info.label && (
+                                <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-white rounded-md border border-gray-100 shadow-sm w-fit">
+                                    <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", info.dotColor)} />
+                                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">{info.label}</span>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Day Details Modal/Popup */}
+            {selectedDayDetails && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <div>
+                                <h4 className="text-sm font-bold text-gray-900">Attendance Details</h4>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                    {new Date(selectedDayDetails.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedDayDetails(null)}
+                                className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-gray-900"
+                            >
+                                <XCircle className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <DetailRow label="Clock In" value={selectedDayDetails.clockInTime ? new Date(selectedDayDetails.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"} icon={<Clock className="w-3.5 h-3.5" />} />
+                            <DetailRow label="Clock Out" value={selectedDayDetails.clockOutTime ? new Date(selectedDayDetails.clockOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (selectedDayDetails.status === 'ACTIVE' ? "Active" : "N/A")} icon={<LogOutIcon className="w-3.5 h-3.5" />} />
+                            <DetailRow label="Break Time" value={`${Math.round(selectedDayDetails.breakMinutes || 0)} mins`} icon={<Coffee className="w-3.5 h-3.5" />} />
+                            <DetailRow label="Net Hours" value={selectedDayDetails.totalHours ? `${selectedDayDetails.totalHours.toFixed(1)}h` : "0.0h"} icon={<Timer className="w-3.5 h-3.5" />} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Legend */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-center gap-6 flex-wrap">
+                <LegendItem dotColor="bg-emerald-500" label="Present" />
+                <LegendItem dotColor="bg-rose-500" label="Absent" />
+                <LegendItem dotColor="bg-violet-500" label="Leave" />
+                <LegendItem dotColor="bg-indigo-500" label="Holiday" />
             </div>
         </div>
     );
 }
 
-function LegendItem({ dot, label }: { dot: string; label: string }) {
+function DetailRow({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
     return (
-        <div className="flex items-center gap-2.5">
-            <div className={cn("w-2 h-2 rounded-full", dot)} />
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {label}
-            </span>
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[#1F6F8B] shadow-sm border border-gray-100">
+                    {icon}
+                </div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+            </div>
+            <span className="text-xs font-bold text-gray-900">{value}</span>
+        </div>
+    );
+}
+
+function LegendItem({ dotColor, label }: { dotColor: string; label: string }) {
+    return (
+        <div className="flex items-center gap-2">
+            <div className={cn("w-2 h-2 rounded-full", dotColor)} />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
         </div>
     );
 }

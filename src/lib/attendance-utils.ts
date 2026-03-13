@@ -28,7 +28,7 @@ export async function markAbsenteesToday() {
     //    (new hires who started today should not be auto-marked absent)
     const todayDateOnly = moment().startOf('day').toDate();
     const activeEmployees = await User.find({
-        isActive: true,
+        status: 'active',
         $or: [
             { joinDate: { $lt: todayDateOnly } },
             { joinDate: { $exists: false } },
@@ -85,13 +85,97 @@ export async function markAbsenteesToday() {
 }
 
 /**
+ * Calculates attendance statistics based on business rules.
+ * Business Rules:
+ * - Office Timing: 9:00 AM - 6:00 PM
+ * - Gross Presence Required: 9 hours (540 mins)
+ * - Mandatory Break: 1 hour (60 mins)
+ * - Net Work Required: 8 hours (480 mins)
+ */
+
+export const SHIFT_START_TIME = "10:00";
+export const GRACE_PERIOD_MINUTES = 0;
+
+export function getShiftStartMoment(date: moment.Moment | Date) {
+    return moment(date).startOf('day').hour(10).minute(0);
+}
+
+export function calculateLateMinutes(clockInTime: Date | moment.Moment, shiftStart: moment.Moment) {
+    const clockIn = moment(clockInTime);
+    const lateMins = Math.max(0, clockIn.diff(shiftStart.clone().add(GRACE_PERIOD_MINUTES, 'minutes'), 'minutes'));
+    return {
+        lateMinutes: lateMins,
+        isLate: lateMins > 0
+    };
+}
+export function calculateAttendanceStats(record: any) {
+    if (!record.clockInTime) return record;
+
+    const clockIn = moment(record.clockInTime);
+    const clockOut = record.clockOutTime ? moment(record.clockOutTime) : moment();
+    const today = moment(record.date).startOf('day');
+    const shiftStart = today.clone().hour(10).minute(0);
+    const expectedLogout = clockIn.clone().add(9, 'hours');
+
+    // 1. Gross Presence
+    const grossMinutes = clockOut.diff(clockIn, 'minutes');
+
+    // 2. Break Time
+    let totalBreakMins = record.breakMinutes || 0;
+    // If still on break, add current session to calculation (don't save yet)
+    if (record.isOnBreak && record.breakStartTime) {
+        totalBreakMins += moment().diff(moment(record.breakStartTime), 'minutes');
+    }
+
+    // 3. Net Work Time
+    const netMins = Math.max(0, grossMinutes - totalBreakMins);
+
+    // 4. Late Login (Threshold: 10:00 AM)
+    const { lateMinutes, isLate: lateFlag } = calculateLateMinutes(clockIn, shiftStart);
+
+    // 5. Early Logout (Relative to Expected Logout = ClockIn + 9h)
+    let earlyLogoutMins = 0;
+    if (record.clockOutTime) {
+        earlyLogoutMins = Math.max(0, expectedLogout.diff(clockOut, 'minutes'));
+    }
+
+    // 6. Classification & Flags
+    let status = record.status;
+    let isLate = lateFlag;
+    let isEarlyOut = record.clockOutTime ? earlyLogoutMins >= 60 : false;
+
+    if (!record.clockOutTime) {
+        status = 'ACTIVE';
+    } else {
+        if (grossMinutes >= 9 * 60 && netMins >= 8 * 60) {
+            status = 'FULL_DAY';
+        } else if (netMins >= 4 * 60) {
+            status = 'HALF_DAY';
+        } else {
+            status = 'ABSENT';
+        }
+    }
+
+    return {
+        ...record,
+        grossPresenceMinutes: grossMinutes,
+        netWorkMinutes: netMins,
+        totalHours: parseFloat((netMins / 60).toFixed(2)),
+        lateMinutes: lateMinutes,
+        earlyLogoutMinutes: earlyLogoutMins,
+        isLate,
+        isEarlyOut,
+        status,
+        expectedLogoutTime: expectedLogout.toDate()
+    };
+}
+
+/**
  * Automatically closes attendance records from previous days that were left "IN PROGRESS".
  */
 export async function closeStaleSessions() {
     const todayStart = moment().startOf('day').toDate();
 
-    // Find all records older than today that don't have a clockOutTime
-    // and aren't Absent/On Leave/Auto Closed
     const staleRecords = await Attendance.find({
         date: { $lt: todayStart },
         clockOutTime: null,
@@ -102,29 +186,27 @@ export async function closeStaleSessions() {
 
     for (const record of staleRecords) {
         const recordDate = moment(record.date);
-        const autoCloseTime = recordDate.endOf('day').toDate();
-
-        let breakMins = record.breakMinutes || 0;
-        if (record.isOnBreak && record.breakStartTime) {
-            breakMins += moment(autoCloseTime).diff(moment(record.breakStartTime), 'minutes');
-        }
-
-        const totalMins = moment(autoCloseTime).diff(moment(record.clockInTime), 'minutes');
-        const netMins = Math.max(0, totalMins - breakMins);
-        const hours = netMins / 60;
+        const autoCloseTime = recordDate.clone().hour(21).minute(0).toDate(); // Close at 9:00 PM of that day
 
         record.clockOutTime = autoCloseTime;
+
+        // Calculate stats with auto-close time
+        const stats = calculateAttendanceStats(record);
+
+        record.grossPresenceMinutes = stats.grossPresenceMinutes;
+        record.netWorkMinutes = stats.netWorkMinutes;
+        record.totalHours = stats.totalHours;
+        record.lateMinutes = stats.lateMinutes;
+        record.earlyLogoutMinutes = stats.earlyLogoutMinutes;
         record.status = 'Auto Closed';
         record.autoClosed = true;
         record.isOnBreak = false;
-        record.breakMinutes = breakMins;
-        record.totalHours = parseFloat(hours.toFixed(2));
 
         record.auditLog.push({
             action: 'System Midnight Auto Close',
-            by: null, // System Action
+            by: null,
             timestamp: new Date(),
-            details: 'System automatically closed stale session at 11:59 PM.'
+            details: 'System automatically closed stale session at 9:00 PM.'
         });
 
         await record.save();

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import clsx from "clsx";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function LeaveTrackerPage() {
     const { data: session } = useSession();
@@ -20,7 +21,23 @@ export default function LeaveTrackerPage() {
 
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'apply' | 'balance'>('apply');
+    const [activeTab, setActiveTab] = useState<'my-leaves' | 'employee-leaves'>('my-leaves');
+    const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+    
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const filterParam = searchParams.get('filter');
+
+    useEffect(() => {
+        if (filterParam === 'today') {
+            setActiveTab('employee-leaves');
+            setStatusFilter('Approved');
+        }
+    }, [filterParam]);
+
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
 
@@ -58,9 +75,10 @@ export default function LeaveTrackerPage() {
         type: "Earned Leave",
         startDate: "",
         endDate: "",
+        durationType: "Full Day",
         reason: "Personal Work",
         description: "",
-        attachment: null,
+        attachment: null as File | null,
         approver: "HR Manager"
     });
 
@@ -71,13 +89,36 @@ export default function LeaveTrackerPage() {
         if (newLeave.startDate && newLeave.endDate) {
             const start = new Date(newLeave.startDate);
             const end = new Date(newLeave.endDate);
+            
+            if (end < start) {
+                setTotalDays(0);
+                return;
+            }
+
             const diffTime = Math.abs(end.getTime() - start.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            
+            if (newLeave.durationType !== "Full Day") {
+                // Half day is only applicable if start and end date are same? 
+                // Usually yes, but let's assume if it's marked as half day, the total count is reduced by 0.5
+                // Actually, if it's a single day, it's 0.5. If it's multiple days, it's duration - 0.5? 
+                // Requirement says: "Half Day Leave Option - Add an option to choose leave duration type: Full Day, Half Day - Morning, Half Day - Afternoon"
+                // Usually half day is used for a single date.
+                if (newLeave.startDate === newLeave.endDate) {
+                    diffDays = 0.5;
+                } else {
+                    // If multi-day leave is marked as half-day, it's ambiguous. 
+                    // Let's assume user only picks half-day for same-day requests.
+                    // If they pick multi-day, we treat as Full Days or maybe subtract 0.5 from total.
+                    // For now, let's keep it simple: if DurationType is Half Day and Start == End, it's 0.5.
+                    diffDays = diffDays - 0.5;
+                }
+            }
             setTotalDays(diffDays > 0 ? diffDays : 0);
         } else {
             setTotalDays(0);
         }
-    }, [newLeave.startDate, newLeave.endDate]);
+    }, [newLeave.startDate, newLeave.endDate, newLeave.durationType]);
 
     useEffect(() => {
         fetchRecords();
@@ -85,7 +126,9 @@ export default function LeaveTrackerPage() {
 
     const fetchRecords = async () => {
         try {
-            const res = await axios.get("/api/leave");
+            setLoading(true);
+            const url = filterParam === 'today' ? "/api/leave?filter=today" : "/api/leave";
+            const res = await axios.get(url);
             setRecords(res.data.records);
         } catch (error) {
             console.error("Failed to fetch leave records", error);
@@ -118,6 +161,7 @@ export default function LeaveTrackerPage() {
                 type: "Earned Leave",
                 startDate: "",
                 endDate: "",
+                durationType: "Full Day",
                 reason: "Personal Work",
                 description: "",
                 attachment: null,
@@ -160,29 +204,32 @@ export default function LeaveTrackerPage() {
 
                 <div className="bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex items-center">
                     <button
-                        onClick={() => setActiveTab('apply')}
+                        onClick={() => setActiveTab('my-leaves')}
                         className={clsx(
                             "px-6 py-2 rounded-lg text-sm font-semibold transition-all",
-                            activeTab === 'apply' ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
+                            activeTab === 'my-leaves' ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
                         )}
                     >
-                        Apply Leave
+                        My Leaves
                     </button>
-                    <button
-                        onClick={() => setActiveTab('balance')}
-                        className={clsx(
-                            "px-6 py-2 rounded-lg text-sm font-semibold transition-all",
-                            activeTab === 'balance' ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
-                        )}
-                    >
-                        Leave Balance
-                    </button>
+                    {isAdmin && (
+                        <button
+                            onClick={() => setActiveTab('employee-leaves')}
+                            className={clsx(
+                                "px-6 py-2 rounded-lg text-sm font-semibold transition-all",
+                                activeTab === 'employee-leaves' ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
+                            )}
+                        >
+                            Employee Leaves
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {activeTab === 'apply' ? (
-                /* Apply Leave Tab Content */
-                <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+            {activeTab === 'my-leaves' ? (
+                /* My Leaves Tab Content */
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
                     {/* Left Column: Form (60%) */}
                     <div className="lg:col-span-6 space-y-6">
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -255,6 +302,27 @@ export default function LeaveTrackerPage() {
                                     </div>
                                 </div>
 
+                                <div className="space-y-3">
+                                    <label className="text-sm font-semibold text-slate-600 ml-1">Leave Duration Type</label>
+                                    <div className="flex flex-wrap gap-3">
+                                        {["Full Day", "Half Day - Morning", "Half Day - Afternoon"].map((mode) => (
+                                            <button
+                                                key={mode}
+                                                type="button"
+                                                onClick={() => setNewLeave({ ...newLeave, durationType: mode })}
+                                                className={clsx(
+                                                    "px-4 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95",
+                                                    newLeave.durationType === mode
+                                                        ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200"
+                                                        : "bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600"
+                                                )}
+                                            >
+                                                {mode}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 {totalDays > 0 && (
                                     <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
@@ -297,22 +365,41 @@ export default function LeaveTrackerPage() {
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-semibold text-slate-600 ml-1">Attachment (Image/PDF)</label>
-                                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 hover:bg-gray-50 transition-all cursor-pointer relative group">
-                                        <input
-                                            type="file"
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                            onChange={(e) => setNewLeave({ ...newLeave, attachment: e.target.files?.[0] as any })}
-                                        />
-                                        <div className="flex flex-col items-center justify-center gap-2">
-                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <Paperclip className="w-5 h-5" />
+                                    {!newLeave.attachment ? (
+                                        <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 hover:bg-gray-50 transition-all cursor-pointer relative group">
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={(e) => setNewLeave({ ...newLeave, attachment: e.target.files?.[0] || null })}
+                                            />
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                    <Paperclip className="w-5 h-5" />
+                                                </div>
+                                                <p className="text-sm font-semibold text-gray-500">
+                                                    Click to upload or drag and drop
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Support: PDF, PNG, JPG (Max 5MB)</p>
                                             </div>
-                                            <p className="text-sm font-semibold text-gray-500">
-                                                {newLeave.attachment ? (newLeave.attachment as any).name : 'Click to upload or drag and drop'}
-                                            </p>
-                                            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Support: PDF, PNG, JPG (Max 5MB)</p>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                                            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <p className="text-sm font-bold text-gray-800 truncate">{(newLeave.attachment as File).name}</p>
+                                                <p className="text-[10px] font-semibold text-gray-400 capitalize">{((newLeave.attachment as File).size / 1024).toFixed(1)} KB</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewLeave({ ...newLeave, attachment: null })}
+                                                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <XCircle className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-4 flex items-center gap-4">
@@ -325,7 +412,16 @@ export default function LeaveTrackerPage() {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setNewLeave({ ...newLeave, startDate: "", endDate: "", description: "" })}
+                                        onClick={() => setNewLeave({ 
+                                            type: "Earned Leave",
+                                            startDate: "",
+                                            endDate: "",
+                                            durationType: "Full Day",
+                                            reason: "Personal Work",
+                                            description: "",
+                                            attachment: null,
+                                            approver: "HR Manager"
+                                        })}
                                         className="px-8 py-3.5 border border-gray-200 rounded-xl text-gray-400 font-semibold hover:bg-gray-50 transition-all active:scale-95"
                                     >
                                         Cancel
@@ -348,170 +444,341 @@ export default function LeaveTrackerPage() {
                                 </button>
                             </div>
 
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 gap-4">
-                                    {balances.map((balance) => (
-                                        <div key={balance.type} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100 group hover:border-blue-200 transition-all">
-                                            <div className="flex items-center gap-3">
-                                                <div className={clsx("p-2.5 rounded-xl", balance.bg, "group-hover:scale-110 transition-transform")}>
-                                                    {balance.icon}
+                                <div className="p-6">
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {balances.map((balance) => (
+                                            <div key={balance.type} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 border border-slate-100 group hover:border-blue-200 transition-all">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={clsx("p-2.5 rounded-xl", balance.bg, "group-hover:scale-110 transition-transform")}>
+                                                        {balance.icon}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-semibold text-gray-800 tracking-tight">{balance.type}</span>
+                                                        <span className="text-[10px] font-semibold text-gray-400 uppercase">Availability</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-gray-800 tracking-tight">{balance.type}</span>
-                                                    <span className="text-[10px] font-semibold text-gray-400 uppercase">Availability</span>
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-xl font-bold text-gray-900">{balance.count}</span>
+                                                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Days</span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-xl font-bold text-gray-900">{balance.count}</span>
-                                                <span className="text-[10px] font-semibold text-slate-400 uppercase">Days</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="mt-8 p-5 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-900/10 overflow-hidden relative">
-                                    <div className="relative z-10">
-                                        <h4 className="text-lg font-bold mb-1">Leave Policy</h4>
-                                        <p className="text-xs text-blue-100 font-medium leading-relaxed">
-                                            Please ensure to apply leaves at least 48 hours in advance for planned personal time.
-                                        </p>
+                                        ))}
                                     </div>
-                                    <Backpack className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10" />
+
+                                    <div className="mt-8 p-5 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-900/10 overflow-hidden relative">
+                                        <div className="relative z-10">
+                                            <h4 className="text-lg font-bold mb-3">Leave Guidelines</h4>
+                                            <ul className="space-y-2">
+                                                <li className="flex items-start gap-2 text-xs text-blue-100 font-medium">
+                                                    <div className="mt-1 w-1 h-1 rounded-full bg-white flex-shrink-0" />
+                                                    Apply leave at least 48 hours in advance
+                                                </li>
+                                                <li className="flex items-start gap-2 text-xs text-blue-100 font-medium">
+                                                    <div className="mt-1 w-1 h-1 rounded-full bg-white flex-shrink-0" />
+                                                    Medical leave requires attachment
+                                                </li>
+                                                <li className="flex items-start gap-2 text-xs text-blue-100 font-medium">
+                                                    <div className="mt-1 w-1 h-1 rounded-full bg-white flex-shrink-0" />
+                                                    Approval required from Reporting Manager
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <Backpack className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Personal Application History Section */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-blue-500" />
+                                My Leave History
+                            </h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-white text-slate-400 text-[12px] uppercase font-semibold tracking-wider border-b border-gray-50">
+                                        <th className="px-6 py-5">Leave Type</th>
+                                        <th className="px-6 py-5 text-center">Duration</th>
+                                        <th className="px-6 py-5">Reason</th>
+                                        <th className="px-6 py-5 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {records.filter((r: any) => r.userId?.email === session?.user?.email).length > 0 ? records.filter((r: any) => r.userId?.email === session?.user?.email).map((record: any) => (
+                                        <tr key={record._id} className="hover:bg-blue-50/20 transition-colors group">
+                                            <td className="px-6 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[14px] font-semibold text-gray-800">{record.type}</span>
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                                                        {record.durationType || 'Full Day'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5 text-center">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[13px] font-semibold text-gray-600">
+                                                        {new Date(record.startDate).toLocaleDateString()} - {new Date(record.endDate).toLocaleDateString()}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded mt-1">
+                                                        {record.totalDays || 0} Days
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="text-[13px] text-gray-500 max-w-[200px] truncate" title={record.reason}>
+                                                    {record.reason}
+                                                </p>
+                                            </td>
+                                            <td className="px-6 py-5 text-right">
+                                                <StatusBadge status={record.status} />
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center">
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <AlertCircle className="w-10 h-10 text-slate-200" />
+                                                    <p className="text-slate-400 font-bold">No personal leave records found.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             ) : (
-                /* Detailed Balance Tab Content */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {balances.map((balance) => (
-                        <div key={balance.type} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
-                            <div className="flex items-start justify-between relative z-10">
+                /* Employee Leaves Tab Content */
+                <div className="space-y-6">
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[
+                            { label: "Pending Requests", value: records.filter((r: any) => r.status === 'Pending').length, icon: <Clock className="w-5 h-5 text-amber-500" />, bg: "bg-amber-50" },
+                            { label: "Approved Today", value: records.filter((r: any) => r.status === 'Approved' && new Date(r.updatedAt).toDateString() === new Date().toDateString()).length, icon: <CheckCircle className="w-5 h-5 text-emerald-500" />, bg: "bg-emerald-50" },
+                            { label: "Rejected Requests", value: records.filter((r: any) => r.status === 'Rejected').length, icon: <XCircle className="w-5 h-5 text-rose-500" />, bg: "bg-rose-50" },
+                            { label: "Total Requests", value: records.length, icon: <FileText className="w-5 h-5 text-blue-500" />, bg: "bg-blue-50" }
+                        ].map((kpi, idx) => (
+                            <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                                 <div>
-                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">{balance.type}</p>
-                                    <h3 className="text-3xl font-bold text-gray-900">{balance.total}</h3>
-                                    <p className="text-[10px] text-gray-500 mt-1 font-semibold">Total Entitlement</p>
+                                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">{kpi.label}</p>
+                                    <h4 className="text-2xl font-black text-gray-900">{kpi.value}</h4>
                                 </div>
-                                <div className={`p-4 rounded-full ${balance.bg} group-hover:scale-110 transition-transform shadow-sm`}>
-                                    {balance.icon}
+                                <div className={clsx("p-3 rounded-xl", kpi.bg)}>
+                                    {kpi.icon}
                                 </div>
                             </div>
-                            <div className="mt-6 flex flex-col gap-2 relative z-10">
-                                <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
-                                    <div
-                                        className={clsx("h-full rounded-full transition-all duration-1000", balance.bg.replace('bg-', 'bg-').replace('-50', '-500'))}
-                                        style={{ width: `${(Math.min(balance.used, balance.total) / balance.total) * 100}%` }}
+                        ))}
+                    </div>
+
+                    {/* Employee Requests Table */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-gray-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/30">
+                            <div className="flex flex-col gap-1">
+                                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                    <LayoutGrid className="w-5 h-5 text-blue-500" />
+                                    {filterParam === 'today' ? "Employees On Leave Today" : "Employee Leave Requests"}
+                                </h3>
+                                {filterParam === 'today' && (
+                                    <p className="text-xs text-gray-500 font-medium">Showing approved leaves active for {new Date().toLocaleDateString()}</p>
+                                )}
+                            </div>
+                            
+                            <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                                <div className="relative w-full md:w-64">
+                                    <input
+                                        type="text"
+                                        placeholder="Search employee..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                     />
+                                    <LayoutGrid className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 </div>
-                                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase">
-                                    <span>Used: {balance.used}</span>
-                                    <span>Remaining: {balance.count}</span>
-                                </div>
+                                {!filterParam && (
+                                    <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-gray-200">
+                                        {['All', 'Pending', 'Approved', 'Rejected'].map((filter) => (
+                                            <button
+                                                key={filter}
+                                                onClick={() => setStatusFilter(filter as any)}
+                                                className={clsx(
+                                                    "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                                    statusFilter === filter ? "bg-slate-900 text-white shadow-md shadow-gray-200" : "text-gray-400 hover:text-gray-900"
+                                                )}
+                                            >
+                                                {filter}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {filterParam === 'today' && (
+                                    <button 
+                                        onClick={() => router.push('/leave-tracker')}
+                                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all"
+                                    >
+                                        Clear Filter
+                                    </button>
+                                )}
                             </div>
                         </div>
-                    ))}
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-white text-slate-400 text-[12px] uppercase font-semibold tracking-wider border-b border-gray-50">
+                                        <th className="px-6 py-5">Employee</th>
+                                        {filterParam === 'today' && <th className="px-6 py-5">Employee ID</th>}
+                                        {filterParam === 'today' && <th className="px-6 py-5">Department</th>}
+                                        <th className="px-6 py-5">Leave Type</th>
+                                        <th className="px-6 py-5 text-center">Duration</th>
+                                        {filterParam !== 'today' && <th className="px-6 py-5">Reason</th>}
+                                        <th className="px-6 py-5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {(() => {
+                                        const filtered = records
+                                            .filter((r: any) => filterParam === 'today' ? true : (statusFilter === 'All' || r.status === statusFilter))
+                                            .filter((r: any) => 
+                                                r.userId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                r.userId?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                (r.userId as any)?.employeeCode?.toLowerCase().includes(searchQuery.toLowerCase())
+                                            );
+                                        
+                                        const totalFilteredCount = filtered.length;
+                                        const startIndex = (currentPage - 1) * itemsPerPage;
+                                        const paginated = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+                                        if (paginated.length === 0) {
+                                            return (
+                                                <tr>
+                                                    <td colSpan={filterParam === 'today' ? 7 : 5} className="px-6 py-12 text-center">
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <AlertCircle className="w-10 h-10 text-slate-200" />
+                                                            <p className="text-slate-400 font-bold">No leave records found for this filter.</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+
+                                        return (
+                                            <>
+                                                {paginated.map((record: any) => (
+                                                    <tr key={record._id} className="hover:bg-blue-50/20 transition-colors group">
+                                                        <td className="px-6 py-5">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold">
+                                                                    {record.userId?.name?.charAt(0) || 'U'}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[14px] font-semibold text-gray-900">{record.userId?.name || 'Unknown'}</span>
+                                                                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-tight">{record.userId?.email}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        {filterParam === 'today' && (
+                                                            <td className="px-6 py-5 text-[13px] font-medium text-gray-700">
+                                                                {(record.userId as any)?.employeeCode || 'E-001'}
+                                                            </td>
+                                                        )}
+                                                        {filterParam === 'today' && (
+                                                            <td className="px-6 py-5 text-[13px] font-medium text-gray-700">
+                                                                {(record.userId as any)?.department || 'Engineering'}
+                                                            </td>
+                                                        )}
+                                                        <td className="px-6 py-5">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[14px] font-semibold text-gray-800">{record.type}</span>
+                                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                                                                    {record.durationType || 'Full Day'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-5 text-center">
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[13px] font-semibold text-gray-600">
+                                                                    {new Date(record.startDate).toLocaleDateString()} - {new Date(record.endDate).toLocaleDateString()}
+                                                                </span>
+                                                                <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded mt-1">
+                                                                    {record.totalDays || 0} Days
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        {filterParam !== 'today' && (
+                                                            <td className="px-6 py-5">
+                                                                <p className="text-[13px] text-gray-500 max-w-[200px] truncate" title={record.reason}>
+                                                                    {record.reason}
+                                                                </p>
+                                                            </td>
+                                                        )}
+                                                        <td className="px-6 py-5 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                {record.status === 'Pending' && canApprove && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(record._id, 'Approved')}
+                                                                            className="p-1.5 px-3 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all text-[11px] font-bold border border-emerald-100 shadow-sm"
+                                                                        >
+                                                                            Approve
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleUpdateStatus(record._id, 'Rejected')}
+                                                                            className="p-1.5 px-3 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all text-[11px] font-bold border border-rose-100 shadow-sm"
+                                                                        >
+                                                                            Reject
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                {(record.status !== 'Pending' || !canApprove) && (
+                                                                    <StatusBadge status={record.status} />
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {/* Pagination */}
+                                                {totalFilteredCount > itemsPerPage && (
+                                                    <tr>
+                                                        <td colSpan={filterParam === 'today' ? 7 : 5} className="px-6 py-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="text-xs text-gray-500 font-medium whitespace-nowrap">
+                                                                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, totalFilteredCount)} of {totalFilteredCount} results
+                                                                </p>
+                                                                <div className="flex items-center gap-1">
+                                                                    <button
+                                                                        disabled={currentPage === 1}
+                                                                        onClick={() => setCurrentPage(prev => prev - 1)}
+                                                                        className="px-3 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold disabled:opacity-50"
+                                                                    >
+                                                                        Previous
+                                                                    </button>
+                                                                    <button
+                                                                        disabled={startIndex + itemsPerPage >= totalFilteredCount}
+                                                                        onClick={() => setCurrentPage(prev => prev + 1)}
+                                                                        className="px-3 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold disabled:opacity-50"
+                                                                    >
+                                                                        Next
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </tbody>
+                            </table>
+                        </div>
+                        </div>
                 </div>
             )}
-
-            {/* Application History (Always visible below or in a section) */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-blue-500" />
-                        Application Status History
-                    </h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-white text-slate-400 text-[12px] uppercase font-semibold tracking-wider border-b border-gray-50">
-                                {isAdmin && <th className="px-6 py-5">Employee</th>}
-                                <th className="px-6 py-5">Leave Type</th>
-                                <th className="px-6 py-5 text-center">Duration</th>
-                                <th className="px-6 py-5">Reason</th>
-                                <th className="px-6 py-5">Approver</th>
-                                <th className="px-6 py-5 text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {records.length > 0 ? records.map((record: any) => (
-                                <tr key={record._id} className="hover:bg-blue-50/20 transition-colors group">
-                                    {isAdmin && (
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col">
-                                                <span className="text-[14px] font-semibold text-gray-900">{record.userId?.name || 'Unknown'}</span>
-                                                <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-tight">{record.userId?.email}</span>
-                                            </div>
-                                        </td>
-                                    )}
-                                    <td className="px-6 py-5">
-                                        <div className="flex flex-col">
-                                            <span className="text-[14px] font-semibold text-gray-800">{record.type}</span>
-                                            <span className="text-[10px] text-gray-400 font-semibold uppercase">Category</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-[13px] font-semibold text-gray-600">
-                                                {new Date(record.startDate).toLocaleDateString()} - {new Date(record.endDate).toLocaleDateString()}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded mt-1">
-                                                {record.totalDays || (record.startDate && record.endDate ? Math.ceil(Math.abs(new Date(record.endDate).getTime() - new Date(record.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1 : 0)} Days
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <p className="text-[13px] text-gray-500 max-w-[200px] truncate" title={record.reason}>
-                                            {record.reason}
-                                        </p>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-                                                <User className="w-3.5 h-3.5 text-slate-500" />
-                                            </div>
-                                            <span className="text-[13px] font-semibold text-slate-600">{record.approver || 'Manager'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {record.status === 'Pending' && canApprove && (
-                                                <>
-                                                    <button
-                                                        onClick={() => handleUpdateStatus(record._id, 'Approved')}
-                                                        className="p-1.5 px-3 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all text-[11px] font-bold border border-emerald-100 shadow-sm"
-                                                    >
-                                                        Approve
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleUpdateStatus(record._id, 'Rejected')}
-                                                        className="p-1.5 px-3 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-all text-[11px] font-bold border border-rose-100 shadow-sm"
-                                                    >
-                                                        Reject
-                                                    </button>
-                                                </>
-                                            )}
-                                            {(record.status !== 'Pending' || !canApprove) && (
-                                                <StatusBadge status={record.status} />
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <AlertCircle className="w-10 h-10 text-slate-200" />
-                                            <p className="text-slate-400 font-bold">No leave applications found.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
 
             {/* Validation Warning Modal */}
             {showWarning && (

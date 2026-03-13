@@ -36,24 +36,28 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "Record cannot be auto-closed" }, { status: 400 });
             }
 
-            // Auto close at 11:59 PM of that record's date
-            const autoCloseTime = recordDate.endOf('day').toDate();
+            // Auto close at 9:00 PM of that record's date
+            const autoCloseTime = recordDate.clone().hour(21).minute(0).toDate();
 
-            let breakMins = record.breakMinutes || 0;
-            if (record.isOnBreak && record.breakStartTime) {
-                breakMins += moment(autoCloseTime).diff(moment(record.breakStartTime), 'minutes');
-            }
-
-            const totalMins = moment(autoCloseTime).diff(moment(record.clockInTime), 'minutes');
-            const netMins = Math.max(0, totalMins - breakMins);
-            const hours = netMins / 60;
+            const { calculateAttendanceStats } = await import('@/lib/attendance-utils');
+            const stats = calculateAttendanceStats({
+                ...record.toObject(),
+                clockOutTime: autoCloseTime,
+                isOnBreak: false // Always end break on auto-close
+            });
 
             record.clockOutTime = autoCloseTime;
             record.status = 'Auto Closed';
             record.autoClosed = true;
             record.isOnBreak = false;
-            record.breakMinutes = breakMins;
-            record.totalHours = parseFloat(hours.toFixed(2));
+            record.breakMinutes = stats.breakMinutes;
+            record.totalHours = stats.totalHours;
+            record.lateMinutes = stats.lateMinutes;
+            record.earlyLogoutMinutes = stats.earlyLogoutMinutes;
+            record.grossPresenceMinutes = stats.grossPresenceMinutes;
+            record.netWorkMinutes = stats.netWorkMinutes;
+            record.isLate = stats.isLate;
+            record.isEarlyOut = stats.isEarlyOut;
 
             record.correctionRequested = true;
             record.correctionDetails = {
@@ -127,25 +131,23 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "Clock Out time must be later than Clock In." }, { status: 400 });
             }
 
-            const totalDurationMins = clockOutMom.diff(clockInMom, 'minutes');
-            const netMins = Math.max(0, totalDurationMins - (record.breakMinutes || 0));
-            const hours = netMins / 60;
+            const { calculateAttendanceStats } = await import('@/lib/attendance-utils');
+            const stats = calculateAttendanceStats({
+                ...record.toObject(),
+                clockInTime: requestedIn,
+                clockOutTime: requestedOut
+            });
 
             record.clockInTime = requestedIn;
             record.clockOutTime = requestedOut;
-            record.totalHours = parseFloat(hours.toFixed(2));
-
-            // Determine final status
-            if (netMins < 4 * 60) {
-                record.status = 'Absent';
-            } else if (netMins < 8 * 60) {
-                record.status = 'Half Day';
-            } else if (totalDurationMins < 9 * 60) {
-                record.status = 'Early Logout';
-            } else {
-                const threshold = moment(requestedIn).startOf('day').hour(10).minute(0);
-                record.status = clockInMom.isAfter(threshold) ? 'Late' : 'Present';
-            }
+            record.totalHours = stats.totalHours;
+            record.lateMinutes = stats.lateMinutes;
+            record.earlyLogoutMinutes = stats.earlyLogoutMinutes;
+            record.grossPresenceMinutes = stats.grossPresenceMinutes;
+            record.netWorkMinutes = stats.netWorkMinutes;
+            record.isLate = stats.isLate;
+            record.isEarlyOut = stats.isEarlyOut;
+            record.status = stats.status;
 
             record.correctionRequested = false;
             record.autoClosed = false;

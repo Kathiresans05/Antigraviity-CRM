@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -43,10 +44,9 @@ export default function LoginPage() {
             <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
                 {/* Logo & Header */}
                 <div className="text-center mb-10">
-                    <div className="flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center rotate-3 shadow-lg shadow-blue-500/30">
-                            <span className="text-white text-2xl font-bold -rotate-3">AG!</span>
-                        </div>
+                    <div className="flex justify-center items-center gap-2 mb-6">
+                        <Image src="/logo.png" alt="Antigraviity Logo" width={36} height={36} className="rounded-xl" />
+                        <span className="text-3xl font-bold tracking-tight text-[#0f172a]">antigrav!!ty</span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome back</h2>
                     <p className="text-sm text-gray-500 mt-2 font-medium">Please sign in to your CRM account.</p>
@@ -115,12 +115,7 @@ export default function LoginPage() {
                         )}
                     </button>
 
-                    { /* Demo Credentials Hint */}
-                    <div className="pt-4 text-center border-t border-gray-100">
-                        <p className="text-xs text-gray-400 font-medium">Demo Access</p>
-                        <p className="text-xs text-gray-500 mt-1">Admin: <span className="font-semibold text-gray-700">admin@admin.com</span> / <span className="font-semibold text-gray-700">admin123</span></p>
-                        <p className="text-xs text-gray-500">Employee: <span className="font-semibold text-gray-700">emp@test.com</span> / <span className="font-semibold text-gray-700">password123</span></p>
-                    </div>
+
                 </form>
             </div>
         </div>

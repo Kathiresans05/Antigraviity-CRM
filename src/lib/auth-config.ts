@@ -37,7 +37,7 @@ export const authOptions: AuthOptions = {
                     return null;
                   }
 
-                  if (!user.isActive) {
+                  if (user.status === 'inactive' || !user.isActive) {
                     console.log("User account is inactive.");
                     return null;
                   }
