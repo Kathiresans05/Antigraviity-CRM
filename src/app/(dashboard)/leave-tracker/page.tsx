@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import {
     Calendar, Plus, Clock, CheckCircle, XCircle,
@@ -12,7 +12,7 @@ import axios from "axios";
 import clsx from "clsx";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function LeaveTrackerPage() {
+function LeaveTrackerContent() {
     const { data: session } = useSession();
     const userRole = (session?.user as any)?.role;
     const canApprove = ["Admin", "Manager", "HR Manager"].includes(userRole);
@@ -805,16 +805,22 @@ export default function LeaveTrackerPage() {
 }
 
 function StatusBadge({ status }: { status: string }) {
-    const configs: Record<string, any> = {
-        Approved: { color: "bg-emerald-50 text-emerald-600 border-emerald-100", icon: <CheckCircle className="w-3 h-3" /> },
-        Pending: { color: "bg-amber-50 text-amber-600 border-amber-100", icon: <Clock className="w-3 h-3" /> },
-        Rejected: { color: "bg-red-50 text-red-600 border-red-100", icon: <XCircle className="w-3 h-3" /> },
+    const colors: Record<string, string> = {
+        'Pending': 'bg-amber-50 text-amber-700 border-amber-100',
+        'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        'Rejected': 'bg-rose-50 text-rose-700 border-rose-100',
     };
-    const config = configs[status] || configs.Pending;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${config.color}`}>
-            {config.icon}
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${colors[status] || 'bg-gray-50 text-gray-500 border-gray-100'}`}>
             {status}
         </span>
+    );
+}
+
+export default function LeaveTrackerPage() {
+    return (
+        <Suspense fallback={<div className="flex h-[400px] items-center justify-center"><div className="w-8 h-8 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" /></div>}>
+            <LeaveTrackerContent />
+        </Suspense>
     );
 }

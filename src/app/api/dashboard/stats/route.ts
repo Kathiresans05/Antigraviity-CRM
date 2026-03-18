@@ -13,6 +13,7 @@ import Holiday from "@/models/Holiday";
 import moment from "moment";
 import { markAbsenteesToday } from "@/lib/attendance-utils";
 import { getManagedUserIds } from "@/lib/hierarchy";
+import DailyReport from "@/models/DailyReport";
 
 export const dynamic = 'force-dynamic';
 
@@ -424,6 +425,7 @@ export async function GET(req: Request) {
                 probationEndingMonth,
                 pendingDocuments: pendingDocumentsCount,
                 workAnniversariesMonth,
+                dailyReportsToday: await DailyReport.countDocuments({ date: { $gte: todayStart, $lte: todayEnd } }),
                 holidayToday: holidayToday ? holidayToday.name : null
             },
             weeklyAttendance,

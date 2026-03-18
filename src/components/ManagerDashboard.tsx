@@ -14,6 +14,7 @@ import { Line, Bar, Doughnut } from "react-chartjs-2";
 import clsx from "clsx";
 import axios from "axios";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 ChartJS.register(
     CategoryScale, LinearScale, PointElement, LineElement,
@@ -185,6 +186,10 @@ export default function ManagerDashboard({ session, data: initialData }: any) {
                     <p className="text-sm font-medium text-gray-500">Welcome back, {session?.user?.name || 'Manager'}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Link href="/daily-reports" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-semibold shadow-sm">
+                        <FileText className="w-4 h-4" />
+                        Daily Report
+                    </Link>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 animate-pulse">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                         <span className="text-[10px] font-bold uppercase tracking-wider">Live Updates</span>

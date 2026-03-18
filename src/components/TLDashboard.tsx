@@ -296,10 +296,16 @@ export default function TLDashboard({ session, data: initialData }: any) {
                         <h3 className="text-[15px] font-bold text-slate-900 mb-4">Quick Actions</h3>
                         <div className="grid grid-cols-2 gap-3">
                             <button
-                                onClick={() => router.push('/daily-tasks')}
+                                onClick={() => router.push('/daily-reports')}
                                 className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-blue-50/50 hover:border-blue-200 hover:text-blue-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
+                             >
+                                <FileText className="w-4 h-4 text-blue-500 transition-transform" /> Daily Report
+                            </button>
+                            <button
+                                onClick={() => router.push('/daily-tasks')}
+                                className="flex items-center gap-3 p-4 rounded-[6px] bg-slate-50 border border-slate-100 hover:bg-slate-50/50 hover:border-slate-200 hover:text-blue-600 transition-colors text-slate-700 font-semibold text-[13px] text-left group"
                             >
-                                <FileText className="w-4 h-4 text-blue-500 transition-transform" /> Assign New Task
+                                <FileText className="w-4 h-4 text-slate-500 transition-transform" /> Assign New Task
                             </button>
                             <button
                                 onClick={() => router.push('/team-attendance')}

@@ -45,6 +45,7 @@ const ADMIN_LINKS = [
             { name: "Recruitment", href: "/recruitment", icon: GraduationCap },
             { name: "Documents", href: "/documents", icon: FileText },
             { name: "Announcements", href: "/announcements", icon: Megaphone },
+            { name: "Daily Reports", href: "/daily-reports", icon: FileText },
             { name: "Reports", href: "/reports", icon: BarChart2 },
         ]
     },
@@ -122,6 +123,7 @@ const EMPLOYEE_LINKS = (userId: string) => [
             { name: "Projects", href: "/projects", icon: TicketCheck },
             { name: "Tasks", href: "/tasks", icon: ListTodo },
             { name: "Daily Tasks", href: "/daily-tasks", icon: CheckSquare },
+            { name: "Daily Reports", href: "/daily-reports", icon: FileText },
         ]
     },
     {

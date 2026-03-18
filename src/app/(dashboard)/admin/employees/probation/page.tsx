@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
@@ -21,7 +21,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
     'Extended': { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500", label: "Extended" },
 };
 
-export default function ProbationManagementPage() {
+function ProbationContent() {
     const { data: session } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -354,5 +354,13 @@ export default function ProbationManagementPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function ProbationManagementPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" /></div>}>
+            <ProbationContent />
+        </Suspense>
     );
 }

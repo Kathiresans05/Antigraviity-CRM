@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
     'Offline': { bg: "bg-slate-50", text: "text-slate-400", dot: "bg-slate-300", label: "Offline" },
 };
 
-export default function TeamAttendancePage() {
+function TeamAttendanceContent() {
     const { data: session } = useSession();
     const router = useRouter();
     const isAdminHR = ['Admin', 'HR', 'HR Manager'].includes(session?.user?.role as string);
@@ -748,3 +748,10 @@ function SummaryCard({
     );
 }
 
+export default function TeamAttendancePage() {
+    return (
+        <Suspense fallback={<div className="flex h-[400px] items-center justify-center"><div className="w-8 h-8 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" /></div>}>
+            <TeamAttendanceContent />
+        </Suspense>
+    );
+}

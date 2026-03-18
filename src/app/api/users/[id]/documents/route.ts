@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-config";
 import connectToDatabase from "@/lib/mongodb";
@@ -7,7 +7,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import fs from "fs";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
         await connectToDatabase();
         const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const employeeId = params.id;
+        const { id: employeeId } = await context.params;
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
         const documentType = formData.get("documentType") as string; // e.g., 'aadharCard'
@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
     try {
         await connectToDatabase();
         const session = await getServerSession(authOptions);
@@ -71,7 +71,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const employeeId = params.id;
+        const { id: employeeId } = await context.params;
         const { documentType, status, feedback } = await req.json();
 
         if (!documentType || !status) {

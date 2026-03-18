@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
     'Active': { bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-500", label: "Clocked In" },
 };
 
-export default function AdminAttendancePage() {
+function AdminAttendanceContent() {
     const { data: session } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -473,5 +473,13 @@ export default function AdminAttendancePage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function AdminAttendancePage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+            <AdminAttendanceContent />
+        </Suspense>
     );
 }

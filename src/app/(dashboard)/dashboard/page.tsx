@@ -6,7 +6,7 @@ import {
     ChevronDown, Eye, Edit, Trash2, Clock, CheckSquare,
     UserCheck, UserMinus, UserX, UserPlus, Gift, Calendar as CalendarIcon,
     ArrowUpRight, ArrowDownRight, MoreHorizontal, PieChart, BarChart3, HelpCircle, Bug, DollarSign,
-    ClipboardList, FileWarning, Trophy, ExternalLink
+    ClipboardList, FileWarning, Trophy, ExternalLink, FileText, GraduationCap, LayoutDashboard, ListTodo, Megaphone, TicketCheck
 } from "lucide-react";
 import {
     Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -163,6 +163,15 @@ function HRDashboard({ data, performanceData, departmentData, leaveDistributionD
                     { title: "New Joinees", value: data?.stats?.newJoineesMonth || 0, subtitle: new Date().toLocaleDateString('en-US', { month: 'long' }), icon: UserPlus, color: "bg-purple-50 text-purple-600", trend: "This month", href: "/employees" },
                     { title: "Pending Onboarding", value: data?.stats?.pendingOnboarding || 0, subtitle: "Action Required", icon: UserCheck, color: "bg-blue-50 text-blue-600", trend: data?.stats?.pendingOnboarding > 0 ? "Pending" : "None", href: "#onboarding-approvals" },
                     { title: "Birthdays", value: data?.stats?.birthdaysToday || 0, subtitle: "Coming Up", icon: Gift, color: "bg-pink-50 text-pink-600", trend: "Today", href: "/admin/employees/birthdays" },
+                    {
+                        title: "Daily Reports", 
+                        value: data?.stats?.dailyReportsToday || 0, 
+                        subtitle: "View All", 
+                        icon: FileText, 
+                        color: "bg-blue-50 text-blue-600", 
+                        trend: "Today", 
+                        href: "/daily-reports" 
+                    },
                     {
                         title: "Absent Today",
                         value: data?.stats?.absentToday || 0,
@@ -751,6 +760,7 @@ function EmployeeDashboard({ session, data }: any) {
                         <div className="p-3 grid grid-cols-4 gap-2">
                             {[
                                 { label: "Apply Leave", href: "/leave-tracker", icon: CalendarIcon, color: "#7b1fa2" },
+                                { label: "Daily Report", href: "/daily-reports", icon: FileText, color: "#4a90d9" },
                                 { label: "View Attendance", href: "/attendance", icon: UserCheck, color: "#00875a" },
                                 { label: "My Tasks", href: "/tasks", icon: CheckSquare, color: "#0c66e4" },
                                 { label: "Raise Ticket", href: "/support", icon: HelpCircle, color: "#e65100" },
