@@ -41,12 +41,19 @@ export async function GET(req: Request) {
       const allowedRoles = ["Admin", "HR", "Manager", "Team Leader"];
       if (!allowedRoles.includes(userRole)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-      // Find all active sessions for today
-      const sessions = await MonitoringSession.find({
-        createdAt: { $gte: startDate, $lte: endDate }
-      }).populate("employeeId", "name role email");
+      // Build a more flexible query: 
+      // For real-time tracker: show all currently ACTIVE sessions 
+      // OR sessions created today.
+      const sessionQuery = isTeamQuery 
+        ? { $or: [{ sessionStatus: "Active" }, { createdAt: { $gte: startDate, $lte: endDate } }] }
+        : { createdAt: { $gte: startDate, $lte: endDate } };
+
+      const sessions = await MonitoringSession.find(sessionQuery)
+        .populate("employeeId", "name role email")
+        .sort({ loginTime: -1 });
 
       const reports = await Promise.all(sessions.map(async (s) => {
+        // Optimization: For team overview, we just need basic stats
         const blocks = await ActivityBlock.find({ sessionId: s._id });
         const keyboardTotal = blocks.reduce((acc, b) => acc + b.keyboardCount, 0);
         const mouseTotal = blocks.reduce((acc, b) => acc + b.mouseCount, 0);
@@ -58,7 +65,8 @@ export async function GET(req: Request) {
             sessionStatus: s.sessionStatus,
             loginTime: s.loginTime,
             totalActiveSeconds: s.totalActiveSeconds,
-            totalIdleSeconds: s.totalIdleSeconds
+            totalIdleSeconds: s.totalIdleSeconds,
+            updatedAt: s.updatedAt
           },
           activity: { keyboardTotal, mouseTotal }
         };
