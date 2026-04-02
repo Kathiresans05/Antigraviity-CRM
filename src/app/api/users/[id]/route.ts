@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../../lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import User from "@/models/User";
-import Attendance from "@/models/Attendance";
-import Leave from "@/models/Leave";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import User from "@/backend/models/User";
+import Attendance from "@/backend/models/Attendance";
+import Leave from "@/backend/models/Leave";
 import moment from "moment";
 
 export async function GET(

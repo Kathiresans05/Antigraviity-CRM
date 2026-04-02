@@ -6,7 +6,7 @@ import clsx from "clsx";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import moment from "moment";
-import Modal from "@/components/Modal";
+import Modal from "@/frontend/components/Modal";
 import { toast } from "react-hot-toast";
 
 export default function ProjectsPage() {

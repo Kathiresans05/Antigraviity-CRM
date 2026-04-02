@@ -15,12 +15,12 @@ import {
 import { Line, Bar, Doughnut } from "react-chartjs-2";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
-import ManagerDashboard from "@/components/ManagerDashboard";
-import TLDashboard from "@/components/TLDashboard";
+import ManagerDashboard from "@/frontend/components/ManagerDashboard";
+import TLDashboard from "@/frontend/components/TLDashboard";
 import axios from "axios";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import EmployeeEditModal from "@/components/EmployeeEditModal";
+import EmployeeEditModal from "@/frontend/components/EmployeeEditModal";
 
 
 ChartJS.register(
@@ -615,7 +615,7 @@ function EmployeeDashboard({ session, data }: any) {
                 </div>
             </div>
 
-            {/* ─── Summary Cards Row ───────────────────────── */}
+            {/* Summary Cards Row */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
                 {[
                     { label: "Total Tasks", value: ((data?.stats?.myPendingTasks ?? 0) + (data?.completedTasks ?? 0)) || (data ? 0 : 168), color: "#4a90d9", icon: CheckSquare },

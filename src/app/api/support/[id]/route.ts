@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../../lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import SupportTicket from "@/models/Support";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import SupportTicket from "@/backend/models/Support";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {

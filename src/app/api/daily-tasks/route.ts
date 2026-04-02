@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import DailyTask from "@/models/DailyTask";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import DailyTask from "@/backend/models/DailyTask";
 import moment from "moment";
-import { getManagedUserIds } from "@/lib/hierarchy";
+import { getManagedUserIds } from "@/backend/lib/hierarchy";
 
 export async function POST(req: Request) {
     try {

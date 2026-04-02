@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import SupportTicket from "@/models/Support";
-import User from "@/models/User"; // Ensure registered
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import SupportTicket from "@/backend/models/Support";
+import User from "@/backend/models/User"; // Ensure registered
 
 export async function GET(req: Request) {
     try {

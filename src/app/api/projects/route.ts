@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Project from "@/models/Project";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Project from "@/backend/models/Project";
 
 export async function GET() {
     try {

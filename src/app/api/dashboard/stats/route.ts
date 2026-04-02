@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import User from "@/models/User";
-import Attendance from "@/models/Attendance";
-import Leave from "@/models/Leave";
-import Project from "@/models/Project";
-import Task from "@/models/Task";
-import Support from "@/models/Support";
-import Announcement from "@/models/Announcement";
-import Holiday from "@/models/Holiday";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import User from "@/backend/models/User";
+import Attendance from "@/backend/models/Attendance";
+import Leave from "@/backend/models/Leave";
+import Project from "@/backend/models/Project";
+import Task from "@/backend/models/Task";
+import Support from "@/backend/models/Support";
+import Announcement from "@/backend/models/Announcement";
+import Holiday from "@/backend/models/Holiday";
 import moment from "moment";
-import { markAbsenteesToday } from "@/lib/attendance-utils";
-import { getManagedUserIds } from "@/lib/hierarchy";
-import DailyReport from "@/models/DailyReport";
+import { markAbsenteesToday } from "@/backend/lib/attendance-utils";
+import { getManagedUserIds } from "@/backend/lib/hierarchy";
+import DailyReport from "@/backend/models/DailyReport";
 
 export const dynamic = 'force-dynamic';
 

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
-import connectToDatabase from '@/lib/mongodb';
-import Recruitment from '@/models/Recruitment';
+import { authOptions } from '@/backend/lib/auth-config';
+import connectToDatabase from '@/backend/lib/mongodb';
+import Recruitment from '@/backend/models/Recruitment';
 import moment from 'moment';
 
 // Seed data for when the DB has no candidates yet

@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { authOptions } from "../../../../lib/auth-config";
+import { authOptions } from "@/backend/lib/auth-config";
 
 const handler = (req: any, res: any) => {
     console.log("NextAuth Handler called for method:", req.method);

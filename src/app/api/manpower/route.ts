@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
-import connectToDatabase from '@/lib/mongodb';
-import ManpowerRequest from '@/models/ManpowerRequest';
-import JobOpening from '@/models/JobOpening';
+import { authOptions } from '@/backend/lib/auth-config';
+import connectToDatabase from '@/backend/lib/mongodb';
+import ManpowerRequest from '@/backend/models/ManpowerRequest';
+import JobOpening from '@/backend/models/JobOpening';
 
 const SEED_REQUESTS = [
     { department: 'Engineering', position: 'Senior Frontend Developer', count: 3, reason: 'New Project', budgetApproved: true, requestedBy: 'Raj Kumar', approvalStatus: 'Approved', approvedBy: 'Admin', notes: 'Urgent for Q1 delivery.' },

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../../../lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Task from "@/models/Task";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Task from "@/backend/models/Task";
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
     try {

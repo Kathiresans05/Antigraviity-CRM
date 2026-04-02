@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Task from "@/models/Task";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Task from "@/backend/models/Task";
 
 export async function GET() {
     try {
@@ -23,7 +23,7 @@ export async function GET() {
             query = {};
         } else if (["Manager", "Assigned Manager", "TL"].includes(role)) {
             // Managers and TLs see tasks assigned to them OR their subordinates OR created by them
-            const { getManagedUserIds } = require("@/lib/hierarchy");
+            const { getManagedUserIds } = require("@/backend/lib/hierarchy");
             const managedIds = await getManagedUserIds(userId, role, true);
             
             query = {

@@ -1,8 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import User from "@/models/User";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import User from "@/backend/models/User";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import fs from "fs";

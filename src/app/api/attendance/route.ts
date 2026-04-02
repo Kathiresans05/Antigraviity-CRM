@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Attendance from "@/models/Attendance";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Attendance from "@/backend/models/Attendance";
 import moment from "moment";
-import { getManagedUserIds } from "@/lib/hierarchy";
-import { getShiftStartMoment, calculateLateMinutes, SHIFT_START_TIME } from "@/lib/attendance-utils";
-import Leave from "@/models/Leave";
-import Holiday from "@/models/Holiday";
-import User from "@/models/User";
-import { sendDailyWorkSummaryEmail } from "@/lib/email";
+import { getManagedUserIds } from "@/backend/lib/hierarchy";
+import { getShiftStartMoment, calculateLateMinutes, SHIFT_START_TIME } from "@/backend/lib/attendance-utils";
+import Leave from "@/backend/models/Leave";
+import Holiday from "@/backend/models/Holiday";
+import User from "@/backend/models/User";
+import { sendDailyWorkSummaryEmail } from "@/backend/lib/email";
 
 export async function POST(req: Request) {
     try {
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
                 ...existingRecord.toObject(),
                 clockOutTime: clockOutTime
             };
-            const { calculateAttendanceStats } = await import('@/lib/attendance-utils');
+            const { calculateAttendanceStats } = await import('@/backend/lib/attendance-utils');
             const stats = calculateAttendanceStats(tempRecord);
 
             // Business Rules Validation - Removed strict block to allow early logout
@@ -205,7 +205,7 @@ export async function GET(req: Request) {
         await connectToDatabase();
 
         // Auto-mark absentees if after 11:00 AM
-        await import('@/lib/attendance-utils').then(m => m.markAbsenteesToday());
+        await import('@/backend/lib/attendance-utils').then(m => m.markAbsenteesToday());
 
         const { searchParams } = new URL(req.url);
         const filter = searchParams.get('filter');

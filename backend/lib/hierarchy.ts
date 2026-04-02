@@ -1,4 +1,4 @@
-import User from "@/models/User";
+import User from "@/backend/models/User";
 import mongoose from "mongoose";
 
 /**

@@ -6,7 +6,7 @@ import {
     MoreVertical, Video, MapPin, AlignLeft, CheckCircle2, Link
 } from "lucide-react";
 import clsx from "clsx";
-import MiniCalendar from "@/components/MiniCalendar";
+import MiniCalendar from "@/frontend/components/MiniCalendar";
 
 const mockMeetings = [
     {

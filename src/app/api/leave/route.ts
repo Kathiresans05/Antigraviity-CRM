@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Leave from "@/models/Leave";
-import User from "@/models/User";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Leave from "@/backend/models/Leave";
+import User from "@/backend/models/User";
 
 export async function POST(req: Request) {
     try {
@@ -141,7 +141,7 @@ export async function PATCH(req: Request) {
         // If the leave is approved, retroactively update any existing "Absent" attendance records to "On Leave"
         if (status === 'Approved') {
             const moment = (await import('moment')).default;
-            const Attendance = (await import('@/models/Attendance')).default;
+            const Attendance = (await import('@/backend/models/Attendance')).default;
 
             const startOfDay = moment(updatedLeave.startDate).startOf('day').toDate();
             const endOfDay = moment(updatedLeave.endDate).endOf('day').toDate();

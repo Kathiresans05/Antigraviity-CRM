@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
-import connectToDatabase from '@/lib/mongodb';
-import Applicant from '@/models/Applicant';
-import JobOpening from '@/models/JobOpening';
+import { authOptions } from '@/backend/lib/auth-config';
+import connectToDatabase from '@/backend/lib/mongodb';
+import Applicant from '@/backend/models/Applicant';
+import JobOpening from '@/backend/models/JobOpening';
 import moment from 'moment';
 
 const SEED_APPLICANTS = [

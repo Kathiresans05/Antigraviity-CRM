@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth-config';
-import connectToDatabase from '@/lib/mongodb';
-import User from '@/models/User';
-import Performance from '@/models/Performance';
+import { authOptions } from '@/backend/lib/auth-config';
+import connectToDatabase from '@/backend/lib/mongodb';
+import User from '@/backend/models/User';
+import Performance from '@/backend/models/Performance';
 import moment from 'moment';
 
 const CURRENT_CYCLE = 'Q1 2026';

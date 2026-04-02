@@ -351,7 +351,7 @@ export default function EmployeeProfilePage() {
                                                 ))}
                                             </div>
                                             {stats.leave.history?.length > 0 && (
-                                                <details className="[&_summary::-webkit-details-marker]:hidden">
+                                                <details className="">
                                                     <summary className="px-5 py-3 border-t border-gray-50 text-[12px] font-bold text-blue-500 cursor-pointer hover:text-blue-700 flex items-center gap-1">
                                                         View Leave History
                                                     </summary>
@@ -494,8 +494,8 @@ export default function EmployeeProfilePage() {
 
                                         {/* Full Task List */}
                                         {stats.taskList?.length > 0 && (
-                                            <details className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden [&_summary::-webkit-details-marker]:hidden group" open>
-                                                <summary className="[display:flex] items-center justify-between gap-3 px-5 py-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50/50 transition-colors [&::-webkit-details-marker]:hidden">
+                                            <details className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group" open>
+                                                <summary className="[display:flex] items-center justify-between gap-3 px-5 py-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50/50 transition-colors">
                                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                                         <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
                                                             <CheckCircle2 className="w-4 h-4" />
@@ -549,7 +549,7 @@ export default function EmployeeProfilePage() {
                                                 </div>
                                                 <div className="divide-y divide-gray-50">
                                                     {stats.dailyActivity.map((day: any, i: number) => (
-                                                        <details key={i} className="[&_summary::-webkit-details-marker]:hidden group">
+                                                        <details key={i} className="group">
                                                             <summary className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
                                                                 <div className="flex items-center gap-3">
                                                                     <span className="text-[12px] font-bold text-slate-700">{day.date}</span>

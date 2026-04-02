@@ -1,23 +1,23 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Attendance from "@/models/Attendance";
-import User from "@/models/User";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Attendance from "@/backend/models/Attendance";
+import User from "@/backend/models/User";
 import mongoose from "mongoose";
 import moment from "moment";
 
 async function getLeaveModel() {
-    try { return (await import("@/models/Leave")).default; } catch { return null; }
+    try { return (await import("@/backend/models/Leave")).default; } catch { return null; }
 }
 async function getTaskModel() {
-    try { return (await import("@/models/Task")).default; } catch { return null; }
+    try { return (await import("@/backend/models/Task")).default; } catch { return null; }
 }
 async function getProjectModel() {
-    try { return (await import("@/models/Project")).default; } catch { return null; }
+    try { return (await import("@/backend/models/Project")).default; } catch { return null; }
 }
 async function getDailyChecklistModel() {
-    try { return (await import("@/models/DailyChecklist")).default; } catch { return null; }
+    try { return (await import("@/backend/models/DailyChecklist")).default; } catch { return null; }
 }
 
 export async function GET(

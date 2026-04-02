@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import User from "@/models/User";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import User from "@/backend/models/User";
 import bcrypt from "bcryptjs";
-import { getManagedUserIds } from "@/lib/hierarchy";
+import { getManagedUserIds } from "@/backend/lib/hierarchy";
 import moment from "moment";
 
 export async function GET(req: Request) {
@@ -327,7 +327,7 @@ export async function PATCH(req: Request) {
 
         if (justActivated) {
             try {
-                const { sendOnboardingCompleteEmail } = await import('@/lib/email');
+                const { sendOnboardingCompleteEmail } = await import('@/backend/lib/email');
                 await sendOnboardingCompleteEmail(user.email, user.name);
             } catch (e) {
                 console.error("Failed to send onboarding email via hook", e);

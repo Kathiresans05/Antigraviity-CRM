@@ -2,10 +2,14 @@
   "name": "crm-app",
   "version": "0.1.0",
   "private": true,
+  "main": "main.js",
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
+    "dev:desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3000/login && node launcher.js\"",
     "build": "next build",
+    "build:desktop": "npm run build && electron-builder",
     "start": "next start",
+    "electron": "node launcher.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -35,11 +39,33 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "dotenv": "^17.3.1",
+    "electron": "^33.2.1",
+    "electron-builder": "^26.8.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.4"
+  },
+  "build": {
+    "appId": "com.antigraviity.crm",
+    "productName": "Antigraviity CRM",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "public/logo_highres.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

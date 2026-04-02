@@ -10,7 +10,7 @@ import {
 import axios from "axios";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import EmployeeEditModal from "@/components/EmployeeEditModal";
+import EmployeeEditModal from "@/frontend/components/EmployeeEditModal";
 
 interface DocumentInfo {
     url?: string;

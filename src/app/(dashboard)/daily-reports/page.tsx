@@ -10,7 +10,7 @@ import {
 import axios from "axios";
 import moment from "moment";
 import clsx from "clsx";
-import DailyReportModal from "@/components/DailyReportModal";
+import DailyReportModal from "@/frontend/components/DailyReportModal";
 
 export default function DailyReportsPage() {
     const { data: session } = useSession();

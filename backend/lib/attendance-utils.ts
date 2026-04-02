@@ -1,7 +1,7 @@
-import Attendance from "@/models/Attendance";
-import User from "@/models/User";
-import Leave from "@/models/Leave";
-import Holiday from "@/models/Holiday";
+import Attendance from "@/backend/models/Attendance";
+import User from "@/backend/models/User";
+import Leave from "@/backend/models/Leave";
+import Holiday from "@/backend/models/Holiday";
 import moment from "moment";
 
 /**

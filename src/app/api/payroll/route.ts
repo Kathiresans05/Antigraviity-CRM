@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import User from "@/models/User";
-import Payroll from "@/models/Payroll";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import User from "@/backend/models/User";
+import Payroll from "@/backend/models/Payroll";
 import moment from "moment";
 
 export async function GET(req: Request) {

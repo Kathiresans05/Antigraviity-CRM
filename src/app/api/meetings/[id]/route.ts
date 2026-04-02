@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../../lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Meeting from "@/models/Meeting";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Meeting from "@/backend/models/Meeting";
 
 export async function DELETE(
     req: Request,

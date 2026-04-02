@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import Attendance from "@/models/Attendance";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import Attendance from "@/backend/models/Attendance";
 import moment from "moment";
 
 export async function POST(req: Request) {
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
             // Auto close at 9:00 PM of that record's date
             const autoCloseTime = recordDate.clone().hour(21).minute(0).toDate();
 
-            const { calculateAttendanceStats } = await import('@/lib/attendance-utils');
+            const { calculateAttendanceStats } = await import('@/backend/lib/attendance-utils');
             const stats = calculateAttendanceStats({
                 ...record.toObject(),
                 clockOutTime: autoCloseTime,
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "Clock Out time must be later than Clock In." }, { status: 400 });
             }
 
-            const { calculateAttendanceStats } = await import('@/lib/attendance-utils');
+            const { calculateAttendanceStats } = await import('@/backend/lib/attendance-utils');
             const stats = calculateAttendanceStats({
                 ...record.toObject(),
                 clockInTime: requestedIn,

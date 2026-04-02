@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth-config";
-import connectToDatabase from "@/lib/mongodb";
-import DailyReport from "@/models/DailyReport";
+import { authOptions } from "@/backend/lib/auth-config";
+import connectToDatabase from "@/backend/lib/mongodb";
+import DailyReport from "@/backend/models/DailyReport";
 import mongoose from 'mongoose';
 
 export async function GET(req: Request) {
