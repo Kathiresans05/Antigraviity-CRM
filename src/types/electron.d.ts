@@ -13,6 +13,12 @@ declare global {
           activeSeconds: number;
           startTime: string | null;
         }>;
+        flush: () => Promise<{
+          keyboardCount: number;
+          mouseCount: number;
+          idleSeconds: number;
+          activeSeconds: number;
+        }>;
       };
     };
   }

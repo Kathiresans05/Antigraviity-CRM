@@ -3,6 +3,7 @@
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import ConsentModal from "./monitoring/ConsentModal";
+import MonitoringHeartbeat from "./monitoring/MonitoringHeartbeat";
 import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
@@ -43,6 +44,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         </div>
                     </main>
                     <ConsentModal />
+                    <MonitoringHeartbeat />
                 </div>
             </div>
         </SessionProvider>

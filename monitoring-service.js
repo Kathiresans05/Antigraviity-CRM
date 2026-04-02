@@ -76,11 +76,18 @@ ipcMain.handle('monitoring:stop', () => {
   return { success: true };
 });
 
-ipcMain.handle('monitoring:get-stats', () => {
+ipcMain.handle('monitoring:flush', () => {
   const stats = { ...currentStats };
-  // Reset interval stats after manual pull if needed, 
-  // or just return the snapshot.
+  // Reset counters for the NEXT block
+  currentStats.keyboardCount = 0;
+  currentStats.mouseCount = 0;
+  currentStats.activeSeconds = 0;
+  currentStats.idleSeconds = 0;
   return stats;
+});
+
+ipcMain.handle('monitoring:get-stats', () => {
+  return { ...currentStats };
 });
 
 module.exports = {
