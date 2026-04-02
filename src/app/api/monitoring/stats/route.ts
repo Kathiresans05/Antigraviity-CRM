@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         : { createdAt: { $gte: startDate, $lte: endDate } };
 
       const sessions = await MonitoringSession.find(sessionQuery)
-        .populate("employeeId", "name role email")
+        .populate({ path: "employeeId", model: User, select: "name role email" })
         .sort({ loginTime: -1 });
 
       const reports = await Promise.all(sessions.map(async (s) => {
@@ -58,9 +58,12 @@ export async function GET(req: Request) {
         const keyboardTotal = blocks.reduce((acc, b) => acc + b.keyboardCount, 0);
         const mouseTotal = blocks.reduce((acc, b) => acc + b.mouseCount, 0);
 
+        // Fail-safe User Data
+        const userData = s.employeeId || { _id: "Unknown", name: "Employee (ID Missing)", role: "N/A" };
+
         return {
           _id: s._id,
-          user: s.employeeId,
+          user: userData,
           session: {
             sessionStatus: s.sessionStatus,
             loginTime: s.loginTime,
