@@ -1,7 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Add any needed IPC bridges here for future use
-  // For example:
-  // sendMessage: (message) => ipcRenderer.send('message-from-renderer', message),
+  monitoring: {
+    start: () => ipcRenderer.invoke('monitoring:start'),
+    stop: () => ipcRenderer.invoke('monitoring:stop'),
+    getStats: () => ipcRenderer.invoke('monitoring:get-stats'),
+  },
 });

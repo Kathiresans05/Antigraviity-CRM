@@ -2,6 +2,7 @@
 
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import ConsentModal from "./monitoring/ConsentModal";
 import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
@@ -41,6 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             {children}
                         </div>
                     </main>
+                    <ConsentModal />
                 </div>
             </div>
         </SessionProvider>

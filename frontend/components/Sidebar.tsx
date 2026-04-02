@@ -8,7 +8,7 @@ import {
     BarChart2, Clock, Settings, LogOut, ChevronLeft,
     ChevronRight, ListTodo, Calendar, CheckSquare,
     DollarSign, TrendingUp, Bell, GraduationCap, FileText, Megaphone,
-    User, HardDrive, UserPlus
+    User, HardDrive, UserPlus, ShieldCheck, ListFilter, Activity
 } from "lucide-react";
 import clsx from "clsx";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
@@ -54,6 +54,15 @@ const ADMIN_LINKS = [
         items: [
             { name: "Settings", href: "/settings", icon: Settings },
         ]
+    },
+    {
+        label: "Workforce Monitoring",
+        items: [
+            { name: "Real-time Tracker", href: "/monitoring/team-activity", icon: Activity },
+            { name: "Productivity Reports", href: "/monitoring/productivity", icon: BarChart2 },
+            { name: "Activity Settings", href: "/monitoring/settings", icon: ShieldCheck },
+            { name: "Compliance Audit", href: "/monitoring/audit", icon: ListFilter },
+        ]
     }
 ];
 
@@ -84,6 +93,7 @@ const MANAGER_LINKS = [
         label: "REPORTS",
         items: [
             { name: "Reports", href: "/reports", icon: BarChart2 },
+            { name: "Team Activity", href: "/monitoring/team-activity", icon: Activity },
         ]
     },
     {
@@ -110,6 +120,7 @@ const TL_LINKS = [
             { name: "Leave Approvals", href: "/leave-approvals", icon: Calendar },
             { name: "Reports", href: "/reports", icon: BarChart2 },
             { name: "Meetings", href: "/meetings", icon: Users },
+            { name: "Team Activity", href: "/monitoring/team-activity", icon: Activity },
         ]
     }
 ];
@@ -124,6 +135,7 @@ const EMPLOYEE_LINKS = (userId: string) => [
             { name: "Tasks", href: "/tasks", icon: ListTodo },
             { name: "Daily Tasks", href: "/daily-tasks", icon: CheckSquare },
             { name: "Daily Reports", href: "/daily-reports", icon: FileText },
+            { name: "My Activity", href: "/monitoring/my-activity", icon: Activity },
         ]
     },
     {

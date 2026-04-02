@@ -29,7 +29,14 @@ if (!electron || !electron.app) {
     process.exit(1);
 }
 
-const { app, BrowserWindow } = electron;
+const { app, BrowserWindow, ipcMain } = electron;
+
+// Initialize Monitoring Service (Isolated logic)
+try {
+    const { startMonitoring, stopMonitoring } = require('./monitoring-service');
+} catch (err) {
+    console.warn('[Main] Monitoring service could not be initialized:', err.message);
+}
 
 function createWindow() {
   const win = new BrowserWindow({
