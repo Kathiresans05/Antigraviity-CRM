@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import moment from 'moment';
-import User from '../src/models/User';
-import Project from '../src/models/Project';
-import Task from '../src/models/Task';
-import Attendance from '../src/models/Attendance';
-import Leave from '../src/models/Leave';
+import User from '../backend/models/User';
+import Project from '../backend/models/Project';
+import Task from '../backend/models/Task';
+import Attendance from '../backend/models/Attendance';
+import Leave from '../backend/models/Leave';
 
 dotenv.config({ path: '.env.local' });
 

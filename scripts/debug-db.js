@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import connectToDatabase from './src/lib/mongodb';
-import JobOpening from './src/models/JobOpening';
+import connectToDatabase from './backend/lib/mongodb';
+import JobOpening from './backend/models/JobOpening';
 
 async function debug() {
     await connectToDatabase();

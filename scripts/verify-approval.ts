@@ -1,5 +1,5 @@
-import connectToDatabase from "../src/lib/mongodb";
-import User from "../src/models/User";
+import connectToDatabase from "../backend/lib/mongodb";
+import User from "../backend/models/User";
 import mongoose from "mongoose";
 
 async function verify() {
