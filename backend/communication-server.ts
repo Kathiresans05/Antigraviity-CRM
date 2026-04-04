@@ -63,38 +63,34 @@ io.on("connection", (socket: Socket) => {
     console.log("[Socket] New connection:", socket.id);
 
     socket.on("join-room", async ({ roomId: rawRoomId, user }: { roomId: string, user: any }) => {
-        const roomId = rawRoomId.trim();
+        const roomId = rawRoomId.trim().toLowerCase();
         console.log(`[Socket] User ${user.name} (${user.role}) joining room: "${roomId}" (ID: ${socket.id})`);
         
         socket.join(roomId);
         
-        // Save to MongoDB for persistent presence
         await Participant.findOneAndUpdate(
             { socketId: socket.id },
             { 
                 roomId, 
                 socketId: socket.id, 
-                userId: user.id, 
+                userId: user.id || user.email, 
                 name: user.name, 
                 role: user.role,
-                micActive: true 
+                micActive: true,
+                lastHeartbeat: new Date()
             },
             { upsert: true, new: true }
         );
 
-        // Update In-Memory for fallback (optional but good for rapid lookups)
+        // Update In-Memory for fallback
         if (!activeRooms.has(roomId)) {
             activeRooms.set(roomId, new Map());
         }
         const participantsMap = activeRooms.get(roomId)!;
         participantsMap.set(socket.id, { ...user, socketId: socket.id, micActive: true });
 
-        // Fetch ALL current participants from MongoDB for this room
-        const currentParticipants = await Participant.find({ roomId });
-        console.log(`[CommServer] Room "${roomId}" now has ${currentParticipants.length} persistent participants`);
-
-        // Broadcast FULL list to everyone in the room
-        io.to(roomId).emit("room-update", currentParticipants);
+        // Broadcast FULL list from MongoDB with DE-DUPLICATION
+        await broadcastRoomUpdate(roomId);
 
         // Broadcast global presence to everyone
         broadcastGlobalPresence();
@@ -105,6 +101,7 @@ io.on("connection", (socket: Socket) => {
 
     socket.on("send-message", async ({ roomId, text, user }: { roomId: string, text: string, user: any }) => {
         try {
+            const rId = roomId.trim().toLowerCase();
             const Message = mongoose.models.Message || mongoose.model("Message", new mongoose.Schema({
                 sender: { id: String, name: String, role: String },
                 roomId: String,
@@ -113,14 +110,14 @@ io.on("connection", (socket: Socket) => {
 
             const newMessage = new Message({
                 sender: user,
-                roomId: roomId.trim(),
+                roomId: rId,
                 text
             });
 
             await newMessage.save();
 
             // Broadcast to everyone in the room (including sender)
-            io.to(roomId.trim()).emit("new-message", {
+            io.to(rId).emit("new-message", {
                 id: newMessage._id,
                 sender: user,
                 text,
@@ -146,7 +143,7 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("toggle-mic", async ({ roomId, micActive }: { roomId: string, micActive: boolean }) => {
-        const rId = roomId.trim();
+        const rId = roomId.trim().toLowerCase();
         await Participant.findOneAndUpdate({ socketId: socket.id }, { micActive });
         io.to(rId).emit("mic-status-updated", {
             socketId: socket.id,
@@ -155,7 +152,7 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("toggle-video", async ({ roomId, videoActive }: { roomId: string, videoActive: boolean }) => {
-        const rId = roomId.trim();
+        const rId = roomId.trim().toLowerCase();
         await Participant.findOneAndUpdate({ socketId: socket.id }, { videoActive });
         io.to(rId).emit("video-status-updated", {
             socketId: socket.id,
@@ -164,7 +161,7 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("leave-room", async (roomId: string) => {
-        await handleLeave(socket, roomId.trim());
+        await handleLeave(socket, roomId.trim().toLowerCase());
     });
 
     socket.on("disconnect", async () => {
@@ -178,11 +175,10 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("room-heartbeat", async ({ roomId: rawRoomId, user }: { roomId: string, user: any }) => {
-        const roomId = rawRoomId.trim();
+        const roomId = rawRoomId.trim().toLowerCase();
         socket.join(roomId);
 
-        // Ensure in MongoDB (Upsert)
-        const participant = await Participant.findOneAndUpdate(
+        await Participant.findOneAndUpdate(
             { socketId: socket.id },
             { 
                 roomId, 
@@ -195,8 +191,6 @@ io.on("connection", (socket: Socket) => {
             { upsert: true, new: true }
         );
 
-        // If this heartbeat represents a "recovery" (user wasn't in activeRooms map),
-        // we should broadcast an update.
         if (!activeRooms.has(roomId)) {
             activeRooms.set(roomId, new Map());
         }
@@ -204,9 +198,8 @@ io.on("connection", (socket: Socket) => {
         if (!participantsMap.has(socket.id)) {
             participantsMap.set(socket.id, { ...user, socketId: socket.id, micActive: true });
             
-            // Broadcast update since someone "re-appeared"
-            const currentParticipants = await Participant.find({ roomId });
-            io.to(roomId).emit("room-update", currentParticipants);
+            // Re-broadcast de-duplicated list
+            await broadcastRoomUpdate(roomId);
             broadcastGlobalPresence();
         }
     });
@@ -216,6 +209,23 @@ io.on("connection", (socket: Socket) => {
         socket.emit("global-room-presence", presence);
     });
 });
+
+async function broadcastRoomUpdate(roomId: string) {
+    const rId = roomId.trim().toLowerCase();
+    // Fetch all participants and DE-DUPLICATE by userId
+    const allParticipants = await Participant.find({ roomId: rId });
+    
+    const uniqueParticipants = Array.from(
+        allParticipants.reduce((map, p) => {
+            // Keep the most recent record or the one with the specific socketId
+            const key = p.userId || p.socketId;
+            if (!map.has(key)) map.set(key, p);
+            return map;
+        }, new Map()).values()
+    );
+
+    io.to(rId).emit("room-update", uniqueParticipants);
+}
 
 async function getGlobalPresence() {
     const presence: Record<string, number> = {};
@@ -310,6 +320,18 @@ async function seedRooms() {
 
 async function startServer() {
     await cleanupStaleParticipants();
+    
+    // Periodically clean up "zombie" participants who missed heartbeats (> 45s)
+    setInterval(async () => {
+        const threshold = new Date(Date.now() - 45000);
+        const stale = await Participant.find({ lastHeartbeat: { $lt: threshold } });
+        for (const p of stale) {
+            console.log(`[CommServer] Cleaning up stale participant: ${p.name}`);
+            await Participant.deleteOne({ _id: p._id });
+            broadcastGlobalPresence();
+        }
+    }, 30000);
+
     httpServer.listen(PORT, () => {
         console.log(`[CommServer] Signaling server running on port ${PORT}`);
     });

@@ -71,7 +71,7 @@ export default function CommunicationRoomsPage() {
                             room={room} 
                             activeRoom={activeRoom}
                             onJoin={() => joinRoom(room.name, 'voice')}
-                            participantCount={roomCounts[room.name.trim()] || 0}
+                            participantCount={roomCounts[room.name.trim().toLowerCase()] || 0}
                         />
                     ))}
                 </div>

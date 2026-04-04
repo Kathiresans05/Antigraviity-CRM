@@ -196,7 +196,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         const heartbeatInterval = setInterval(() => {
             if (socketRef.current?.connected) {
                 socketRef.current.emit('room-heartbeat', {
-                    roomId: activeRoom.trim(),
+                    roomId: activeRoom.trim().toLowerCase(),
                     user: {
                         id: (session.user as any).id || session.user.email,
                         name: session.user.name,
@@ -215,7 +215,8 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
         }
         
-        const cleanRoomId = roomId.trim();
+        // Standardize Room ID: Lowecase + Trim
+        const cleanRoomId = roomId.trim().toLowerCase();
         const userData = {
             id: (session.user as any).id || session.user.email,
             name: session.user.name || 'Anonymous',
@@ -242,7 +243,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         setMessages([]);
 
         try {
-            console.log(`[Comm] Attempting to join ${type} room: ${cleanRoomId}`);
+            console.log(`[Comm] Attempting to join ${type} room (standardized): ${cleanRoomId}`);
             let stream = null;
             if (type === 'voice' || type === 'video') {
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -264,7 +265,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             activeRoomRef.current = cleanRoomId;
             setActiveRoomType(type);
             activeRoomTypeRef.current = type;
-            toast.success(`Joined room: ${cleanRoomId}`);
+            toast.success(`Joined room: ${roomId}`); // Keep original name for display toast
         } catch (err) {
             console.error('[Media Access Error]:', err);
             toast.error('Failed to access camera/microphone. Please check permissions.');
