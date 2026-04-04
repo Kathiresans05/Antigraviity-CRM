@@ -70,7 +70,7 @@ export default function CommunicationRoomsPage() {
                             key={room._id} 
                             room={room} 
                             activeRoom={activeRoom}
-                            onJoin={() => joinRoom(room.name)}
+                            onJoin={() => joinRoom(room.name, 'voice')}
                             participantCount={activeRoom === room.name ? participants.length : 0}
                         />
                     ))}
