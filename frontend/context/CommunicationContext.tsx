@@ -180,13 +180,17 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             role: (session.user as any).role || 'User',
         };
 
-        // Optimistic UI Update: Add self immediately so we don't show "0 participants"
+        // Optimistic UI Update: Add self immediately to both participants list and room counts
         setParticipants([{
             ...userData,
             socketId: socketRef.current.id,
             micActive: true,
             videoActive: type === 'video'
         }]);
+        setRoomCounts(prev => ({
+            ...prev,
+            [cleanRoomId]: Math.max((prev[cleanRoomId] || 0), 1)
+        }));
         setMessages([]);
 
         try {
