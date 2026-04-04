@@ -13,8 +13,7 @@ async function seedUsers() {
 
         const password = await bcrypt.hash('admin123', 10);
 
-        // Clear existing users to avoid duplicates
-        await User.deleteMany({});
+        // Check for existing users before adding new ones
 
         const users = [
             {

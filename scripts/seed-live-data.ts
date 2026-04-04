@@ -17,9 +17,7 @@ async function seed() {
         const jananiId = "699f2d0ee7881ce44222b1d3";
         const kathiresanId = "699e91b096d8f2b6e2130e2e";
 
-        // 1. Projects
         console.log("Seeding projects...");
-        await Project.deleteMany({});
         const projects = await Project.insertMany([
             {
                 name: "Zoho CRM Integration",
@@ -59,9 +57,7 @@ async function seed() {
             }
         ]);
 
-        // 2. Tasks
         console.log("Seeding tasks...");
-        await Task.deleteMany({});
         const taskData = [];
 
         // Distribute tasks across 4 weeks for the trend chart
@@ -87,9 +83,7 @@ async function seed() {
         }
         await Task.insertMany(taskData);
 
-        // 3. Attendance
         console.log("Seeding attendance...");
-        await Attendance.deleteMany({ userId: kathiresanId });
         const attendanceData = [];
         const weekStart = moment().startOf('week').add(1, 'days'); // Monday
 
