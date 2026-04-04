@@ -9,13 +9,18 @@ import { toast } from 'react-hot-toast';
 interface CommunicationContextType {
     socket: Socket | null;
     activeRoom: string | null;
+    activeRoomType: "voice" | "video" | "chat" | null;
     participants: any[];
+    messages: any[];
     localStream: MediaStream | null;
     remoteStreams: Map<string, MediaStream>;
     isMicMuted: boolean;
-    joinRoom: (roomId: string) => Promise<void>;
+    isVideoOn: boolean;
+    joinRoom: (roomId: string, type: "voice" | "video" | "chat") => Promise<void>;
     leaveRoom: () => void;
     toggleMic: () => void;
+    toggleVideo: () => void;
+    sendMessage: (text: string) => void;
 }
 
 const CommunicationContext = createContext<CommunicationContextType | undefined>(undefined);
@@ -24,13 +29,19 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const { data: session } = useSession();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [activeRoom, setActiveRoom] = useState<string | null>(null);
+    const [activeRoomType, setActiveRoomType] = useState<"voice" | "video" | "chat" | null>(null);
     const [participants, setParticipants] = useState<any[]>([]);
+    const [messages, setMessages] = useState<any[]>([]);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [isMicMuted, setIsMicMuted] = useState(false);
+    const [isVideoOn, setIsVideoOn] = useState(false);
 
     const peersRef = useRef<Map<string, Peer.Instance>>(new Map());
     const socketRef = useRef<Socket | null>(null);
+    const activeRoomRef = useRef<string | null>(null);
+    const localStreamRef = useRef<MediaStream | null>(null);
+    const activeRoomTypeRef = useRef<"voice" | "video" | "chat" | null>(null);
 
     useEffect(() => {
         const socketUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 'http://localhost:3001';
@@ -40,10 +51,15 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
 
         newSocket.on('user-connected', ({ socketId, user }) => {
             console.log('[Comm] User connected:', user.name);
-            setParticipants(prev => [...prev, { ...user, socketId }]);
-            // If we are already in a room, initiate WebRTC with new user
-            if (activeRoom && localStream) {
-                createPeer(socketId, newSocket, localStream, true);
+            setParticipants(prev => {
+                // Prevent duplicates
+                if (prev.find(p => p.socketId === socketId)) return prev;
+                return [...prev, { ...user, socketId, micActive: true, videoActive: true }];
+            });
+            
+            // If we are already in a room with a stream, initiate WebRTC
+            if (activeRoomRef.current && localStreamRef.current) {
+                createPeer(socketId, newSocket, localStreamRef.current, true);
             }
         });
 
@@ -65,20 +81,31 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             setParticipants(list);
         });
 
-        newSocket.on('voice-signal', ({ senderId, signal }) => {
+        const handleSignal = ({ senderId, signal }: { senderId: string, signal: any }) => {
             if (peersRef.current.has(senderId)) {
                 peersRef.current.get(senderId)?.signal(signal);
-            } else if (activeRoom && localStream) {
-                // Someone is calling us, create a peer as receiver
-                createPeer(senderId, newSocket, localStream, false, signal);
+            } else if (activeRoomRef.current && localStreamRef.current) {
+                createPeer(senderId, socketRef.current!, localStreamRef.current, false, signal);
             }
-        });
+        };
+
+        newSocket.on('voice-signal', handleSignal);
+        newSocket.on('video-signal', handleSignal);
 
         newSocket.on('mic-status-updated', ({ socketId, micActive }) => {
             setParticipants(prev => prev.map(p => 
                 p.socketId === socketId ? { ...p, micActive } : p
             ));
         });
+
+        newSocket.on('video-status-updated', ({ socketId, videoActive }) => {
+            setParticipants(prev => prev.map(p => 
+                p.socketId === socketId ? { ...p, videoActive } : p
+            ));
+        });
+
+        newSocket.on('recent-messages', (list) => setMessages(list));
+        newSocket.on('new-message', (msg) => setMessages(prev => [...prev, msg]));
 
         return () => {
             newSocket.disconnect();
@@ -94,7 +121,8 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         peer.on('signal', (signal: Peer.SignalData) => {
-            socket.emit('voice-signal', { targetId, signal });
+            const eventName = activeRoomTypeRef.current === 'video' ? 'video-signal' : 'voice-signal';
+            socket.emit(eventName, { targetId, signal });
         });
 
         peer.on('stream', (remoteStream: MediaStream) => {
@@ -103,10 +131,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         peer.on('error', (err: Error) => console.error('[Peer Error]:', err));
-        peer.on('close', () => {
-            console.log('[Peer] Connection closed with:', targetId);
-        });
-
+        
         if (incomingSignal) {
             peer.signal(incomingSignal);
         }
@@ -115,12 +140,21 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         return peer;
     };
 
-    const joinRoom = async (roomId: string) => {
+    const joinRoom = async (roomId: string, type: "voice" | "video" | "chat") => {
         if (!socketRef.current || !session?.user) return;
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            setLocalStream(stream);
+            let stream = null;
+            if (type === 'voice' || type === 'video') {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true, 
+                    video: type === 'video' 
+                });
+                setLocalStream(stream);
+                localStreamRef.current = stream;
+                setIsMicMuted(false);
+                setIsVideoOn(type === 'video');
+            }
 
             socketRef.current.emit('join-room', {
                 roomId,
@@ -132,22 +166,32 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             });
 
             setActiveRoom(roomId);
+            activeRoomRef.current = roomId;
+            setActiveRoomType(type);
+            activeRoomTypeRef.current = type;
+            setParticipants([]);
+            setMessages([]);
             toast.success(`Joined room: ${roomId}`);
         } catch (err) {
-            console.error('[Mic Access Error]:', err);
-            toast.error('Failed to access microphone. Please check permissions.');
+            console.error('[Media Access Error]:', err);
+            toast.error('Failed to access camera/microphone. Please check permissions.');
         }
     };
 
     const leaveRoom = () => {
-        if (socketRef.current && activeRoom) {
-            socketRef.current.emit('leave-room', activeRoom);
+        if (socketRef.current && activeRoomRef.current) {
+            socketRef.current.emit('leave-room', activeRoomRef.current);
             setActiveRoom(null);
+            activeRoomRef.current = null;
+            setActiveRoomType(null);
+            activeRoomTypeRef.current = null;
             setParticipants([]);
+            setMessages([]);
             
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+            if (localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach(track => track.stop());
                 setLocalStream(null);
+                localStreamRef.current = null;
             }
 
             peersRef.current.forEach(peer => peer.destroy());
@@ -158,17 +202,50 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     const toggleMic = () => {
-        if (localStream) {
-            const audioTrack = localStream.getAudioTracks()[0];
-            audioTrack.enabled = !audioTrack.enabled;
-            setIsMicMuted(!audioTrack.enabled);
+        if (localStreamRef.current) {
+            const audioTrack = localStreamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMicMuted(!audioTrack.enabled);
 
-            if (socketRef.current && activeRoom) {
-                socketRef.current.emit('toggle-mic', {
-                    roomId: activeRoom,
-                    micActive: audioTrack.enabled
-                });
+                if (socketRef.current && activeRoomRef.current) {
+                    socketRef.current.emit('toggle-mic', {
+                        roomId: activeRoomRef.current,
+                        micActive: audioTrack.enabled
+                    });
+                }
             }
+        }
+    };
+
+    const toggleVideo = () => {
+        if (localStreamRef.current) {
+            const videoTrack = localStreamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVideoOn(videoTrack.enabled);
+
+                if (socketRef.current && activeRoomRef.current) {
+                    socketRef.current.emit('toggle-video', {
+                        roomId: activeRoomRef.current,
+                        videoActive: videoTrack.enabled
+                    });
+                }
+            }
+        }
+    };
+
+    const sendMessage = (text: string) => {
+        if (socketRef.current && activeRoomRef.current && session?.user) {
+            socketRef.current.emit('send-message', {
+                roomId: activeRoomRef.current,
+                text,
+                user: {
+                    id: (session.user as any).id,
+                    name: session.user.name,
+                    role: (session.user as any).role,
+                }
+            });
         }
     };
 
@@ -176,17 +253,22 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         <CommunicationContext.Provider value={{
             socket,
             activeRoom,
+            activeRoomType,
             participants,
+            messages,
             localStream,
             remoteStreams,
             isMicMuted,
+            isVideoOn,
             joinRoom,
             leaveRoom,
-            toggleMic
+            toggleMic,
+            toggleVideo,
+            sendMessage
         }}>
             {children}
-            {/* Hidden audio elements for remote streams */}
-            {Array.from(remoteStreams.entries()).map(([id, stream]) => (
+            {/* Hidden audio elements for remote voice only streams */}
+            {activeRoomType === 'voice' && Array.from(remoteStreams.entries()).map(([id, stream]) => (
                 <RemoteAudio key={id} stream={stream} />
             ))}
         </CommunicationContext.Provider>

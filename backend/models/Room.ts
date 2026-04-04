@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IRoom extends Document {
     name: string;
-    type: "voice" | "video";
+    type: "voice" | "video" | "chat";
     allowedRoles: string[];
     isFixed: boolean;
     createdAt: Date;
@@ -10,7 +10,7 @@ export interface IRoom extends Document {
 
 const RoomSchema: Schema = new Schema({
     name: { type: String, required: true, unique: true },
-    type: { type: String, enum: ["voice", "video"], default: "voice" },
+    type: { type: String, enum: ["voice", "video", "chat"], default: "voice" },
     allowedRoles: [{ type: String }],
     isFixed: { type: Boolean, default: false },
 }, { timestamps: true });
