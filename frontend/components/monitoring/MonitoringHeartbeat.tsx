@@ -9,8 +9,19 @@ export default function MonitoringHeartbeat() {
 
     useEffect(() => {
         const userRole = (session?.user as any)?.role;
+        const hasConsented = sessionStorage.getItem("monitoring-consent") === "true";
         
-        // Heartbeat only for Employees
+        // Auto-start tracker for Employees who have already consented
+        if (session?.user && userRole === "Employee" && hasConsented) {
+            if (window.electronAPI?.monitoring) {
+                window.electronAPI.monitoring.start().then(() => {
+                    console.log("[Monitoring] Heartbeat auto-started tracker.");
+                }).catch(err => {
+                    console.error("[Monitoring] Auto-start fail:", err);
+                });
+            }
+        }
+
         if (session?.user && userRole === "Employee") {
             const syncActivity = async () => {
                 const sessionId = sessionStorage.getItem("monitoring-session-id");

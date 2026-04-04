@@ -57,8 +57,15 @@ function startMonitoring() {
     }
   }, 1000);
 
-  uiohook.start();
-  console.log('[Monitoring] Service Started.');
+  try {
+    uiohook.start();
+    console.log('[Monitoring] Service Started Successfully.');
+  } catch (err) {
+    console.error('[Monitoring] ERROR STARTING UIOHOOK:', err.message);
+    if (err.message.includes('permission')) {
+      console.error('[Monitoring] HINT: Please run the app as Administrator.');
+    }
+  }
 }
 
 function stopMonitoring() {
