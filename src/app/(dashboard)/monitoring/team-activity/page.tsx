@@ -76,7 +76,7 @@ export default function TeamActivityPage() {
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Session Status</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Active Today</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Idle Today</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Activity Trends (Last 12 Min)</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Activity Volume</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Alerts</th>
                         </tr>
                     </thead>
@@ -115,44 +115,19 @@ export default function TeamActivityPage() {
                                 <td className="px-6 py-4 font-bold text-sm text-gray-700">
                                     {formatSeconds(member.session.totalIdleSeconds)}
                                 </td>
-                                <td className="px-6 py-4 min-w-[200px]">
-                                    <div className="flex items-center justify-between gap-6">
-                                        {/* KB Trend */}
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="text-[9px] uppercase font-bold text-gray-400">Keys</span>
-                                                <span className="text-xs font-black text-blue-600 bg-blue-50 px-1 rounded">
-                                                    last 1m: {member.activity.recentBlocks?.[member.activity.recentBlocks.length - 1]?.keyboard || 0}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <ActivitySparkline 
-                                                    data={member.activity.recentBlocks?.map((b: any) => b.keyboard) || []} 
-                                                    color="#2563eb" 
-                                                />
-                                                <span className="text-[10px] font-bold text-gray-500">
-                                                    total: {member.activity.keyboardTotal}
-                                                </span>
-                                            </div>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase font-bold text-gray-400">Total Keys</span>
+                                            <span className="text-sm font-bold text-blue-600">
+                                                {member.activity.keyboardTotal.toLocaleString()}
+                                            </span>
                                         </div>
-                                        
-                                        {/* Mouse Trend */}
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="text-[9px] uppercase font-bold text-gray-400">Mouse</span>
-                                                <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-1 rounded">
-                                                    last 1m: {member.activity.recentBlocks?.[member.activity.recentBlocks.length - 1]?.mouse || 0}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <ActivitySparkline 
-                                                    data={member.activity.recentBlocks?.map((b: any) => b.mouse) || []} 
-                                                    color="#10b981" 
-                                                />
-                                                <span className="text-[10px] font-bold text-gray-500">
-                                                    total: {member.activity.mouseTotal}
-                                                </span>
-                                            </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase font-bold text-gray-400">Total Mouse</span>
+                                            <span className="text-sm font-bold text-emerald-600">
+                                                {member.activity.mouseTotal.toLocaleString()}
+                                            </span>
                                         </div>
                                     </div>
                                 </td>
