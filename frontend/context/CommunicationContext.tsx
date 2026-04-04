@@ -52,15 +52,34 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         setSocket(newSocket);
         socketRef.current = newSocket;
 
+        newSocket.on('connect', () => {
+            console.log('[Comm] Socket connected:', newSocket.id);
+            // Auto re-join if we were in a room
+            if (activeRoomRef.current && session?.user) {
+                console.log('[Comm] Re-joining room after reconnection:', activeRoomRef.current);
+                newSocket.emit('join-room', {
+                    roomId: activeRoomRef.current,
+                    user: {
+                        id: (session.user as any).id || session.user.email,
+                        name: session.user.name,
+                        role: (session.user as any).role,
+                    }
+                });
+            }
+        });
+
+        newSocket.on('room-update', (fullList) => {
+            console.log('[Comm] Received full room update:', fullList.length, 'participants');
+            setParticipants(fullList);
+        });
+
         newSocket.on('user-connected', ({ socketId, user }) => {
             console.log('[Comm] User connected:', user.name);
             setParticipants(prev => {
-                // Prevent duplicates
                 if (prev.find(p => p.socketId === socketId)) return prev;
                 return [...prev, { ...user, socketId, micActive: true, videoActive: true }];
             });
             
-            // If we are already in a room with a stream, initiate WebRTC
             if (activeRoomRef.current && localStreamRef.current) {
                 createPeer(socketId, newSocket, localStreamRef.current, true);
             }
@@ -81,6 +100,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         newSocket.on('room-participants', (list) => {
+            // Only update if we don't have a more recent full list or to initial load
             setParticipants(list);
         });
 
@@ -118,7 +138,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             newSocket.disconnect();
             peersRef.current.forEach(p => p.destroy());
         };
-    }, []);
+    }, [session?.user]); // Added session.user dependency for auto re-join
 
     const createPeer = (targetId: string, socket: Socket, stream: MediaStream, initiator: boolean, incomingSignal?: Peer.SignalData) => {
         const peer = new Peer({
@@ -148,10 +168,29 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     const joinRoom = async (roomId: string, type: "voice" | "video" | "chat") => {
-        if (!socketRef.current || !session?.user) return;
+        if (!socketRef.current || !session?.user) {
+            console.warn('[Comm] Cannot join room: Socket or Session missing');
+            return;
+        }
+        
         const cleanRoomId = roomId.trim();
+        const userData = {
+            id: (session.user as any).id || session.user.email,
+            name: session.user.name || 'Anonymous',
+            role: (session.user as any).role || 'User',
+        };
+
+        // Optimistic UI Update: Add self immediately so we don't show "0 participants"
+        setParticipants([{
+            ...userData,
+            socketId: socketRef.current.id,
+            micActive: true,
+            videoActive: type === 'video'
+        }]);
+        setMessages([]);
 
         try {
+            console.log(`[Comm] Attempting to join ${type} room: ${cleanRoomId}`);
             let stream = null;
             if (type === 'voice' || type === 'video') {
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -166,25 +205,20 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
 
             socketRef.current.emit('join-room', {
                 roomId: cleanRoomId,
-                user: {
-                    id: (session.user as any).id,
-                    name: session.user.name,
-                    role: (session.user as any).role,
-                }
+                user: userData
             });
 
             setActiveRoom(cleanRoomId);
             activeRoomRef.current = cleanRoomId;
             setActiveRoomType(type);
             activeRoomTypeRef.current = type;
-            setParticipants([]);
-            setMessages([]);
             toast.success(`Joined room: ${cleanRoomId}`);
         } catch (err) {
             console.error('[Media Access Error]:', err);
             toast.error('Failed to access camera/microphone. Please check permissions.');
         }
     };
+
 
     const leaveRoom = () => {
         if (socketRef.current && activeRoomRef.current) {

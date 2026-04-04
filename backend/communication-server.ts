@@ -59,13 +59,16 @@ io.on("connection", (socket: Socket) => {
         const currentParticipants = Array.from(participants.values());
         console.log(`[CommServer] Room "${roomId}" now has ${currentParticipants.length} participants`);
 
-        // Notify others in the room
+        // Broadcast FULL list to everyone in the room (including sender)
+        io.to(roomId).emit("room-update", currentParticipants);
+
+        // Notify others in the room (Legacy support)
         socket.to(roomId).emit("user-connected", {
             socketId: socket.id,
             user: participants.get(socket.id)
         });
 
-        // Send current list to the new user
+        // Send current list to the new user (Legacy support)
         socket.emit("room-participants", currentParticipants);
 
         // Broadcast global presence to everyone
@@ -192,6 +195,10 @@ function handleLeave(socket: Socket, roomId: string) {
         participants.delete(socket.id);
         socket.to(rId).emit("user-disconnected", socket.id);
         socket.leave(rId);
+        
+        // Broadcast FULL updated list to remaining users
+        const remainingParticipants = Array.from(participants.values());
+        io.to(rId).emit("room-update", remainingParticipants);
         
         if (participants.size === 0) {
             activeRooms.delete(rId);
