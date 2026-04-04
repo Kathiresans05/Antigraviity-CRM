@@ -24,6 +24,7 @@ interface EmployeeActivityModalProps {
 export default function EmployeeActivityModal({ user, onClose }: EmployeeActivityModalProps) {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [viewType, setViewType] = useState<'volume' | 'efficiency'>('volume');
 
     useEffect(() => {
         if (!user) return;
@@ -51,9 +52,11 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
         return `${hours}h ${minutes}m`;
     };
 
+    const isVolume = viewType === 'volume';
+
     const chartData = {
         labels: stats?.blocks?.map((b: any) => moment(b.blockStart).format("HH:mm")) || [],
-        datasets: [
+        datasets: isVolume ? [
             {
                 label: "Keyboard Actions",
                 data: stats?.blocks?.map((b: any) => b.keyboardCount) || [],
@@ -66,6 +69,19 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                 backgroundColor: "rgba(16, 185, 129, 0.7)",
                 borderRadius: 4,
             }
+        ] : [
+            {
+                label: "Work Time (sec/min)",
+                data: stats?.blocks?.map((b: any) => b.activeSeconds) || [],
+                backgroundColor: "rgba(16, 185, 129, 0.8)",
+                stack: 'status',
+            },
+            {
+                label: "Idle Time (sec/min)",
+                data: stats?.blocks?.map((b: any) => b.idleSeconds) || [],
+                backgroundColor: "rgba(245, 158, 11, 0.8)",
+                stack: 'status',
+            }
         ],
     };
 
@@ -77,8 +93,18 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
             tooltip: { mode: "index" as const, intersect: false },
         },
         scales: {
-            y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" }, ticks: { stepSize: 50 } },
-            x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45 } },
+            y: { 
+                beginAtZero: true, 
+                stacked: !isVolume,
+                grid: { color: "rgba(0,0,0,0.05)" }, 
+                ticks: { stepSize: isVolume ? 50 : 15 },
+                max: isVolume ? undefined : 60
+            },
+            x: { 
+                stacked: !isVolume,
+                grid: { display: false }, 
+                ticks: { maxRotation: 45, minRotation: 45 } 
+            },
         }
     };
 
@@ -122,7 +148,12 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                         </p>
                                     </div>
                                 </div>
-                                <div className="p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex items-center gap-4">
+                                <div 
+                                    className={`p-5 rounded-2xl border transition-all cursor-pointer ${
+                                        viewType === 'volume' ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/10' : 'bg-emerald-50/50 border-emerald-100/50 hover:bg-emerald-50 hover:border-emerald-200'
+                                    } flex items-center gap-4`}
+                                    onClick={() => setViewType('volume')}
+                                >
                                     <Timer className="w-6 h-6 text-emerald-600" />
                                     <div>
                                         <p className="text-[10px] uppercase font-bold text-emerald-600 mb-0.5">Active</p>
@@ -131,7 +162,12 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                         </p>
                                     </div>
                                 </div>
-                                <div className="p-5 bg-amber-50/50 rounded-2xl border border-amber-100/50 flex items-center gap-4">
+                                <div 
+                                    className={`p-5 rounded-2xl border transition-all cursor-pointer ${
+                                        viewType === 'efficiency' ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-500/10' : 'bg-amber-50/50 border-amber-100/50 hover:bg-amber-50 hover:border-amber-200'
+                                    } flex items-center gap-4`}
+                                    onClick={() => setViewType('efficiency')}
+                                >
                                     <BarChart3 className="w-6 h-6 text-amber-600" />
                                     <div>
                                         <p className="text-[10px] uppercase font-bold text-amber-600 mb-0.5">Idle</p>
@@ -148,19 +184,32 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
 
                             {/* Chart Area */}
                             <div className="p-8 bg-white rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-blue-600" />
+                                <div className={`absolute top-0 left-0 w-1 h-full ${isVolume ? 'bg-blue-600' : 'bg-amber-500'}`} />
                                 <div className="flex items-center justify-between mb-8">
                                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-3">
                                         <Activity className="w-6 h-6 text-blue-600" />
-                                        Activity Timeline (Today)
+                                        {isVolume ? 'Activity Volume (Keyboard/Mouse)' : 'Work Efficiency Timeline (Work vs Idle)'}
                                     </h3>
                                     <div className="flex gap-4">
-                                        <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                            <Keyboard className="w-4 h-4 text-blue-500" /> Keyboard
-                                        </div>
-                                        <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                            <MousePointer2 className="w-4 h-4 text-emerald-500" /> Mouse
-                                        </div>
+                                        {isVolume ? (
+                                            <>
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
+                                                    <Keyboard className="w-4 h-4 text-blue-500" /> Keyboard
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
+                                                    <MousePointer2 className="w-4 h-4 text-emerald-500" /> Mouse
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
+                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Productive Time
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
+                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Idle Time
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                                 
