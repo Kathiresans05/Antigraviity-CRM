@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     stop: () => ipcRenderer.invoke('monitoring:stop'),
     flush: () => ipcRenderer.invoke('monitoring:flush'),
     getStats: () => ipcRenderer.invoke('monitoring:get-stats'),
+    status: () => ipcRenderer.invoke('monitoring:status'),
   },
 });

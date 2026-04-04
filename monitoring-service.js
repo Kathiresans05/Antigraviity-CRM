@@ -6,8 +6,24 @@
 
 const { uiohook } = require('uiohook-napi');
 const { ipcMain } = require('electron');
+const fs = require('fs');
+const path = require('path');
+
+const logPath = path.join(__dirname, 'tracker-debug.log');
+
+function logToFile(msg) {
+  const timestamp = new Date().toISOString();
+  const formatted = `[${timestamp}] ${msg}\n`;
+  fs.appendFileSync(logPath, formatted);
+  console.log(msg);
+}
+
+// Initial log
+logToFile('--- MONITORING SERVICE INITIALIZED ---');
 
 let isMonitoring = false;
+let hookStatus = 'stopped'; // stopped, starting, running, error
+let lastErrorMessage = '';
 let currentStats = {
   keyboardCount: 0,
   mouseCount: 0,
@@ -57,13 +73,20 @@ function startMonitoring() {
     }
   }, 1000);
 
+  hookStatus = 'starting';
+  logToFile('[Monitoring] Attempting to start uiohook...');
+
   try {
     uiohook.start();
-    console.log('[Monitoring] Service Started Successfully.');
+    isMonitoring = true;
+    hookStatus = 'running';
+    logToFile('[Monitoring] Service Started Successfully.');
   } catch (err) {
-    console.error('[Monitoring] ERROR STARTING UIOHOOK:', err.message);
+    hookStatus = 'error';
+    lastErrorMessage = err.message;
+    logToFile(`[Monitoring] ERROR STARTING UIOHOOK: ${err.message}`);
     if (err.message.includes('permission')) {
-      console.error('[Monitoring] HINT: Please run the app as Administrator.');
+      logToFile('[Monitoring] HINT: Please run the app as Administrator.');
     }
   }
 }
@@ -71,20 +94,25 @@ function startMonitoring() {
 function stopMonitoring() {
   if (!isMonitoring) return;
   isMonitoring = false;
+  hookStatus = 'stopped';
   uiohook.stop();
   if (trackTimer) clearInterval(trackTimer);
-  console.log('[Monitoring] Service Stopped.');
+  logToFile('[Monitoring] Service Stopped.');
 }
 
 // IPC Handlers for Next.js communication
 ipcMain.handle('monitoring:start', () => {
   startMonitoring();
-  return { success: true };
+  return { success: true, status: hookStatus };
 });
 
 ipcMain.handle('monitoring:stop', () => {
   stopMonitoring();
   return { success: true };
+});
+
+ipcMain.handle('monitoring:status', () => {
+  return { status: hookStatus, error: lastErrorMessage };
 });
 
 ipcMain.handle('monitoring:flush', () => {

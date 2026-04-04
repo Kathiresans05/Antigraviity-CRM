@@ -27,11 +27,17 @@ delete cleanEnv.ELECTRON_RUN_AS_NODE;
 const child = spawn(electronPath, ['.'], {
     cwd: __dirname,
     env: cleanEnv,
-    stdio: 'inherit'
+    stdio: 'inherit',
+    detached: false
 });
 
 child.on('close', (code) => {
+    console.log(`[Launcher] Electron process closed with code ${code}`);
     process.exit(code);
+});
+
+child.on('error', (err) => {
+    console.error('[Launcher] Failed to start Electron:', err);
 });
 
 console.log('[Launcher] Standalone Window requested. Please wait...');
