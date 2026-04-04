@@ -21,21 +21,19 @@ export default function MonitoringHeartbeat() {
                     if (window.electronAPI?.monitoring) {
                         const stats = await window.electronAPI.monitoring.flush();
                         
-                        // 2. Push to Backend
-                        if (stats.keyboardCount > 0 || stats.mouseCount > 0 || stats.activeSeconds > 0) {
-                            await fetch("/api/monitoring/activity", {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    sessionId,
-                                    keyboardCount: stats.keyboardCount,
-                                    mouseCount: stats.mouseCount,
-                                    idleSeconds: stats.idleSeconds,
-                                    activeSeconds: stats.activeSeconds
-                                }),
-                                headers: { "Content-Type": "application/json" }
-                            });
-                            console.log("[Monitoring] Periodic activity block synced.");
-                        }
+                        // 2. Push to Backend (Send even if counts are 0, to track idle time)
+                        await fetch("/api/monitoring/activity", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                sessionId,
+                                keyboardCount: stats.keyboardCount,
+                                mouseCount: stats.mouseCount,
+                                idleSeconds: stats.idleSeconds,
+                                activeSeconds: stats.activeSeconds
+                            }),
+                            headers: { "Content-Type": "application/json" }
+                        });
+                        console.log("[Monitoring] Heartbeat synced:", stats);
                     }
                 } catch (err) {
                     console.error("Failed to sync activity block:", err);

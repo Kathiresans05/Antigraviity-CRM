@@ -16,42 +16,44 @@ let currentStats = {
   startTime: null
 };
 
-let idleTimer = null;
-const IDLE_THRESHOLD = 300; // 5 minutes in seconds
-
-function resetIdleTimer() {
-  if (idleTimer) clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    currentStats.idleSeconds += IDLE_THRESHOLD;
-  }, IDLE_THRESHOLD * 1000);
-}
+let lastActivityTime = Date.now();
+let trackTimer = null;
 
 function startMonitoring() {
   if (isMonitoring) return;
   isMonitoring = true;
   currentStats.startTime = new Date();
+  lastActivityTime = Date.now();
   
   uiohook.on('keydown', () => {
     if (!isMonitoring) return;
     currentStats.keyboardCount++;
-    currentStats.activeSeconds++;
-    resetIdleTimer();
+    lastActivityTime = Date.now();
   });
 
   uiohook.on('mousedown', () => {
     if (!isMonitoring) return;
     currentStats.mouseCount++;
-    currentStats.activeSeconds++;
-    resetIdleTimer();
+    lastActivityTime = Date.now();
   });
 
   uiohook.on('mousemove', () => {
     if (!isMonitoring) return;
-    // We count mouse movement as activity but don't increment a "count" 
-    // to avoid massive number inflation. Just resets the idle timer.
-    currentStats.activeSeconds++;
-    resetIdleTimer();
+    lastActivityTime = Date.now();
   });
+
+  // Background timer to track active vs idle seconds every second
+  trackTimer = setInterval(() => {
+    if (!isMonitoring) return;
+    
+    // If last activity was less than 10 seconds ago, consider this second "active"
+    const now = Date.now();
+    if (now - lastActivityTime < 10000) {
+      currentStats.activeSeconds++;
+    } else {
+      currentStats.idleSeconds++;
+    }
+  }, 1000);
 
   uiohook.start();
   console.log('[Monitoring] Service Started.');
@@ -61,7 +63,7 @@ function stopMonitoring() {
   if (!isMonitoring) return;
   isMonitoring = false;
   uiohook.stop();
-  if (idleTimer) clearTimeout(idleTimer);
+  if (trackTimer) clearInterval(trackTimer);
   console.log('[Monitoring] Service Stopped.');
 }
 
