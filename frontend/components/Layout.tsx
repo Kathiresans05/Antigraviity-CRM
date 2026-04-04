@@ -4,8 +4,10 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import ConsentModal from "./monitoring/ConsentModal";
 import MonitoringHeartbeat from "./monitoring/MonitoringHeartbeat";
+import CallPanel from "./communication/CallPanel";
 import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
+import { CommunicationProvider } from "@/frontend/context/CommunicationContext";
 import { useState } from "react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -25,28 +27,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             "daily-tasks": "Daily Tasks",
             "leave-tracker": "Leave Tracker",
             meetings: "Meetings",
+            communication: "Communication",
         };
         return map[slug] || slug.charAt(0).toUpperCase() + slug.slice(1);
     };
 
     return (
         <SessionProvider>
-            <div className="flex h-screen bg-[#f4f6f9] overflow-hidden">
-                <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-                <div
-                    className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
-                    style={{ marginLeft: collapsed ? "72px" : "256px" }}
-                >
-                    <Header title={getPageTitle(pathname)} />
-                    <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-                        <div className="max-w-7xl mx-auto w-full">
-                            {children}
-                        </div>
-                    </main>
-                    <ConsentModal />
-                    <MonitoringHeartbeat />
+            <CommunicationProvider>
+                <div className="flex h-screen bg-[#f4f6f9] overflow-hidden">
+                    <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+                    <div
+                        className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
+                        style={{ marginLeft: collapsed ? "72px" : "256px" }}
+                    >
+                        <Header title={getPageTitle(pathname)} />
+                        <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+                            <div className="max-w-7xl mx-auto w-full">
+                                {children}
+                            </div>
+                        </main>
+                        <ConsentModal />
+                        <MonitoringHeartbeat />
+                        <CallPanel />
+                    </div>
                 </div>
-            </div>
+            </CommunicationProvider>
         </SessionProvider>
     );
 }

@@ -8,7 +8,7 @@ import {
     BarChart2, Clock, Settings, LogOut, ChevronLeft,
     ChevronRight, ListTodo, Calendar, CheckSquare,
     DollarSign, TrendingUp, Bell, GraduationCap, FileText, Megaphone,
-    User, HardDrive, UserPlus, ShieldCheck, ListFilter, Activity
+    User, HardDrive, UserPlus, ShieldCheck, ListFilter, Activity, Phone
 } from "lucide-react";
 import clsx from "clsx";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
@@ -63,6 +63,13 @@ const ADMIN_LINKS = [
             { name: "Activity Settings", href: "/monitoring/settings", icon: ShieldCheck },
             { name: "Compliance Audit", href: "/monitoring/audit", icon: ListFilter },
         ]
+    },
+    {
+        label: "Communication",
+        items: [
+            { name: "Team Meet", href: "/communication", icon: Users },
+            { name: "Voice Rooms", href: "/communication/rooms", icon: Phone },
+        ]
     }
 ];
 
@@ -102,6 +109,13 @@ const MANAGER_LINKS = [
             { name: "Announcements", href: "/announcements", icon: Megaphone },
             { name: "My Profile", href: "/profile", icon: User },
         ]
+    },
+    {
+        label: "Communication",
+        items: [
+            { name: "Team Meet", href: "/communication", icon: Users },
+            { name: "Voice Rooms", href: "/communication/rooms", icon: Phone },
+        ]
     }
 ];
 
@@ -121,6 +135,13 @@ const TL_LINKS = [
             { name: "Reports", href: "/reports", icon: BarChart2 },
             { name: "Meetings", href: "/meetings", icon: Users },
             { name: "Team Activity", href: "/monitoring/team-activity", icon: Activity },
+        ]
+    },
+    {
+        label: "Communication",
+        items: [
+            { name: "Team Meet", href: "/communication", icon: Users },
+            { name: "Voice Rooms", href: "/communication/rooms", icon: Phone },
         ]
     }
 ];
@@ -151,6 +172,13 @@ const EMPLOYEE_LINKS = (userId: string) => [
         items: [
             { name: "Support", href: "/support", icon: Bug },
             { name: "My Profile", href: userId ? `/employees/${userId}` : "#", icon: User },
+        ]
+    },
+    {
+        label: "Communication",
+        items: [
+            { name: "Team Meet", href: "/communication", icon: Users },
+            { name: "Voice Rooms", href: "/communication/rooms", icon: Phone },
         ]
     }
 ];

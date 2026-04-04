@@ -72,6 +72,20 @@ process.on('monitoring:idle-warning', () => {
 app.whenReady().then(() => {
   createWindow();
 
+  // Automatically handle media permissions for the voice rooms
+  const { session } = electron;
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const url = webContents.getURL();
+    console.log(`[Main] Permission request: ${permission} for ${url}`);
+    
+    // Always allow microphone access for the app's own origin
+    if (permission === 'media') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
