@@ -29,12 +29,14 @@ function startMonitoring() {
     if (!isMonitoring) return;
     currentStats.keyboardCount++;
     lastActivityTime = Date.now();
+    console.log('[Monitoring] Key Press detected.');
   });
 
   uiohook.on('mousedown', () => {
     if (!isMonitoring) return;
     currentStats.mouseCount++;
     lastActivityTime = Date.now();
+    console.log('[Monitoring] Mouse Click detected.');
   });
 
   uiohook.on('mousemove', () => {

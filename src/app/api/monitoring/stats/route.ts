@@ -52,29 +52,41 @@ export async function GET(req: Request) {
         .populate({ path: "employeeId", model: User, select: "name role email" })
         .sort({ loginTime: -1 });
 
-      const reports = await Promise.all(sessions.map(async (s) => {
-        // Optimization: For team overview, we just need basic stats
+      // Grouping logic for Team overview
+      const userReportsMap = new Map<string, any>();
+
+      for (const s of sessions) {
+        const userIdStr = (s.employeeId as any)?._id?.toString() || "Unknown";
+        if (!userReportsMap.has(userIdStr)) {
+          const userData = s.employeeId || { _id: userIdStr, name: "Employee", role: "N/A" };
+          userReportsMap.set(userIdStr, {
+            user: userData,
+            session: {
+              sessionStatus: s.sessionStatus,
+              loginTime: s.loginTime,
+              totalActiveSeconds: s.totalActiveSeconds,
+              totalIdleSeconds: s.totalIdleSeconds,
+              updatedAt: s.updatedAt,
+            },
+            activity: { keyboardTotal: 0, mouseTotal: 0 }
+          });
+        }
+
+        const report = userReportsMap.get(userIdStr);
+        // Special case: if one session is "Active", we keep that status
+        if (s.sessionStatus === "Active") {
+          report.session.sessionStatus = "Active";
+          report.session.updatedAt = s.updatedAt;
+        }
+
         const blocks = await ActivityBlock.find({ sessionId: s._id });
-        const keyboardTotal = blocks.reduce((acc, b) => acc + b.keyboardCount, 0);
-        const mouseTotal = blocks.reduce((acc, b) => acc + b.mouseCount, 0);
+        report.activity.keyboardTotal += blocks.reduce((acc, b) => acc + b.keyboardCount, 0);
+        report.activity.mouseTotal += blocks.reduce((acc, b) => acc + b.mouseCount, 0);
+        report.session.totalActiveSeconds += s.totalActiveSeconds || 0;
+        report.session.totalIdleSeconds += s.totalIdleSeconds || 0;
+      }
 
-        // Fail-safe User Data
-        const userData = s.employeeId || { _id: "Unknown", name: "Employee (ID Missing)", role: "N/A" };
-
-        return {
-          _id: s._id,
-          user: userData,
-          session: {
-            sessionStatus: s.sessionStatus,
-            loginTime: s.loginTime,
-            totalActiveSeconds: s.totalActiveSeconds,
-            totalIdleSeconds: s.totalIdleSeconds,
-            updatedAt: s.updatedAt
-          },
-          activity: { keyboardTotal, mouseTotal }
-        };
-      }));
-
+      const reports = Array.from(userReportsMap.values());
       return NextResponse.json(isTeamQuery ? { teamRecords: reports } : { reports });
     }
 
