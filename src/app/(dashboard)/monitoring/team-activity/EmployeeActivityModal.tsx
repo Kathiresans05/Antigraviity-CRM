@@ -71,16 +71,13 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
             }
         ] : [
             {
-                label: "Work Time (sec/min)",
-                data: stats?.blocks?.map((b: any) => b.activeSeconds) || [],
-                backgroundColor: "rgba(16, 185, 129, 0.8)",
-                stack: 'status',
-            },
-            {
-                label: "Idle Time (sec/min)",
-                data: stats?.blocks?.map((b: any) => b.idleSeconds) || [],
-                backgroundColor: "rgba(245, 158, 11, 0.8)",
-                stack: 'status',
+                label: "Employee Status",
+                data: stats?.blocks?.map(() => 1) || [],
+                backgroundColor: stats?.blocks?.map((b: any) => 
+                    b.activeSeconds > 5 ? "rgba(16, 185, 129, 1)" : "rgba(239, 68, 68, 1)"
+                ) || [],
+                barPercentage: 1.0,
+                categoryPercentage: 1.0,
             }
         ],
     };
@@ -89,16 +86,31 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { position: "top" as const, labels: { boxWidth: 12, usePointStyle: true } },
-            tooltip: { mode: "index" as const, intersect: false },
+            legend: { 
+                position: "top" as const, 
+                display: isVolume,
+                labels: { boxWidth: 12, usePointStyle: true } 
+            },
+            tooltip: { 
+                mode: "index" as const, 
+                intersect: false,
+                callbacks: {
+                    label: (context: any) => {
+                        if (isVolume) return `${context.dataset.label}: ${context.raw}`;
+                        const block = stats.blocks[context.dataIndex];
+                        return block.activeSeconds > 5 ? "Status: WORKING" : "Status: IDLE / BREAK";
+                    }
+                }
+            },
         },
         scales: {
             y: { 
                 beginAtZero: true, 
+                display: isVolume,
                 stacked: !isVolume,
                 grid: { color: "rgba(0,0,0,0.05)" }, 
-                ticks: { stepSize: isVolume ? 50 : 15 },
-                max: isVolume ? undefined : 60
+                ticks: { stepSize: isVolume ? 50 : 1 },
+                max: isVolume ? undefined : 1
             },
             x: { 
                 stacked: !isVolume,
@@ -188,7 +200,7 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                 <div className="flex items-center justify-between mb-8">
                                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-3">
                                         <Activity className="w-6 h-6 text-blue-600" />
-                                        {isVolume ? 'Activity Volume (Keyboard/Mouse)' : 'Work Efficiency Timeline (Work vs Idle)'}
+                                        {isVolume ? 'Activity Volume (Keyboard/Mouse)' : 'Daily Status Timeline (Working vs Break)'}
                                     </h3>
                                     <div className="flex gap-4">
                                         {isVolume ? (
@@ -203,10 +215,10 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                         ) : (
                                             <>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Productive Time
+                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working Time
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Idle Time
+                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Break / Idle Time
                                                 </div>
                                             </>
                                         )}
