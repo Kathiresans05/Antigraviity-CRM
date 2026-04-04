@@ -16,8 +16,8 @@ export interface IActivityBlock extends Document {
 const ActivityBlockSchema: Schema = new Schema({
   employeeId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   sessionId: { type: Schema.Types.ObjectId, ref: "MonitoringSession", required: true },
-  blockStart: { type: Date, required: true },
-  blockEnd: { type: Date, required: true },
+  blockStart: { type: Date, default: Date.now },
+  blockEnd: { type: Date, default: Date.now },
   keyboardCount: { type: Number, default: 0 },
   mouseCount: { type: Number, default: 0 },
   idleSeconds: { type: Number, default: 0 },
