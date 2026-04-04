@@ -34,12 +34,12 @@ if (MONGODB_URI) {
 
 // Room data in-memory for active sessions
 // Map<roomId, Map<socketId, {userId, name, role, micActive}>>
-const activeRooms = new Map();
+const activeRooms = new Map<string, Map<string, any>>();
 
-io.on("connection", (socket) => {
+io.on("connection", (socket: Socket) => {
     console.log("[Socket] New connection:", socket.id);
 
-    socket.on("join-room", ({ roomId, user }) => {
+    socket.on("join-room", ({ roomId, user }: { roomId: string, user: any }) => {
         console.log(`[Socket] User ${user.name} joining room ${roomId}`);
         
         socket.join(roomId);
@@ -48,7 +48,7 @@ io.on("connection", (socket) => {
             activeRooms.set(roomId, new Map());
         }
         
-        const participants = activeRooms.get(roomId);
+        const participants = activeRooms.get(roomId)!;
         participants.set(socket.id, {
             ...user,
             socketId: socket.id,
@@ -66,14 +66,14 @@ io.on("connection", (socket) => {
         socket.emit("room-participants", currentParticipants);
     });
 
-    socket.on("voice-signal", ({ targetId, signal }) => {
+    socket.on("voice-signal", ({ targetId, signal }: { targetId: string, signal: any }) => {
         io.to(targetId).emit("voice-signal", {
             senderId: socket.id,
             signal
         });
     });
 
-    socket.on("toggle-mic", ({ roomId, micActive }) => {
+    socket.on("toggle-mic", ({ roomId, micActive }: { roomId: string, micActive: boolean }) => {
         const participants = activeRooms.get(roomId);
         if (participants && participants.has(socket.id)) {
             participants.get(socket.id).micActive = micActive;
@@ -84,7 +84,7 @@ io.on("connection", (socket) => {
         }
     });
 
-    socket.on("leave-room", (roomId) => {
+    socket.on("leave-room", (roomId: string) => {
         handleLeave(socket, roomId);
     });
 
@@ -98,7 +98,7 @@ io.on("connection", (socket) => {
     });
 });
 
-function handleLeave(socket, roomId) {
+function handleLeave(socket: Socket, roomId: string) {
     const participants = activeRooms.get(roomId);
     if (participants) {
         participants.delete(socket.id);
