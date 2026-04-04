@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { ShieldCheck, Info, X } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 export default function ConsentModal() {
     const { data: session } = useSession();
     const [show, setShow] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         // Check if consent was already given in this session
@@ -21,9 +23,14 @@ export default function ConsentModal() {
     }, [session]);
 
     const handleAccept = async () => {
+        setLoading(true);
+        console.log("[Monitoring] handleAccept triggered.");
+        // alert("Starting Monitoring... Please Wait."); // For visual confirmation
+
         try {
             // 1. Inform Backend
-            await fetch("/api/monitoring/consent", {
+            console.log("[Monitoring] 1. Sending consent to API...");
+            const consentRes = await fetch("/api/monitoring/consent", {
                 method: "POST",
                 body: JSON.stringify({ 
                     accepted: true, 
@@ -32,8 +39,10 @@ export default function ConsentModal() {
                 }),
                 headers: { "Content-Type": "application/json" }
             });
+            if (!consentRes.ok) throw new Error("Consent API Failed (HTTP " + consentRes.status + ")");
 
             // 2. Clear Session and Start Session Tracking
+            console.log("[Monitoring] 2. Starting session API...");
             const res = await fetch("/api/monitoring/session", {
                 method: "POST",
                 body: JSON.stringify({ action: "start" }),
@@ -43,17 +52,24 @@ export default function ConsentModal() {
 
             if (data.sessionId) {
                 // 3. Start Electron Tracker via IPC
+                console.log("[Monitoring] 3. Calling Electron IPC start...");
                 if (window.electronAPI?.monitoring) {
-                    await window.electronAPI.monitoring.start();
-                    console.log("[Monitoring] Background tracker activated.");
+                    const result = await (window.electronAPI.monitoring as any).start();
+                    console.log("[Monitoring] IPC Start Result:", result);
+                    toast.success("Monitoring Started Successfully!");
                 }
                 
                 sessionStorage.setItem("monitoring-consent", "true");
                 sessionStorage.setItem("monitoring-session-id", data.sessionId);
                 setShow(false);
+            } else {
+                throw new Error("No Session ID returned from server.");
             }
-        } catch (err) {
-            console.error("Failed to start monitoring session:", err);
+        } catch (err: any) {
+            console.error("[Monitoring] Initialization Failed:", err);
+            toast.error("Failed to start monitoring: " + err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
