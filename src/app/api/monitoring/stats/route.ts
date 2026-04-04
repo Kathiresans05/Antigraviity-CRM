@@ -103,10 +103,9 @@ export async function GET(req: Request) {
       blockStart: { $gte: startDate, $lte: endDate }
     }).sort({ blockStart: 1 });
 
-    const summary = await MonitoringSession.findOne({
-      employeeId: userId,
-      createdAt: { $gte: startDate, $lte: endDate }
-    });
+    // Find the most recent session for this user to show summary stats
+    const summary = await MonitoringSession.findOne({ employeeId: userId })
+      .sort({ createdAt: -1 });
 
     return NextResponse.json({ blocks, summary });
   } catch (err) {
