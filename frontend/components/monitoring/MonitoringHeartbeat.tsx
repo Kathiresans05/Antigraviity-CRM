@@ -8,6 +8,15 @@ export default function MonitoringHeartbeat() {
     const intervalRef = useRef<any>(null);
 
     const [statusInfo, setStatusInfo] = useState<{ status: string; error: string | null }>({ status: 'unknown', error: null });
+    const [showIdleWarning, setShowIdleWarning] = useState(false);
+
+    useEffect(() => {
+        if ((window.electronAPI?.monitoring as any)?.onIdleWarning) {
+            (window.electronAPI.monitoring as any).onIdleWarning(() => {
+                setShowIdleWarning(true);
+            });
+        }
+    }, []);
 
     useEffect(() => {
         const userRole = (session?.user as any)?.role;
@@ -65,6 +74,46 @@ export default function MonitoringHeartbeat() {
             };
         }
     }, [session]);
+
+    if (showIdleWarning) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                background: '#fff7ed', // Orange-50
+                borderBottom: '2px solid #f97316', // Orange-500
+                padding: '20px',
+                textAlign: 'center',
+                zIndex: 10000,
+                boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)',
+                animation: 'slide-down 0.5s ease-out'
+            }}>
+                <h3 style={{ margin: '0 0 8px 0', color: '#c2410c', fontWeight: 800, fontSize: '18px' }}>
+                    ⚠️ Inactivity Warning
+                </h3>
+                <p style={{ margin: '0 0 16px 0', color: '#9a3412', fontSize: '15px', fontWeight: 500 }}>
+                    You have been continuously idle for over 5 minutes. Please resume your activities.
+                </p>
+                <button 
+                    onClick={() => setShowIdleWarning(false)}
+                    style={{
+                        padding: '10px 24px',
+                        background: '#f97316',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 6px rgba(249, 115, 22, 0.3)'
+                    }}
+                >
+                    I'm Back / Resume Work
+                </button>
+            </div>
+        );
+    }
 
     if (statusInfo.status === 'error' || statusInfo.status === 'stopped') {
         const isEmployee = (session?.user as any)?.role === 'Employee';

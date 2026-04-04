@@ -54,67 +54,8 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
 
     const isVolume = viewType === 'volume';
 
-    // Generate a continuous 1-minute timeline for Status View
-    const generateTimeline = () => {
-        if (!stats?.blocks || !stats?.summary?.loginTime) return { labels: [], colors: [], statuses: [] };
-
-        const labels: string[] = [];
-        const colors: string[] = [];
-        const statuses: string[] = [];
-        
-        const startTime = moment(stats.summary.loginTime).startOf('minute');
-        // If session is active, go until now. Otherwise until last activity.
-        const endTime = stats.summary.sessionStatus === "Completed" 
-            ? moment(stats.blocks[stats.blocks.length - 1].blockStart)
-            : moment();
-        
-        let current = startTime.clone();
-        while (current.isSameOrBefore(endTime)) {
-            const timeLabel = current.format("HH:mm");
-            labels.push(timeLabel);
-            
-            // 1. Check if there's an Activity Block (Logged In)
-            const block = stats.blocks.find((b: any) => moment(b.blockStart).format("HH:mm") === timeLabel);
-            
-            // 2. Check if we are "On Break" according to Audit Logs
-            const isOnExplicitBreak = stats.auditLogs?.some((log: any, idx: number) => {
-                if (log.actionType === "Break Started") {
-                    const nextLog = stats.auditLogs[idx + 1];
-                    const start = moment(log.createdAt);
-                    const end = nextLog && nextLog.actionType === "Break Ended" 
-                        ? moment(nextLog.createdAt) 
-                        : moment(); // Still on break
-                    return current.isBetween(start, end, 'minute', '[]');
-                }
-                return false;
-            });
-
-            if (block) {
-                if (block.activeSeconds > 5) {
-                    colors.push("rgba(16, 185, 129, 1)"); // Working - Green
-                    statuses.push("WORKING");
-                } else {
-                    colors.push("rgba(239, 68, 68, 1)"); // Idle - Red
-                    statuses.push("IDLE (ACTIVE SESSION)");
-                }
-            } else if (isOnExplicitBreak) {
-                colors.push("rgba(245, 158, 11, 1)"); // Explicit Break - Orange
-                statuses.push("ON BREAK (EXPLICIT)");
-            } else {
-                colors.push("rgba(156, 163, 175, 0.3)"); // No Monitoring - Grey
-                statuses.push("OFFLINE / SERVICE STOPPED");
-            }
-            
-            current.add(1, 'minute');
-        }
-        
-        return { labels, colors, statuses };
-    };
-
-    const timeline = generateTimeline();
-
     const chartData = {
-        labels: isVolume ? (stats?.blocks?.map((b: any) => moment(b.blockStart).format("HH:mm")) || []) : timeline.labels,
+        labels: stats?.blocks?.map((b: any) => moment(b.blockStart).format("HH:mm")) || [],
         datasets: isVolume ? [
             {
                 label: "Keyboard Actions",
@@ -131,8 +72,10 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
         ] : [
             {
                 label: "Employee Status",
-                data: timeline.labels.map(() => 1),
-                backgroundColor: timeline.colors,
+                data: stats?.blocks?.map(() => 1) || [],
+                backgroundColor: stats?.blocks?.map((b: any) => 
+                    b.activeSeconds > 5 ? "rgba(16, 185, 129, 1)" : "rgba(239, 68, 68, 1)"
+                ) || [],
                 barPercentage: 1.0,
                 categoryPercentage: 1.0,
             }
@@ -154,7 +97,8 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                 callbacks: {
                     label: (context: any) => {
                         if (isVolume) return `${context.dataset.label}: ${context.raw}`;
-                        return `Status: ${timeline.statuses[context.dataIndex]}`;
+                        const block = stats.blocks[context.dataIndex];
+                        return block.activeSeconds > 5 ? "Status: WORKING" : "Status: IDLE / BREAK";
                     }
                 }
             },
@@ -171,12 +115,7 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
             x: { 
                 stacked: !isVolume,
                 grid: { display: false }, 
-                ticks: { 
-                    maxRotation: 45, 
-                    minRotation: 45,
-                    autoSkip: true,
-                    maxTicksLimit: 24 
-                } 
+                ticks: { maxRotation: 45, minRotation: 45 } 
             },
         }
     };
@@ -276,16 +215,10 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                         ) : (
                                             <>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working
+                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working Time
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Idle (Logged In)
-                                                </div>
-                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Explicit Break
-                                                </div>
-                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-gray-400/40 rounded-sm" /> Offline / Stopped
+                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Break / Idle Time
                                                 </div>
                                             </>
                                         )}

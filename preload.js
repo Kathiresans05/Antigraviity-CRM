@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStats: () => ipcRenderer.invoke('monitoring:get-stats'),
     status: () => ipcRenderer.invoke('monitoring:status'),
     ping: () => ipcRenderer.invoke('monitoring:ping'),
+    onIdleWarning: (callback) => ipcRenderer.on('monitoring:idle-warning', () => callback()),
   },
 });

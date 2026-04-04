@@ -38,8 +38,10 @@ try {
     console.warn('[Main] Monitoring service could not be initialized:', err.message);
 }
 
+let mainWindow;
+
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -52,9 +54,20 @@ function createWindow() {
     icon: path.join(__dirname, 'public/logo_highres.png')
   });
 
-  // Load from the Next.js dev server
-  win.loadURL('http://localhost:3000/login');
+  // Load from the Next.js dev server or the deployed Render instance
+  if (app.isPackaged) {
+    mainWindow.loadURL('https://antigraviity-crm-cxmf.onrender.com/login');
+  } else {
+    mainWindow.loadURL('http://localhost:3000/login');
+  }
 }
+
+// Global listener for monitoring events
+process.on('monitoring:idle-warning', () => {
+    if (mainWindow) {
+        mainWindow.webContents.send('monitoring:idle-warning');
+    }
+});
 
 app.whenReady().then(() => {
   createWindow();

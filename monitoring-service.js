@@ -52,6 +52,7 @@ let currentStats = {
   startTime: null
 };
 
+let consecutiveIdleSeconds = 0;
 let lastActivityTime = Date.now();
 let trackTimer = null;
 
@@ -68,6 +69,7 @@ function startMonitoring() {
 
   currentStats.startTime = new Date();
   lastActivityTime = Date.now();
+  consecutiveIdleSeconds = 0;
   
   try {
     logToFile('[Monitoring] Step 1: Registering event listeners...');
@@ -75,6 +77,7 @@ function startMonitoring() {
       if (!isMonitoring) return;
       currentStats.keyboardCount++;
       lastActivityTime = Date.now();
+      consecutiveIdleSeconds = 0; 
       console.log('[Monitoring] Key Press detected.');
     });
 
@@ -82,12 +85,14 @@ function startMonitoring() {
       if (!isMonitoring) return;
       currentStats.mouseCount++;
       lastActivityTime = Date.now();
+      consecutiveIdleSeconds = 0;
       console.log('[Monitoring] Mouse Click detected.');
     });
 
     uiohook.on('mousemove', () => {
       if (!isMonitoring) return;
       lastActivityTime = Date.now();
+      consecutiveIdleSeconds = 0;
     });
 
     // Background timer to track active vs idle seconds every second
@@ -97,8 +102,17 @@ function startMonitoring() {
       const now = Date.now();
       if (now - lastActivityTime < 10000) {
         currentStats.activeSeconds++;
+        consecutiveIdleSeconds = 0;
       } else {
         currentStats.idleSeconds++;
+        consecutiveIdleSeconds++;
+        
+        // Trigger 5-minute (300 seconds) warning
+        if (consecutiveIdleSeconds === 300) {
+          logToFile('[Monitoring] ALERT: 5 minutes of continuous inactivity detected.');
+          // We need an event emitter or global IPC to send this to the main window
+          process.emit('monitoring:idle-warning');
+        }
       }
     }, 1000);
 
