@@ -103,11 +103,14 @@ export async function GET(req: Request) {
       blockStart: { $gte: startDate, $lte: endDate }
     }).sort({ blockStart: 1 });
 
-    // Find the most recent session for this user to show summary stats
-    const summary = await MonitoringSession.findOne({ employeeId: userId })
-      .sort({ createdAt: -1 });
+    // Find audit logs for break transitions
+    const auditLogs = await MonitoringAuditLog.find({
+      actorId: userId,
+      createdAt: { $gte: startDate, $lte: endDate },
+      actionType: { $in: ["Break Started", "Break Ended"] }
+    }).sort({ createdAt: 1 });
 
-    return NextResponse.json({ blocks, summary });
+    return NextResponse.json({ blocks, summary, auditLogs });
   } catch (err) {
     console.error("Stats API Error:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import ConsentModal from "./monitoring/ConsentModal";
 import MonitoringHeartbeat from "./monitoring/MonitoringHeartbeat";
+import MonitoringController from "./monitoring/MonitoringController";
 import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { useState } from "react";

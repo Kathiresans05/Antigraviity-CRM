@@ -17,7 +17,7 @@ const MonitoringSessionSchema: Schema = new Schema({
   logoutTime: { type: Date },
   totalActiveSeconds: { type: Number, default: 0 },
   totalIdleSeconds: { type: Number, default: 0 },
-  sessionStatus: { type: String, enum: ["Active", "Completed"], default: "Active" }
+  sessionStatus: { type: String, enum: ["Active", "Completed", "On Break"], default: "Active" }
 }, { timestamps: true });
 
 export default mongoose.models.MonitoringSession || mongoose.model<IMonitoringSession>("MonitoringSession", MonitoringSessionSchema);

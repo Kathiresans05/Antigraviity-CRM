@@ -63,28 +63,46 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
         const statuses: string[] = [];
         
         const startTime = moment(stats.summary.loginTime).startOf('minute');
-        const lastBlockTime = moment(stats.blocks[stats.blocks.length - 1].blockStart);
-        const endTime = moment().isBefore(lastBlockTime.clone().add(1, 'hour')) ? moment() : lastBlockTime;
+        // If session is active, go until now. Otherwise until last activity.
+        const endTime = stats.summary.sessionStatus === "Completed" 
+            ? moment(stats.blocks[stats.blocks.length - 1].blockStart)
+            : moment();
         
         let current = startTime.clone();
         while (current.isSameOrBefore(endTime)) {
             const timeLabel = current.format("HH:mm");
             labels.push(timeLabel);
             
-            // Find if there's a block for this minute
+            // 1. Check if there's an Activity Block (Logged In)
             const block = stats.blocks.find((b: any) => moment(b.blockStart).format("HH:mm") === timeLabel);
             
+            // 2. Check if we are "On Break" according to Audit Logs
+            const isOnExplicitBreak = stats.auditLogs?.some((log: any, idx: number) => {
+                if (log.actionType === "Break Started") {
+                    const nextLog = stats.auditLogs[idx + 1];
+                    const start = moment(log.createdAt);
+                    const end = nextLog && nextLog.actionType === "Break Ended" 
+                        ? moment(nextLog.createdAt) 
+                        : moment(); // Still on break
+                    return current.isBetween(start, end, 'minute', '[]');
+                }
+                return false;
+            });
+
             if (block) {
                 if (block.activeSeconds > 5) {
                     colors.push("rgba(16, 185, 129, 1)"); // Working - Green
                     statuses.push("WORKING");
                 } else {
                     colors.push("rgba(239, 68, 68, 1)"); // Idle - Red
-                    statuses.push("IDLE");
+                    statuses.push("IDLE (ACTIVE SESSION)");
                 }
+            } else if (isOnExplicitBreak) {
+                colors.push("rgba(245, 158, 11, 1)"); // Explicit Break - Orange
+                statuses.push("ON BREAK (EXPLICIT)");
             } else {
-                colors.push("rgba(245, 158, 11, 1)"); // Break - Orange
-                statuses.push("BREAK");
+                colors.push("rgba(156, 163, 175, 0.3)"); // No Monitoring - Grey
+                statuses.push("OFFLINE / SERVICE STOPPED");
             }
             
             current.add(1, 'minute');
@@ -261,10 +279,13 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                                     <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Idle (Active Session)
+                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Idle (Logged In)
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Break (Offline)
+                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Explicit Break
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
+                                                    <div className="w-3 h-3 bg-gray-400/40 rounded-sm" /> Offline / Stopped
                                                 </div>
                                             </>
                                         )}
