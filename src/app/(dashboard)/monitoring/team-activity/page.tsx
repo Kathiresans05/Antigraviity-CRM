@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { Users, Activity, Clock, Timer, AlertTriangle, Search, Filter } from "lucide-react";
 import ActivitySparkline from "./ActivitySparkline";
+import EmployeeActivityModal from "./EmployeeActivityModal";
 
 export default function TeamActivityPage() {
     const [teamData, setTeamData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedUser, setSelectedUser] = useState<{ id: string, name: string } | null>(null);
 
     useEffect(() => {
         const fetchTeamStats = async () => {
@@ -23,7 +25,7 @@ export default function TeamActivityPage() {
         };
 
         fetchTeamStats();
-        const interval = setInterval(fetchTeamStats, 30000); // 30s refresh for better real-time feel
+        const interval = setInterval(fetchTeamStats, 30000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -82,18 +84,23 @@ export default function TeamActivityPage() {
                         {filteredTeam.length > 0 ? filteredTeam.map((member) => (
                             <tr key={member.user._id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                    <div 
+                                        className="flex items-center gap-3 cursor-pointer group"
+                                        onClick={() => setSelectedUser({ id: member.user._id, name: member.user.name })}
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
                                             {member.user.name.charAt(0)}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-gray-900">{member.user.name}</p>
+                                            <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 group-hover:underline transition-all">
+                                                {member.user.name}
+                                            </p>
                                             <p className="text-xs text-gray-400 uppercase">{member.user.role}</p>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${
+                                <td className="px-6 py-4 font-bold text-xs">
+                                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${
                                         member.session.sessionStatus === "Active" ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"
                                     }`}>
                                         <div className={`w-2 h-2 rounded-full ${
@@ -102,11 +109,11 @@ export default function TeamActivityPage() {
                                         {member.session.sessionStatus}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-bold text-gray-800">{formatSeconds(member.session.totalActiveSeconds)}</p>
+                                <td className="px-6 py-4 font-bold text-sm text-gray-700">
+                                    {formatSeconds(member.session.totalActiveSeconds)}
                                 </td>
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-bold text-gray-800">{formatSeconds(member.session.totalIdleSeconds)}</p>
+                                <td className="px-6 py-4 font-bold text-sm text-gray-700">
+                                    {formatSeconds(member.session.totalIdleSeconds)}
                                 </td>
                                 <td className="px-6 py-4 min-w-[200px]">
                                     <div className="flex items-center justify-between gap-6">
@@ -168,6 +175,12 @@ export default function TeamActivityPage() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Detailed Activity Modal */}
+            <EmployeeActivityModal 
+                user={selectedUser} 
+                onClose={() => setSelectedUser(null)} 
+            />
         </div>
     );
 }
