@@ -18,10 +18,14 @@ logToFile('--- MONITORING SERVICE INITIALIZED ---');
 let uiohook;
 try {
   const lib = require('uiohook-napi');
-  uiohook = lib.uiohook || lib;
-  logToFile(`[Monitoring] uiohook-napi library loaded successfully.`);
+  // Handle both named (uIOhook) and default exports
+  uiohook = lib.uIOhook || lib.uiohook || lib;
+  logToFile(`[Monitoring] uiohook-napi object discovered: ${typeof uiohook}`);
+  if (uiohook) {
+    logToFile(`[Monitoring] Methods found: ${Object.keys(uiohook).filter(k => typeof uiohook[k] === 'function').join(', ')}`);
+  }
 } catch (err) {
-  logToFile(`[Monitoring] CRITICAL: Failed to load uiohook-napi: ${err.message}`);
+  logToFile(`[Monitoring] CRITICAL: Failed to require uiohook-napi: ${err.message}`);
 }
 
 const { ipcMain } = require('electron');
@@ -29,9 +33,6 @@ const { ipcMain } = require('electron');
 // Check if uiohook is loaded
 try {
   logToFile(`[Monitoring] uiohook object is ${uiohook ? 'FOUND' : 'MISSING'}`);
-  if (uiohook) {
-    logToFile(`[Monitoring] uiohook properties: ${Object.keys(uiohook).join(', ')}`);
-  }
 } catch (err) {
   logToFile(`[Monitoring] Diagnostic error: ${err.message}`);
 }
@@ -58,49 +59,55 @@ function startMonitoring() {
   logToFile(`[Monitoring] Entered startMonitoring(). isMonitoring=${isMonitoring}`);
   if (isMonitoring) return;
   
+  if (!uiohook || typeof uiohook.on !== 'function') {
+    hookStatus = 'error';
+    lastErrorMessage = 'uiohook object is invalid or missing .on()';
+    logToFile(`[Monitoring] ERROR: ${lastErrorMessage}`);
+    return;
+  }
+
   currentStats.startTime = new Date();
   lastActivityTime = Date.now();
   
-  uiohook.on('keydown', () => {
-    if (!isMonitoring) return;
-    currentStats.keyboardCount++;
-    lastActivityTime = Date.now();
-    console.log('[Monitoring] Key Press detected.');
-  });
-
-  uiohook.on('mousedown', () => {
-    if (!isMonitoring) return;
-    currentStats.mouseCount++;
-    lastActivityTime = Date.now();
-    console.log('[Monitoring] Mouse Click detected.');
-  });
-
-  uiohook.on('mousemove', () => {
-    if (!isMonitoring) return;
-    lastActivityTime = Date.now();
-  });
-
-  // Background timer to track active vs idle seconds every second
-  trackTimer = setInterval(() => {
-    if (!isMonitoring) return;
-    
-    // If last activity was less than 10 seconds ago, consider this second "active"
-    const now = Date.now();
-    if (now - lastActivityTime < 10000) {
-      currentStats.activeSeconds++;
-    } else {
-      currentStats.idleSeconds++;
-    }
-  }, 1000);
-
-  hookStatus = 'starting';
-  logToFile('[Monitoring] Attempting to start uiohook...');
-
   try {
+    logToFile('[Monitoring] Step 1: Registering event listeners...');
+    uiohook.on('keydown', () => {
+      if (!isMonitoring) return;
+      currentStats.keyboardCount++;
+      lastActivityTime = Date.now();
+      console.log('[Monitoring] Key Press detected.');
+    });
+
+    uiohook.on('mousedown', () => {
+      if (!isMonitoring) return;
+      currentStats.mouseCount++;
+      lastActivityTime = Date.now();
+      console.log('[Monitoring] Mouse Click detected.');
+    });
+
+    uiohook.on('mousemove', () => {
+      if (!isMonitoring) return;
+      lastActivityTime = Date.now();
+    });
+
+    // Background timer to track active vs idle seconds every second
+    logToFile('[Monitoring] Step 2: Starting background timer...');
+    trackTimer = setInterval(() => {
+      if (!isMonitoring) return;
+      const now = Date.now();
+      if (now - lastActivityTime < 10000) {
+        currentStats.activeSeconds++;
+      } else {
+        currentStats.idleSeconds++;
+      }
+    }, 1000);
+
+    hookStatus = 'starting';
+    logToFile('[Monitoring] Step 3: Attempting uiohook.start()...');
     uiohook.start();
     isMonitoring = true;
     hookStatus = 'running';
-    logToFile('[Monitoring] Service Started Successfully.');
+    logToFile('[Monitoring] SUCCESS: Service Started Successfully.');
   } catch (err) {
     hookStatus = 'error';
     lastErrorMessage = err.message;
