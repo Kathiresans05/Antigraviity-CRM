@@ -177,6 +177,40 @@ io.on("connection", (socket: Socket) => {
         }
     });
 
+    socket.on("room-heartbeat", async ({ roomId: rawRoomId, user }: { roomId: string, user: any }) => {
+        const roomId = rawRoomId.trim();
+        socket.join(roomId);
+
+        // Ensure in MongoDB (Upsert)
+        const participant = await Participant.findOneAndUpdate(
+            { socketId: socket.id },
+            { 
+                roomId, 
+                socketId: socket.id, 
+                userId: user.id || user.email, 
+                name: user.name, 
+                role: user.role,
+                lastHeartbeat: new Date()
+            },
+            { upsert: true, new: true }
+        );
+
+        // If this heartbeat represents a "recovery" (user wasn't in activeRooms map),
+        // we should broadcast an update.
+        if (!activeRooms.has(roomId)) {
+            activeRooms.set(roomId, new Map());
+        }
+        const participantsMap = activeRooms.get(roomId)!;
+        if (!participantsMap.has(socket.id)) {
+            participantsMap.set(socket.id, { ...user, socketId: socket.id, micActive: true });
+            
+            // Broadcast update since someone "re-appeared"
+            const currentParticipants = await Participant.find({ roomId });
+            io.to(roomId).emit("room-update", currentParticipants);
+            broadcastGlobalPresence();
+        }
+    });
+
     // Send initial global presence
     broadcastGlobalPresence().then(presence => {
         socket.emit("global-room-presence", presence);

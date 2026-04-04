@@ -167,6 +167,48 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         return peer;
     };
 
+    // ------------------------------------------------------------------------------------------------
+    // RECOVERY: Load active room from localStorage on mount
+    // ------------------------------------------------------------------------------------------------
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedRoom = localStorage.getItem('comm_active_room');
+            const savedType = localStorage.getItem('comm_active_type');
+            if (savedRoom && savedType && session?.user) {
+                console.log('[Comm] Found saved room session:', savedRoom);
+                // Wait for socket to be ready
+                const timer = setTimeout(() => {
+                    if (socketRef.current?.connected) {
+                        joinRoom(savedRoom, savedType as any);
+                    }
+                }, 1500);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [session?.user]);
+
+    // ------------------------------------------------------------------------------------------------
+    // HEARTBEAT: Ensure server persistent presence every 15s
+    // ------------------------------------------------------------------------------------------------
+    useEffect(() => {
+        if (!socketRef.current || !activeRoom || !session?.user) return;
+
+        const heartbeatInterval = setInterval(() => {
+            if (socketRef.current?.connected) {
+                socketRef.current.emit('room-heartbeat', {
+                    roomId: activeRoom.trim(),
+                    user: {
+                        id: (session.user as any).id || session.user.email,
+                        name: session.user.name,
+                        role: (session.user as any).role,
+                    }
+                });
+            }
+        }, 15000);
+
+        return () => clearInterval(heartbeatInterval);
+    }, [activeRoom, session?.user]);
+
     const joinRoom = async (roomId: string, type: "voice" | "video" | "chat") => {
         if (!socketRef.current || !session?.user) {
             console.warn('[Comm] Cannot join room: Socket or Session missing');
@@ -179,6 +221,12 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             name: session.user.name || 'Anonymous',
             role: (session.user as any).role || 'User',
         };
+
+        // Persist to localStorage
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('comm_active_room', cleanRoomId);
+            localStorage.setItem('comm_active_type', type);
+        }
 
         // Optimistic UI Update: Add self immediately to both participants list and room counts
         setParticipants([{
@@ -220,6 +268,11 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (err) {
             console.error('[Media Access Error]:', err);
             toast.error('Failed to access camera/microphone. Please check permissions.');
+            // Clear persistence on failure
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('comm_active_room');
+                localStorage.removeItem('comm_active_type');
+            }
         }
     };
 
@@ -227,6 +280,13 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const leaveRoom = () => {
         if (socketRef.current && activeRoomRef.current) {
             socketRef.current.emit('leave-room', activeRoomRef.current);
+            
+            // Clear persistence
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('comm_active_room');
+                localStorage.removeItem('comm_active_type');
+            }
+
             setActiveRoom(null);
             activeRoomRef.current = null;
             setActiveRoomType(null);

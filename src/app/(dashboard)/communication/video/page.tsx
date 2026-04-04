@@ -83,7 +83,7 @@ export default function VideoRoomsPage() {
                         <VideoRoomCard 
                             key={room._id} 
                             room={room} 
-                            participantCount={roomCounts[room.name] || 0} 
+                            participantCount={roomCounts[room.name.trim()] || 0} 
                         />
                     ))}
                 </div>
