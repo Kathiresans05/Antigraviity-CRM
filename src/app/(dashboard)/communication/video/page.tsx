@@ -9,7 +9,7 @@ import { useCommunication } from '@/frontend/context/CommunicationContext';
 export default function VideoRoomsPage() {
     const [rooms, setRooms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const { participants, activeRoom } = useCommunication();
+    const { participants, activeRoom, roomCounts } = useCommunication();
 
     const fetchRooms = async () => {
         setLoading(true);
@@ -83,7 +83,7 @@ export default function VideoRoomsPage() {
                         <VideoRoomCard 
                             key={room._id} 
                             room={room} 
-                            participantCount={activeRoom === room.name ? participants.length : 0} 
+                            participantCount={roomCounts[room.name] || 0} 
                         />
                     ))}
                 </div>

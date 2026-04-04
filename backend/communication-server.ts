@@ -39,8 +39,9 @@ const activeRooms = new Map<string, Map<string, any>>();
 io.on("connection", (socket: Socket) => {
     console.log("[Socket] New connection:", socket.id);
 
-    socket.on("join-room", ({ roomId, user }: { roomId: string, user: any }) => {
-        console.log(`[Socket] User ${user.name} joining room ${roomId}`);
+    socket.on("join-room", ({ roomId: rawRoomId, user }: { roomId: string, user: any }) => {
+        const roomId = rawRoomId.trim();
+        console.log(`[Socket] User ${user.name} (${user.role}) joining room: "${roomId}" (ID: ${socket.id})`);
         
         socket.join(roomId);
         
@@ -55,8 +56,10 @@ io.on("connection", (socket: Socket) => {
             micActive: true
         });
 
-        // Notify others in the room
         const currentParticipants = Array.from(participants.values());
+        console.log(`[CommServer] Room "${roomId}" now has ${currentParticipants.length} participants`);
+
+        // Notify others in the room
         socket.to(roomId).emit("user-connected", {
             socketId: socket.id,
             user: participants.get(socket.id)
@@ -64,6 +67,9 @@ io.on("connection", (socket: Socket) => {
 
         // Send current list to the new user
         socket.emit("room-participants", currentParticipants);
+
+        // Broadcast global presence to everyone
+        broadcastGlobalPresence();
 
         // If it's a chat room, load recent messages
         loadRecentMessages(roomId, socket);
@@ -79,14 +85,14 @@ io.on("connection", (socket: Socket) => {
 
             const newMessage = new Message({
                 sender: user,
-                roomId,
+                roomId: roomId.trim(),
                 text
             });
 
             await newMessage.save();
 
             // Broadcast to everyone in the room (including sender)
-            io.to(roomId).emit("new-message", {
+            io.to(roomId.trim()).emit("new-message", {
                 id: newMessage._id,
                 sender: user,
                 text,
@@ -112,10 +118,11 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("toggle-mic", ({ roomId, micActive }: { roomId: string, micActive: boolean }) => {
-        const participants = activeRooms.get(roomId);
+        const rId = roomId.trim();
+        const participants = activeRooms.get(rId);
         if (participants && participants.has(socket.id)) {
             participants.get(socket.id).micActive = micActive;
-            io.to(roomId).emit("mic-status-updated", {
+            io.to(rId).emit("mic-status-updated", {
                 socketId: socket.id,
                 micActive
             });
@@ -123,10 +130,11 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("toggle-video", ({ roomId, videoActive }: { roomId: string, videoActive: boolean }) => {
-        const participants = activeRooms.get(roomId);
+        const rId = roomId.trim();
+        const participants = activeRooms.get(rId);
         if (participants && participants.has(socket.id)) {
             participants.get(socket.id).videoActive = videoActive;
-            io.to(roomId).emit("video-status-updated", {
+            io.to(rId).emit("video-status-updated", {
                 socketId: socket.id,
                 videoActive
             });
@@ -134,7 +142,7 @@ io.on("connection", (socket: Socket) => {
     });
 
     socket.on("leave-room", (roomId: string) => {
-        handleLeave(socket, roomId);
+        handleLeave(socket, roomId.trim());
     });
 
     socket.on("disconnect", () => {
@@ -145,7 +153,22 @@ io.on("connection", (socket: Socket) => {
             }
         });
     });
+
+    // Send initial global presence
+    socket.emit("global-room-presence", getGlobalPresence());
 });
+
+function getGlobalPresence() {
+    const presence: Record<string, number> = {};
+    activeRooms.forEach((participants, roomId) => {
+        presence[roomId] = participants.size;
+    });
+    return presence;
+}
+
+function broadcastGlobalPresence() {
+    io.emit("global-room-presence", getGlobalPresence());
+}
 
 async function loadRecentMessages(roomId: string, socket: Socket) {
     try {
@@ -155,7 +178,7 @@ async function loadRecentMessages(roomId: string, socket: Socket) {
             text: String
         }, { timestamps: true }));
 
-        const messages = await Message.find({ roomId }).sort({ createdAt: -1 }).limit(50);
+        const messages = await Message.find({ roomId: roomId.trim() }).sort({ createdAt: -1 }).limit(50);
         socket.emit("recent-messages", messages.reverse());
     } catch (err) {
         console.error("[CommServer] Failed to load messages:", err);
@@ -163,15 +186,17 @@ async function loadRecentMessages(roomId: string, socket: Socket) {
 }
 
 function handleLeave(socket: Socket, roomId: string) {
-    const participants = activeRooms.get(roomId);
+    const rId = roomId.trim();
+    const participants = activeRooms.get(rId);
     if (participants) {
         participants.delete(socket.id);
-        socket.to(roomId).emit("user-disconnected", socket.id);
-        socket.leave(roomId);
+        socket.to(rId).emit("user-disconnected", socket.id);
+        socket.leave(rId);
         
         if (participants.size === 0) {
-            activeRooms.delete(roomId);
+            activeRooms.delete(rId);
         }
+        broadcastGlobalPresence();
     }
 }
 

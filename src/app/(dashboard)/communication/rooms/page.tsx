@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import VoiceRoomCard from '@/frontend/components/communication/VoiceRoomCard';
 
 export default function CommunicationRoomsPage() {
-    const { activeRoom, joinRoom, leaveRoom, participants } = useCommunication();
+    const { activeRoom, joinRoom, leaveRoom, participants, roomCounts } = useCommunication();
     const [rooms, setRooms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -71,7 +71,7 @@ export default function CommunicationRoomsPage() {
                             room={room} 
                             activeRoom={activeRoom}
                             onJoin={() => joinRoom(room.name, 'voice')}
-                            participantCount={activeRoom === room.name ? participants.length : 0}
+                            participantCount={roomCounts[room.name] || 0}
                         />
                     ))}
                 </div>

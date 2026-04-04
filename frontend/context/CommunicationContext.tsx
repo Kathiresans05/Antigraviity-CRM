@@ -12,6 +12,7 @@ interface CommunicationContextType {
     activeRoomType: "voice" | "video" | "chat" | null;
     participants: any[];
     messages: any[];
+    roomCounts: Record<string, number>;
     localStream: MediaStream | null;
     remoteStreams: Map<string, MediaStream>;
     isMicMuted: boolean;
@@ -32,6 +33,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const [activeRoomType, setActiveRoomType] = useState<"voice" | "video" | "chat" | null>(null);
     const [participants, setParticipants] = useState<any[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
+    const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [isMicMuted, setIsMicMuted] = useState(false);
@@ -45,6 +47,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     useEffect(() => {
         const socketUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 'http://localhost:3001';
+        console.log('[Comm] Connecting to signaling server:', socketUrl);
         const newSocket = io(socketUrl);
         setSocket(newSocket);
         socketRef.current = newSocket;
@@ -79,6 +82,10 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
 
         newSocket.on('room-participants', (list) => {
             setParticipants(list);
+        });
+
+        newSocket.on('global-room-presence', (presence: Record<string, number>) => {
+            setRoomCounts(presence);
         });
 
         const handleSignal = ({ senderId, signal }: { senderId: string, signal: any }) => {
@@ -142,6 +149,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const joinRoom = async (roomId: string, type: "voice" | "video" | "chat") => {
         if (!socketRef.current || !session?.user) return;
+        const cleanRoomId = roomId.trim();
 
         try {
             let stream = null;
@@ -157,7 +165,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             socketRef.current.emit('join-room', {
-                roomId,
+                roomId: cleanRoomId,
                 user: {
                     id: (session.user as any).id,
                     name: session.user.name,
@@ -165,13 +173,13 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
             });
 
-            setActiveRoom(roomId);
-            activeRoomRef.current = roomId;
+            setActiveRoom(cleanRoomId);
+            activeRoomRef.current = cleanRoomId;
             setActiveRoomType(type);
             activeRoomTypeRef.current = type;
             setParticipants([]);
             setMessages([]);
-            toast.success(`Joined room: ${roomId}`);
+            toast.success(`Joined room: ${cleanRoomId}`);
         } catch (err) {
             console.error('[Media Access Error]:', err);
             toast.error('Failed to access camera/microphone. Please check permissions.');
@@ -256,6 +264,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             activeRoomType,
             participants,
             messages,
+            roomCounts,
             localStream,
             remoteStreams,
             isMicMuted,
