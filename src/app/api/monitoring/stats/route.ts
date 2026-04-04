@@ -79,11 +79,18 @@ export async function GET(req: Request) {
           report.session.updatedAt = s.updatedAt;
         }
 
-        const blocks = await ActivityBlock.find({ sessionId: s._id });
+        const blocks = await ActivityBlock.find({ sessionId: s._id }).sort({ blockStart: 1 });
         report.activity.keyboardTotal += blocks.reduce((acc, b) => acc + b.keyboardCount, 0);
         report.activity.mouseTotal += blocks.reduce((acc, b) => acc + b.mouseCount, 0);
         report.session.totalActiveSeconds += s.totalActiveSeconds || 0;
         report.session.totalIdleSeconds += s.totalIdleSeconds || 0;
+        
+        // Take last 12 blocks for sparkline (last 12 mins)
+        report.activity.recentBlocks = blocks.slice(-12).map(b => ({
+          keyboard: b.keyboardCount,
+          mouse: b.mouseCount,
+          time: Number(b.blockStart)
+        }));
       }
 
       const reports = Array.from(userReportsMap.values());
