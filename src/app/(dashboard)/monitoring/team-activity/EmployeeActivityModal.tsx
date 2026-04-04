@@ -74,7 +74,7 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                 label: "Employee Status",
                 data: stats?.blocks?.map(() => 1) || [],
                 backgroundColor: stats?.blocks?.map((b: any) => 
-                    b.activeSeconds > 5 ? "rgba(16, 185, 129, 1)" : "rgba(239, 68, 68, 1)"
+                    b.activeSeconds > 5 ? "rgba(16, 185, 129, 1)" : "rgba(245, 158, 11, 1)"
                 ) || [],
                 barPercentage: 1.0,
                 categoryPercentage: 1.0,
@@ -218,7 +218,7 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                                     <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working Time
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Break / Idle Time
+                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Break / Idle Time
                                                 </div>
                                             </>
                                         )}
