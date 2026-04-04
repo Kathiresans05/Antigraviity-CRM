@@ -54,8 +54,49 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
 
     const isVolume = viewType === 'volume';
 
+    // Generate a continuous 1-minute timeline for Status View
+    const generateTimeline = () => {
+        if (!stats?.blocks || !stats?.summary?.loginTime) return { labels: [], colors: [], statuses: [] };
+
+        const labels: string[] = [];
+        const colors: string[] = [];
+        const statuses: string[] = [];
+        
+        const startTime = moment(stats.summary.loginTime).startOf('minute');
+        const lastBlockTime = moment(stats.blocks[stats.blocks.length - 1].blockStart);
+        const endTime = moment().isBefore(lastBlockTime.clone().add(1, 'hour')) ? moment() : lastBlockTime;
+        
+        let current = startTime.clone();
+        while (current.isSameOrBefore(endTime)) {
+            const timeLabel = current.format("HH:mm");
+            labels.push(timeLabel);
+            
+            // Find if there's a block for this minute
+            const block = stats.blocks.find((b: any) => moment(b.blockStart).format("HH:mm") === timeLabel);
+            
+            if (block) {
+                if (block.activeSeconds > 5) {
+                    colors.push("rgba(16, 185, 129, 1)"); // Working - Green
+                    statuses.push("WORKING");
+                } else {
+                    colors.push("rgba(239, 68, 68, 1)"); // Idle - Red
+                    statuses.push("IDLE");
+                }
+            } else {
+                colors.push("rgba(245, 158, 11, 1)"); // Break - Orange
+                statuses.push("BREAK");
+            }
+            
+            current.add(1, 'minute');
+        }
+        
+        return { labels, colors, statuses };
+    };
+
+    const timeline = generateTimeline();
+
     const chartData = {
-        labels: stats?.blocks?.map((b: any) => moment(b.blockStart).format("HH:mm")) || [],
+        labels: isVolume ? (stats?.blocks?.map((b: any) => moment(b.blockStart).format("HH:mm")) || []) : timeline.labels,
         datasets: isVolume ? [
             {
                 label: "Keyboard Actions",
@@ -72,10 +113,8 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
         ] : [
             {
                 label: "Employee Status",
-                data: stats?.blocks?.map(() => 1) || [],
-                backgroundColor: stats?.blocks?.map((b: any) => 
-                    b.activeSeconds > 5 ? "rgba(16, 185, 129, 1)" : "rgba(245, 158, 11, 1)"
-                ) || [],
+                data: timeline.labels.map(() => 1),
+                backgroundColor: timeline.colors,
                 barPercentage: 1.0,
                 categoryPercentage: 1.0,
             }
@@ -97,8 +136,7 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                 callbacks: {
                     label: (context: any) => {
                         if (isVolume) return `${context.dataset.label}: ${context.raw}`;
-                        const block = stats.blocks[context.dataIndex];
-                        return block.activeSeconds > 5 ? "Status: WORKING" : "Status: IDLE / BREAK";
+                        return `Status: ${timeline.statuses[context.dataIndex]}`;
                     }
                 }
             },
@@ -115,7 +153,12 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
             x: { 
                 stacked: !isVolume,
                 grid: { display: false }, 
-                ticks: { maxRotation: 45, minRotation: 45 } 
+                ticks: { 
+                    maxRotation: 45, 
+                    minRotation: 45,
+                    autoSkip: true,
+                    maxTicksLimit: 24 
+                } 
             },
         }
     };
@@ -215,10 +258,13 @@ export default function EmployeeActivityModal({ user, onClose }: EmployeeActivit
                                         ) : (
                                             <>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working Time
+                                                    <div className="w-3 h-3 bg-emerald-500 rounded-sm" /> Working
                                                 </div>
                                                 <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
-                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Break / Idle Time
+                                                    <div className="w-3 h-3 bg-red-500 rounded-sm" /> Idle (Active Session)
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-bold uppercase">
+                                                    <div className="w-3 h-3 bg-amber-500 rounded-sm" /> Break (Offline)
                                                 </div>
                                             </>
                                         )}
