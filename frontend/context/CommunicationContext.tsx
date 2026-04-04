@@ -54,9 +54,9 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
 
         newSocket.on('connect', () => {
             console.log('[Comm] Socket connected:', newSocket.id);
-            // Auto re-join if we were in a room
+            // Aggressive auto re-join
             if (activeRoomRef.current && session?.user) {
-                console.log('[Comm] Re-joining room after reconnection:', activeRoomRef.current);
+                console.log('[Comm] Re-joining room:', activeRoomRef.current);
                 newSocket.emit('join-room', {
                     roomId: activeRoomRef.current,
                     user: {

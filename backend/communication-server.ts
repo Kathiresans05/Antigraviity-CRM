@@ -36,40 +36,65 @@ if (MONGODB_URI) {
 // Map<roomId, Map<socketId, {userId, name, role, micActive}>>
 const activeRooms = new Map<string, Map<string, any>>();
 
+// Participant Schema for persistent presence
+const ParticipantSchema = new mongoose.Schema({
+    roomId: String,
+    socketId: String,
+    userId: String,
+    name: String,
+    role: String,
+    micActive: { type: Boolean, default: true },
+    videoActive: { type: Boolean, default: false },
+    joinedAt: { type: Date, default: Date.now }
+});
+const Participant = mongoose.models.Participant || mongoose.model("Participant", ParticipantSchema);
+
+// Clear stale participants on startup
+async function cleanupStaleParticipants() {
+    try {
+        await Participant.deleteMany({});
+        console.log("[CommServer] Stale participants cleared from MongoDB");
+    } catch (err) {
+        console.error("[CommServer] Cleanup failed:", err);
+    }
+}
+
 io.on("connection", (socket: Socket) => {
     console.log("[Socket] New connection:", socket.id);
 
-    socket.on("join-room", ({ roomId: rawRoomId, user }: { roomId: string, user: any }) => {
+    socket.on("join-room", async ({ roomId: rawRoomId, user }: { roomId: string, user: any }) => {
         const roomId = rawRoomId.trim();
         console.log(`[Socket] User ${user.name} (${user.role}) joining room: "${roomId}" (ID: ${socket.id})`);
         
         socket.join(roomId);
         
+        // Save to MongoDB for persistent presence
+        await Participant.findOneAndUpdate(
+            { socketId: socket.id },
+            { 
+                roomId, 
+                socketId: socket.id, 
+                userId: user.id, 
+                name: user.name, 
+                role: user.role,
+                micActive: true 
+            },
+            { upsert: true, new: true }
+        );
+
+        // Update In-Memory for fallback (optional but good for rapid lookups)
         if (!activeRooms.has(roomId)) {
             activeRooms.set(roomId, new Map());
         }
-        
-        const participants = activeRooms.get(roomId)!;
-        participants.set(socket.id, {
-            ...user,
-            socketId: socket.id,
-            micActive: true
-        });
+        const participantsMap = activeRooms.get(roomId)!;
+        participantsMap.set(socket.id, { ...user, socketId: socket.id, micActive: true });
 
-        const currentParticipants = Array.from(participants.values());
-        console.log(`[CommServer] Room "${roomId}" now has ${currentParticipants.length} participants`);
+        // Fetch ALL current participants from MongoDB for this room
+        const currentParticipants = await Participant.find({ roomId });
+        console.log(`[CommServer] Room "${roomId}" now has ${currentParticipants.length} persistent participants`);
 
-        // Broadcast FULL list to everyone in the room (including sender)
+        // Broadcast FULL list to everyone in the room
         io.to(roomId).emit("room-update", currentParticipants);
-
-        // Notify others in the room (Legacy support)
-        socket.to(roomId).emit("user-connected", {
-            socketId: socket.id,
-            user: participants.get(socket.id)
-        });
-
-        // Send current list to the new user (Legacy support)
-        socket.emit("room-participants", currentParticipants);
 
         // Broadcast global presence to everyone
         broadcastGlobalPresence();
@@ -120,57 +145,59 @@ io.on("connection", (socket: Socket) => {
         });
     });
 
-    socket.on("toggle-mic", ({ roomId, micActive }: { roomId: string, micActive: boolean }) => {
+    socket.on("toggle-mic", async ({ roomId, micActive }: { roomId: string, micActive: boolean }) => {
         const rId = roomId.trim();
-        const participants = activeRooms.get(rId);
-        if (participants && participants.has(socket.id)) {
-            participants.get(socket.id).micActive = micActive;
-            io.to(rId).emit("mic-status-updated", {
-                socketId: socket.id,
-                micActive
-            });
-        }
-    });
-
-    socket.on("toggle-video", ({ roomId, videoActive }: { roomId: string, videoActive: boolean }) => {
-        const rId = roomId.trim();
-        const participants = activeRooms.get(rId);
-        if (participants && participants.has(socket.id)) {
-            participants.get(socket.id).videoActive = videoActive;
-            io.to(rId).emit("video-status-updated", {
-                socketId: socket.id,
-                videoActive
-            });
-        }
-    });
-
-    socket.on("leave-room", (roomId: string) => {
-        handleLeave(socket, roomId.trim());
-    });
-
-    socket.on("disconnect", () => {
-        console.log("[Socket] Disconnected:", socket.id);
-        activeRooms.forEach((participants, roomId) => {
-            if (participants.has(socket.id)) {
-                handleLeave(socket, roomId);
-            }
+        await Participant.findOneAndUpdate({ socketId: socket.id }, { micActive });
+        io.to(rId).emit("mic-status-updated", {
+            socketId: socket.id,
+            micActive
         });
     });
 
+    socket.on("toggle-video", async ({ roomId, videoActive }: { roomId: string, videoActive: boolean }) => {
+        const rId = roomId.trim();
+        await Participant.findOneAndUpdate({ socketId: socket.id }, { videoActive });
+        io.to(rId).emit("video-status-updated", {
+            socketId: socket.id,
+            videoActive
+        });
+    });
+
+    socket.on("leave-room", async (roomId: string) => {
+        await handleLeave(socket, roomId.trim());
+    });
+
+    socket.on("disconnect", async () => {
+        console.log("[Socket] Disconnected:", socket.id);
+        
+        // Find which room the participant was in before removing
+        const participant = await Participant.findOne({ socketId: socket.id });
+        if (participant) {
+            await handleLeave(socket, participant.roomId);
+        }
+    });
+
     // Send initial global presence
-    socket.emit("global-room-presence", getGlobalPresence());
+    broadcastGlobalPresence().then(presence => {
+        socket.emit("global-room-presence", presence);
+    });
 });
 
-function getGlobalPresence() {
+async function getGlobalPresence() {
     const presence: Record<string, number> = {};
-    activeRooms.forEach((participants, roomId) => {
-        presence[roomId] = participants.size;
+    const stats = await Participant.aggregate([
+        { $group: { _id: "$roomId", count: { $sum: 1 } } }
+    ]);
+    stats.forEach(stat => {
+        presence[stat._id] = stat.count;
     });
     return presence;
 }
 
-function broadcastGlobalPresence() {
-    io.emit("global-room-presence", getGlobalPresence());
+async function broadcastGlobalPresence() {
+    const presence = await getGlobalPresence();
+    io.emit("global-room-presence", presence);
+    return presence;
 }
 
 async function loadRecentMessages(roomId: string, socket: Socket) {
@@ -188,24 +215,29 @@ async function loadRecentMessages(roomId: string, socket: Socket) {
     }
 }
 
-function handleLeave(socket: Socket, roomId: string) {
+async function handleLeave(socket: Socket, roomId: string) {
     const rId = roomId.trim();
-    const participants = activeRooms.get(rId);
-    if (participants) {
-        participants.delete(socket.id);
-        socket.to(rId).emit("user-disconnected", socket.id);
-        socket.leave(rId);
-        
-        // Broadcast FULL updated list to remaining users
-        const remainingParticipants = Array.from(participants.values());
-        io.to(rId).emit("room-update", remainingParticipants);
-        
-        if (participants.size === 0) {
-            activeRooms.delete(rId);
-        }
-        broadcastGlobalPresence();
+    
+    // Remove from MongoDB
+    await Participant.deleteOne({ socketId: socket.id });
+    
+    // Fallback In-Memory cleanup
+    const participantsMap = activeRooms.get(rId);
+    if (participantsMap) {
+        participantsMap.delete(socket.id);
+        if (participantsMap.size === 0) activeRooms.delete(rId);
     }
+
+    socket.to(rId).emit("user-disconnected", socket.id);
+    socket.leave(rId);
+    
+    // Broadcast FULL updated list from MongoDB
+    const remainingParticipants = await Participant.find({ roomId: rId });
+    io.to(rId).emit("room-update", remainingParticipants);
+    
+    broadcastGlobalPresence();
 }
+
 
 async function seedRooms() {
     try {
@@ -242,6 +274,11 @@ async function seedRooms() {
     }
 }
 
-httpServer.listen(PORT, () => {
-    console.log(`[CommServer] Signaling server running on port ${PORT}`);
-});
+async function startServer() {
+    await cleanupStaleParticipants();
+    httpServer.listen(PORT, () => {
+        console.log(`[CommServer] Signaling server running on port ${PORT}`);
+    });
+}
+
+startServer();
