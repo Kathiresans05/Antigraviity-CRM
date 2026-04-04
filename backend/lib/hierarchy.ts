@@ -14,12 +14,7 @@ export async function getManagedUserIds(userId: string, role: string, strict: bo
 
     // Admins and HR always get to see everyone for monitoring/attendance purposes
     if (isHRAdmin) {
-        const allUsers = await User.find({ 
-            $or: [
-                { status: 'active' },
-                { status: { $exists: false }, isActive: true }
-            ]
-        }).select('_id');
+        const allUsers = await User.find({}).select('_id');
         const ids = allUsers.map(u => u._id.toString());
         console.log(`[Hierarchy] Admin/HR bypass: found ${ids.length} users`);
         return ids;
