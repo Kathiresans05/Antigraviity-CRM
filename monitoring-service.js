@@ -1,11 +1,3 @@
-/**
- * MONITORING SERVICE (UIOHOOK)
- * This module runs in the Electron Main Process.
- * It strictly captures EVENT COUNTS, not content.
- */
-
-const { uiohook } = require('uiohook-napi');
-const { ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -14,18 +6,34 @@ const logPath = path.join(__dirname, 'tracker-debug.log');
 function logToFile(msg) {
   const timestamp = new Date().toISOString();
   const formatted = `[${timestamp}] ${msg}\n`;
-  fs.appendFileSync(logPath, formatted);
+  try {
+    fs.appendFileSync(logPath, formatted);
+  } catch (e) {}
   console.log(msg);
 }
 
 // Initial log
 logToFile('--- MONITORING SERVICE INITIALIZED ---');
 
+let uiohook;
+try {
+  const lib = require('uiohook-napi');
+  uiohook = lib.uiohook || lib;
+  logToFile(`[Monitoring] uiohook-napi library loaded successfully.`);
+} catch (err) {
+  logToFile(`[Monitoring] CRITICAL: Failed to load uiohook-napi: ${err.message}`);
+}
+
+const { ipcMain } = require('electron');
+
 // Check if uiohook is loaded
 try {
-  logToFile(`[Monitoring] uiohook-napi is ${uiohook ? 'LOADED' : 'MISSING'}`);
+  logToFile(`[Monitoring] uiohook object is ${uiohook ? 'FOUND' : 'MISSING'}`);
+  if (uiohook) {
+    logToFile(`[Monitoring] uiohook properties: ${Object.keys(uiohook).join(', ')}`);
+  }
 } catch (err) {
-  logToFile(`[Monitoring] CRITICAL: uiohook-napi load error: ${err.message}`);
+  logToFile(`[Monitoring] Diagnostic error: ${err.message}`);
 }
 
 process.on('uncaughtException', (err) => {
