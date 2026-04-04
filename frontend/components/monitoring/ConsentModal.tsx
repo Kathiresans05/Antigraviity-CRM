@@ -23,9 +23,10 @@ export default function ConsentModal() {
     }, [session]);
 
     const handleAccept = async () => {
+        if (loading) return;
         setLoading(true);
         console.log("[Monitoring] handleAccept triggered.");
-        // alert("Starting Monitoring... Please Wait."); // For visual confirmation
+        toast.loading("Initiating Tracker...", { id: "monitor-init" });
 
         try {
             // 1. Inform Backend
@@ -41,8 +42,9 @@ export default function ConsentModal() {
             });
             if (!consentRes.ok) throw new Error("Consent API Failed (HTTP " + consentRes.status + ")");
 
-            // 2. Clear Session and Start Session Tracking
+            // 2. Start Session
             console.log("[Monitoring] 2. Starting session API...");
+            toast.loading("Starting Session...", { id: "monitor-init" });
             const res = await fetch("/api/monitoring/session", {
                 method: "POST",
                 body: JSON.stringify({ action: "start" }),
@@ -53,10 +55,19 @@ export default function ConsentModal() {
             if (data.sessionId) {
                 // 3. Start Electron Tracker via IPC
                 console.log("[Monitoring] 3. Calling Electron IPC start...");
+                toast.loading("Activating Tracker Hook...", { id: "monitor-init" });
+                
                 if (window.electronAPI?.monitoring) {
                     const result = await (window.electronAPI.monitoring as any).start();
                     console.log("[Monitoring] IPC Start Result:", result);
-                    toast.success("Monitoring Started Successfully!");
+                    
+                    if (result.status === 'error') {
+                        throw new Error(result.error || "Hook failed to start. Run as Admin.");
+                    }
+                    
+                    toast.success("Monitoring Started Successfully!", { id: "monitor-init" });
+                } else {
+                    toast.error("Electron API Missing!", { id: "monitor-init" });
                 }
                 
                 sessionStorage.setItem("monitoring-consent", "true");
@@ -67,7 +78,7 @@ export default function ConsentModal() {
             }
         } catch (err: any) {
             console.error("[Monitoring] Initialization Failed:", err);
-            toast.error("Failed to start monitoring: " + err.message);
+            toast.error("Failed: " + err.message, { id: "monitor-init", duration: 5000 });
         } finally {
             setLoading(false);
         }

@@ -93,6 +93,28 @@ export default function MonitoringHeartbeat() {
                     <p style={{ margin: 0, color: '#b91c1c', fontSize: '12px' }}>
                         {statusInfo.error || "Please run the application as Administrator."}
                     </p>
+                    <button 
+                        onClick={async () => {
+                            if (window.electronAPI?.monitoring) {
+                                await (window.electronAPI.monitoring as any).start();
+                                const info = await (window.electronAPI.monitoring as any).status();
+                                setStatusInfo(info);
+                            }
+                        }}
+                        style={{
+                            marginTop: '8px',
+                            padding: '4px 12px',
+                            background: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Try Force Start
+                    </button>
                 </div>
             </div>
         );

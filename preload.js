@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     flush: () => ipcRenderer.invoke('monitoring:flush'),
     getStats: () => ipcRenderer.invoke('monitoring:get-stats'),
     status: () => ipcRenderer.invoke('monitoring:status'),
+    ping: () => ipcRenderer.invoke('monitoring:ping'),
   },
 });

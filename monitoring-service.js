@@ -21,6 +21,17 @@ function logToFile(msg) {
 // Initial log
 logToFile('--- MONITORING SERVICE INITIALIZED ---');
 
+// Check if uiohook is loaded
+try {
+  logToFile(`[Monitoring] uiohook-napi is ${uiohook ? 'LOADED' : 'MISSING'}`);
+} catch (err) {
+  logToFile(`[Monitoring] CRITICAL: uiohook-napi load error: ${err.message}`);
+}
+
+process.on('uncaughtException', (err) => {
+  logToFile(`[Monitoring] CRASH: Uncaught Exception: ${err.message}`);
+});
+
 let isMonitoring = false;
 let hookStatus = 'stopped'; // stopped, starting, running, error
 let lastErrorMessage = '';
@@ -36,8 +47,9 @@ let lastActivityTime = Date.now();
 let trackTimer = null;
 
 function startMonitoring() {
+  logToFile(`[Monitoring] Entered startMonitoring(). isMonitoring=${isMonitoring}`);
   if (isMonitoring) return;
-  isMonitoring = true;
+  
   currentStats.startTime = new Date();
   lastActivityTime = Date.now();
   
@@ -102,17 +114,23 @@ function stopMonitoring() {
 
 // IPC Handlers for Next.js communication
 ipcMain.handle('monitoring:start', () => {
+  logToFile('[Monitoring] IPC monitoring:start received.');
   startMonitoring();
   return { success: true, status: hookStatus };
 });
 
 ipcMain.handle('monitoring:stop', () => {
+  logToFile('[Monitoring] IPC monitoring:stop received.');
   stopMonitoring();
   return { success: true };
 });
 
 ipcMain.handle('monitoring:status', () => {
   return { status: hookStatus, error: lastErrorMessage };
+});
+
+ipcMain.handle('monitoring:ping', () => {
+  return { success: true, timestamp: Date.now() };
 });
 
 ipcMain.handle('monitoring:flush', () => {
