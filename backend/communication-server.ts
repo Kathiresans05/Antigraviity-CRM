@@ -318,19 +318,51 @@ async function seedRooms() {
     }
 }
 
+async function getGlobalSyncData() {
+    // Fetch all participants across all rooms/instances
+    const allParticipants = await Participant.find({});
+    
+    // Group by roomId and de-duplicate by userId
+    const roomStates: Record<string, any[]> = {};
+    const globalCounts: Record<string, number> = {};
+
+    allParticipants.forEach(p => {
+        const rId = p.roomId.trim().toLowerCase();
+        if (!roomStates[rId]) roomStates[rId] = [];
+        
+        // De-duplicate: Keep the most recent record for this userId
+        const existing = roomStates[rId].find(u => (u.userId === p.userId) || (u.socketId === p.socketId));
+        if (!existing) {
+            roomStates[rId].push(p);
+        }
+        globalCounts[rId] = roomStates[rId].length;
+    });
+
+    return { roomStates, globalCounts };
+}
+
 async function startServer() {
     await cleanupStaleParticipants();
     
-    // Periodically clean up "zombie" participants who missed heartbeats (> 45s)
+    // ------------------------------------------------------------------------------------------------
+    // GLOBAL SYNC LOOP (Cloud-Sync): Synchronize multiple server instances via MongoDB
+    // ------------------------------------------------------------------------------------------------
     setInterval(async () => {
-        const threshold = new Date(Date.now() - 45000);
-        const stale = await Participant.find({ lastHeartbeat: { $lt: threshold } });
-        for (const p of stale) {
-            console.log(`[CommServer] Cleaning up stale participant: ${p.name}`);
-            await Participant.deleteOne({ _id: p._id });
-            broadcastGlobalPresence();
+        try {
+            // 1. Clean up "zombie" participants who missed heartbeats (> 45s)
+            const threshold = new Date(Date.now() - 45000);
+            await Participant.deleteMany({ lastHeartbeat: { $lt: threshold } });
+
+            // 2. Fetch the current Global state from DB
+            const syncData = await getGlobalSyncData();
+
+            // 3. Broadcast GLOBAL SYNC to EVERYONE on this instance
+            // This allows users on Server A to "see" users on Server B via the shared DB
+            io.emit("global-presence-sync", syncData);
+        } catch (err) {
+            console.error("[CommServer] Global sync error:", err);
         }
-    }, 30000);
+    }, 5000); // 5 seconds
 
     httpServer.listen(PORT, () => {
         console.log(`[CommServer] Signaling server running on port ${PORT}`);

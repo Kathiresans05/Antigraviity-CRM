@@ -73,6 +73,24 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             setParticipants(fullList);
         });
 
+        // ------------------------------------------------------------------------------------------------
+        // GLOBAL CLOUD-SYNC LISTENER: Multi-Server Instance Synchronization
+        // ------------------------------------------------------------------------------------------------
+        newSocket.on('global-presence-sync', ({ roomStates, globalCounts }: { roomStates: Record<string, any[]>, globalCounts: Record<string, number> }) => {
+            // Update the Active room participant list (De-duplicated across servers)
+            if (activeRoomRef.current) {
+                const currentRoomParticipants = roomStates[activeRoomRef.current.toLowerCase()] || [];
+                if (currentRoomParticipants.length > 0) {
+                    setParticipants(currentRoomParticipants);
+                }
+            }
+
+            // Sync all Hub card counts globally
+            if (globalCounts) {
+                setRoomCounts(globalCounts);
+            }
+        });
+
         newSocket.on('user-connected', ({ socketId, user }) => {
             console.log('[Comm] User connected:', user.name);
             setParticipants(prev => {
