@@ -39,6 +39,45 @@ try {
 }
 
 let mainWindow;
+let bannerWindow;
+
+function createBannerWindow() {
+    bannerWindow = new BrowserWindow({
+        width: 320,
+        height: 54,
+        x: 40,
+        y: 40,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        resizable: false,
+        skipTaskbar: true,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+        }
+    });
+
+    const bannerHtml = `
+        <body style="margin:0; padding:0; background: transparent; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="display:flex; align-items:center; gap:12px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);">
+                <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 10px; height: 10px; background: #22c55e; border-radius: 50%;"></div>
+                    <div style="position: absolute; width: 18px; height: 18px; background: #22c55e; border-radius: 50%; opacity: 0.4; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                </div>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.05em; color: rgba(255,255,255,0.9); text-transform: uppercase;">Device Monitored</span>
+                    <span style="font-size: 9px; font-weight: 500; color: rgba(255,255,255,0.4);">Work & Security Purposes Only</span>
+                </div>
+            </div>
+            <style>
+                @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+            </style>
+        </body>
+    `;
+    bannerWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(bannerHtml)}`);
+    bannerWindow.setIgnoreMouseEvents(true);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -50,15 +89,22 @@ function createWindow() {
       contextIsolation: true,
     },
     title: "Antigraviity CRM",
-    // Standard layout: public is up one level from desktop/
     icon: path.join(__dirname, 'public/logo_highres.png')
   });
 
-  // Load from the Next.js dev server or the deployed Render instance
   if (app.isPackaged) {
     mainWindow.loadURL('https://antigraviity-crm-cxmf.onrender.com/login');
   } else {
     mainWindow.loadURL('http://localhost:3000/login');
+  }
+
+  // Setup Auto-Start for desktop agent
+  if (!app.isPackaged) {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: process.execPath,
+      args: [path.resolve(process.argv[1])]
+    });
   }
 }
 
@@ -69,8 +115,31 @@ process.on('monitoring:idle-warning', () => {
     }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow();
+  createBannerWindow();
+
+  // Consent Logic: Show on first launch
+  const fs = require('fs');
+  const consentPath = path.join(app.getPath('userData'), 'consent.json');
+  if (!fs.existsSync(consentPath)) {
+      const { dialog } = electron;
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+          type: 'info',
+          buttons: ['I Decline', 'I Consent'],
+          title: 'Employee Monitoring Consent',
+          message: 'Monitoring Agreement',
+          detail: 'To continue using this corporate device, you must consent to activity monitoring, including screenshot capture and application tracking, for productivity and security purposes as per company policy.',
+          defaultId: 1,
+          cancelId: 0
+      });
+
+      if (choice === 1) {
+          fs.writeFileSync(consentPath, JSON.stringify({ accepted: true, date: new Date() }));
+      } else {
+          app.quit();
+      }
+  }
 
   // Automatically handle media permissions for the voice rooms
   const { session } = electron;

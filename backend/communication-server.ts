@@ -9,9 +9,15 @@ import mongoose from "mongoose";
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
+import monitoringRoutes from "./modules/employee-monitoring/routes/monitoring.routes";
+import liveMonitoringRoutes from "./modules/live-monitoring/routes/live.routes";
+
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Allow larger payloads for screenshots
+
+app.use("/api/monitoring", monitoringRoutes);
+app.use("/api/monitoring/v2", liveMonitoringRoutes);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -207,6 +213,62 @@ io.on("connection", (socket: Socket) => {
     // Send initial global presence
     broadcastGlobalPresence().then(presence => {
         socket.emit("global-room-presence", presence);
+    });
+});
+
+// ------------------------------------------------------------------------------------------------
+// LIVE MONITORING NAMESPACE
+// ------------------------------------------------------------------------------------------------
+const monitoringNamespace = io.of("/monitoring");
+
+monitoringNamespace.on("connection", (socket) => {
+    console.log("[Monitoring-Socket] New connection:", socket.id);
+
+    // Agent joins as an employee
+    socket.on("register-agent", (data: { userId: string, employeeName: string, deviceId: string }) => {
+        socket.join(`agent-${data.userId}`);
+        socket.data.userId = data.userId;
+        socket.data.employeeName = data.employeeName;
+        socket.data.deviceId = data.deviceId;
+        socket.data.isMonitoring = true;
+        
+        console.log(`[Monitoring-Socket] Agent registered: ${data.employeeName} (${data.userId})`);
+        
+        // Notify admins that a new agent is online
+        monitoringNamespace.to("admins").emit("agent-status-change", {
+            userId: data.userId,
+            status: "online",
+            employeeName: data.employeeName
+        });
+    });
+
+    // Admin joins to watch the wall
+    socket.on("join-admin", () => {
+        socket.join("admins");
+        console.log("[Monitoring-Socket] Admin joined monitoring wall");
+    });
+
+    // Receive screen frame from agent and broadcast to admins
+    socket.on("screen-frame", (data: { frame: string, userId: string, activeApp: string }) => {
+        // Only broadcast if the admin is actually in the "admins" room
+        // Optimization: In production, only broadcast if at least one admin is watching
+        monitoringNamespace.to("admins").emit("screen-update", data);
+    });
+
+    // Heartbeat from agent
+    socket.on("heartbeat", (data: { userId: string, status: string }) => {
+        // Update presence or DB status
+        monitoringNamespace.to("admins").emit("agent-heartbeat", data);
+    });
+
+    socket.on("disconnect", () => {
+        if (socket.data.userId) {
+            console.log(`[Monitoring-Socket] Agent disconnected: ${socket.data.employeeName}`);
+            monitoringNamespace.to("admins").emit("agent-status-change", {
+                userId: socket.data.userId,
+                status: "offline"
+            });
+        }
     });
 });
 

@@ -29,6 +29,11 @@ try {
 }
 
 const { ipcMain } = require('electron');
+const { io } = require('socket.io-client');
+
+let monitoringSocket = null;
+let liveStreamTimer = null;
+const LIVE_INTERVAL = 3000; // 3 seconds for "live" thumbnails (CCTV mode)
 
 // Check if uiohook is loaded
 try {
@@ -41,6 +46,20 @@ process.on('uncaughtException', (err) => {
   logToFile(`[Monitoring] CRASH: Uncaught Exception: ${err.message}`);
 });
 
+let screenshotDesktop;
+try {
+    screenshotDesktop = require('screenshot-desktop');
+} catch (e) {
+    logToFile('[Monitoring] screenshot-desktop module not found.');
+}
+
+let activeWin;
+try {
+    activeWin = require('active-win');
+} catch (e) {
+    logToFile('[Monitoring] active-win module not found.');
+}
+
 let isMonitoring = false;
 let hookStatus = 'stopped'; // stopped, starting, running, error
 let lastErrorMessage = '';
@@ -49,15 +68,90 @@ let currentStats = {
   mouseCount: 0,
   idleSeconds: 0,
   activeSeconds: 0,
-  startTime: null
+  startTime: null,
+  activeApp: 'Unknown',
+  windowTitle: 'Unknown'
 };
 
 let consecutiveIdleSeconds = 0;
 let lastActivityTime = Date.now();
 let trackTimer = null;
+let syncTimer = null;
+let screenshotTimer = null;
 
-function startMonitoring() {
-  logToFile(`[Monitoring] Entered startMonitoring(). isMonitoring=${isMonitoring}`);
+const BACKEND_URL = "http://localhost:3001/api/monitoring";
+const SYNC_INTERVAL = 60000; // 60 seconds
+const SCREENSHOT_INTERVAL = 300000; // 5 minutes (300,000 ms)
+
+async function getActiveWindow() {
+  if (!activeWin) return;
+  try {
+    const win = await activeWin();
+    if (win) {
+      currentStats.activeApp = win.owner.name || win.owner.path || 'Unknown';
+      currentStats.windowTitle = win.title || 'Unknown';
+    }
+  } catch (err) {
+    // Silently fail to avoid console Spam
+  }
+}
+
+async function takeScreenshotAndSync(userId, employeeName) {
+  if (!screenshotDesktop) return;
+  try {
+    logToFile('[Monitoring] Capturing screenshot...');
+    const imgBuffer = await screenshotDesktop();
+    const base64Img = imgBuffer.toString('base64');
+    const dataUri = `data:image/png;base64,${base64Img}`;
+
+    const res = await fetch(`${BACKEND_URL}/screenshots`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: userId || "SYSTEM_AGENT",
+        employeeName: employeeName || "System Agent",
+        imageUrl: dataUri,
+        activeApp: currentStats.activeApp,
+        windowTitle: currentStats.windowTitle
+      })
+    });
+    if (res.ok) logToFile('[Monitoring] Screenshot synced successfully.');
+  } catch (err) {
+    logToFile(`[Monitoring] Screenshot ERROR: ${err.message}`);
+  }
+}
+
+async function syncToBackend(userId, employeeName) {
+  if (!isMonitoring) return;
+  try {
+    logToFile('[Monitoring] Syncing activity to backend...');
+    const stats = { ...currentStats };
+    
+    const res = await fetch(`${BACKEND_URL}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: userId || "SYSTEM_AGENT",
+        employeeName: employeeName || "System Agent",
+        ...stats
+      })
+    });
+
+    if (res.ok) {
+      logToFile('[Monitoring] Activity synced successfully.');
+      // Reset periodic counters
+      currentStats.keyboardCount = 0;
+      currentStats.mouseCount = 0;
+      currentStats.idleSeconds = 0;
+      currentStats.activeSeconds = 0;
+    }
+  } catch (err) {
+    logToFile(`[Monitoring] Sync ERROR: ${err.message}`);
+  }
+}
+
+function startMonitoring(userId, name) {
+  logToFile(`[Monitoring] Entered startMonitoring() for ${name}. isMonitoring=${isMonitoring}`);
   if (isMonitoring) return;
   
   if (!uiohook || typeof uiohook.on !== 'function') {
@@ -100,6 +194,10 @@ function startMonitoring() {
     trackTimer = setInterval(() => {
       if (!isMonitoring) return;
       const now = Date.now();
+      
+      // Update active window info every second
+      getActiveWindow();
+
       if (now - lastActivityTime < 10000) {
         currentStats.activeSeconds++;
         consecutiveIdleSeconds = 0;
@@ -110,11 +208,19 @@ function startMonitoring() {
         // Trigger 5-minute (300 seconds) warning
         if (consecutiveIdleSeconds === 300) {
           logToFile('[Monitoring] ALERT: 5 minutes of continuous inactivity detected.');
-          // We need an event emitter or global IPC to send this to the main window
           process.emit('monitoring:idle-warning');
         }
       }
     }, 1000);
+
+    // Module: Remote Sync every 60s
+    syncTimer = setInterval(() => syncToBackend(userId, name), SYNC_INTERVAL);
+
+    // Module: Screenshots every 5m
+    screenshotTimer = setInterval(() => takeScreenshotAndSync(userId, name), SCREENSHOT_INTERVAL);
+
+    // Module: LIVE Screen Streaming (CCTV Mode)
+    setupLiveStreaming(userId, name);
 
     hookStatus = 'starting';
     logToFile('[Monitoring] Step 3: Attempting uiohook.start()...');
@@ -138,13 +244,64 @@ function stopMonitoring() {
   hookStatus = 'stopped';
   uiohook.stop();
   if (trackTimer) clearInterval(trackTimer);
+  if (syncTimer) clearInterval(syncTimer);
+  if (screenshotTimer) clearInterval(screenshotTimer);
+  if (liveStreamTimer) clearInterval(liveStreamTimer);
+  
+  if (monitoringSocket) {
+      monitoringSocket.disconnect();
+      monitoringSocket = null;
+  }
+  
   logToFile('[Monitoring] Service Stopped.');
 }
 
+async function setupLiveStreaming(userId, name) {
+    if (monitoringSocket) return;
+
+    logToFile(`[Monitoring] Connecting to Signaling Server for ${name}...`);
+    monitoringSocket = io("http://localhost:3001/monitoring", {
+        reconnection: true,
+        reconnectionAttempts: 5
+    });
+
+    monitoringSocket.on('connect', () => {
+        logToFile('[Monitoring] Live stream socket CONNECTED.');
+        monitoringSocket.emit('register-agent', {
+            userId,
+            employeeName: name,
+            deviceId: "DEV-12345" // In production, generate per-device
+        });
+    });
+
+    monitoringSocket.on('disconnect', () => {
+        logToFile('[Monitoring] Live stream socket DISCONNECTED.');
+    });
+
+    // Start frame capture loop
+    liveStreamTimer = setInterval(async () => {
+        if (!isMonitoring || !screenshotDesktop) return;
+        try {
+            const imgBuffer = await screenshotDesktop();
+            // Optimize for live view: lower quality or smaller size if possible
+            // Currently screenshot-desktop doesn't easily support resizing in-memory without extra libs
+            // We send the buffer as Base64.
+            const frame = imgBuffer.toString('base64');
+            monitoringSocket.emit('screen-frame', {
+                userId,
+                frame,
+                activeApp: currentStats.activeApp
+            });
+        } catch (err) {
+            logToFile(`[Monitoring] Live Frame Capture Error: ${err.message}`);
+        }
+    }, LIVE_INTERVAL);
+}
+
 // IPC Handlers for Next.js communication
-ipcMain.handle('monitoring:start', () => {
-  logToFile('[Monitoring] IPC monitoring:start received.');
-  startMonitoring();
+ipcMain.handle('monitoring:start', (event, { userId, name }) => {
+  logToFile(`[Monitoring] IPC monitoring:start received for ${name}.`);
+  startMonitoring(userId, name);
   return { success: true, status: hookStatus };
 });
 

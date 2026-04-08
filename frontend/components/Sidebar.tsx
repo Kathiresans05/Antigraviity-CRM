@@ -8,7 +8,8 @@ import {
     BarChart2, Clock, Settings, LogOut, ChevronLeft,
     ChevronRight, ListTodo, Calendar, CheckSquare,
     DollarSign, TrendingUp, Bell, GraduationCap, FileText, Megaphone,
-    User, HardDrive, UserPlus, ShieldCheck, ListFilter, Activity, Phone
+    User, HardDrive, UserPlus, ShieldCheck, ListFilter, Activity, Phone,
+    Monitor, Camera, ShieldAlert
 } from "lucide-react";
 import clsx from "clsx";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
@@ -69,6 +70,15 @@ const ADMIN_LINKS = [
         items: [
             { name: "Team Meet", href: "/communication", icon: Users },
             { name: "Voice Rooms", href: "/communication/rooms", icon: Phone },
+        ]
+    },
+    {
+        label: "Live Monitoring (Admin)",
+        items: [
+            { name: "CCTV Live Wall", href: "/admin/monitoring/live-wall", icon: Monitor },
+            { name: "Compliance Logs", href: "/admin/monitoring/audit-logs", icon: ShieldCheck },
+            { name: "Managed Devices", href: "/admin/monitoring/employees", icon: Users },
+            { name: "Policy Settings", href: "/admin/monitoring/settings", icon: Settings },
         ]
     }
 ];

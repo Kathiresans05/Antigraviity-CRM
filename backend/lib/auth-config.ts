@@ -4,6 +4,10 @@ import User from "@/backend/models/User";
 import bcrypt from "bcryptjs";
 import { AuthOptions } from "next-auth";
 
+if (process.env.NODE_ENV === "development") {
+    console.log("NEXTAUTH_URL:", process.env.NEXTAUTH_URL || "NOT SET (NextAuth may fail in some environments)");
+}
+
 export const authOptions: AuthOptions = {
     providers: [
         CredentialsProvider({

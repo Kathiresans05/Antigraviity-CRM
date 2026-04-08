@@ -59,7 +59,7 @@ export default function ProductivityReportPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {reports.length > 0 ? reports.map((report) => (
-                            <tr key={report._id} className="hover:bg-indigo-50/20 transition-all cursor-pointer">
+                            <tr key={report.user._id} className="hover:bg-indigo-50/20 transition-all cursor-pointer">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold">
