@@ -159,7 +159,12 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [session?.user]); // Added session.user dependency for auto re-join
 
     const createPeer = (targetId: string, socket: Socket, stream: MediaStream, initiator: boolean, incomingSignal?: Peer.SignalData) => {
-        const peer = new Peer({
+        if (typeof window === 'undefined' || !(window as any).Buffer) {
+            console.error('[Comm] Buffer not found! WebRTC might fail.');
+        }
+
+        const PeerClass = (Peer as any).default || Peer;
+        const peer = new PeerClass({
             initiator,
             trickle: false,
             stream,

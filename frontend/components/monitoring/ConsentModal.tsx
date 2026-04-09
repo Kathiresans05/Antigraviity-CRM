@@ -58,7 +58,10 @@ export default function ConsentModal() {
                 toast.loading("Activating Tracker Hook...", { id: "monitor-init" });
                 
                 if (window.electronAPI?.monitoring) {
-                    const result = await (window.electronAPI.monitoring as any).start();
+                    const result = await (window.electronAPI.monitoring as any).start({
+                        userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
+                        name: session?.user?.name || "Employee"
+                    });
                     console.log("[Monitoring] IPC Start Result:", result);
                     
                     if (result.status === 'error') {

@@ -299,8 +299,10 @@ async function setupLiveStreaming(userId, name) {
 }
 
 // IPC Handlers for Next.js communication
-ipcMain.handle('monitoring:start', (event, { userId, name }) => {
-  logToFile(`[Monitoring] IPC monitoring:start received for ${name}.`);
+ipcMain.handle('monitoring:start', (event, payload) => {
+  const userId = payload?.userId || "SYSTEM_AGENT";
+  const name = payload?.name || "Employee";
+  logToFile(`[Monitoring] IPC monitoring:start received for ${name} (${userId}).`);
   startMonitoring(userId, name);
   return { success: true, status: hookStatus };
 });

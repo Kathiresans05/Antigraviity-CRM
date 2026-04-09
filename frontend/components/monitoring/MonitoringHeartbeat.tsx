@@ -29,7 +29,10 @@ export default function MonitoringHeartbeat() {
                 
                 // Auto-start if consented but stopped
                 if (hasConsented && info.status === 'stopped' && userRole === 'Employee') {
-                    await window.electronAPI.monitoring.start();
+                    await window.electronAPI.monitoring.start({
+                        userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
+                        name: session?.user?.name || "Employee"
+                    } as any);
                     const updated = await (window.electronAPI.monitoring as any).status();
                     setStatusInfo(updated);
                 }

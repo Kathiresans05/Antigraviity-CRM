@@ -95,8 +95,22 @@ io.on("connection", (socket: Socket) => {
         const participantsMap = activeRooms.get(roomId)!;
         participantsMap.set(socket.id, { ...user, socketId: socket.id, micActive: true });
 
+        // Broadcast that a new user has joined to EVERYONE ELSE in the room
+        // This triggers 'initiator' logic for WebRTC on existing clients
+        socket.to(roomId).emit("user-connected", {
+            socketId: socket.id,
+            user: {
+                id: user.id || user.email,
+                name: user.name,
+                role: user.role,
+                micActive: true,
+                videoActive: false
+            }
+        });
+
         // Broadcast FULL list from MongoDB with DE-DUPLICATION
         await broadcastRoomUpdate(roomId);
+
 
         // Broadcast global presence to everyone
         broadcastGlobalPresence();
