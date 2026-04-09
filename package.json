@@ -79,5 +79,9 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "overrides": {
+    "tar": "^6.2.1"
   }
 }
+
