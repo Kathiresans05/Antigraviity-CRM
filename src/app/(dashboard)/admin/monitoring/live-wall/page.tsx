@@ -27,7 +27,9 @@ export default function LiveMonitoringWall() {
 
     const socketRef = useRef<Socket | null>(null);
 
-    const COMM_URL = process.env.NEXT_PUBLIC_COMMUNICATION_URL || "http://localhost:3001";
+    const COMM_URL = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
+                    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
+
 
     const handleAccessStream = async () => {
         if (!selectedStream || !auditReason.trim()) return;
@@ -74,9 +76,13 @@ export default function LiveMonitoringWall() {
     };
 
     useEffect(() => {
-        // Connect to the monitoring namespace
-        const socket = io(`${COMM_URL}/monitoring`);
+        // Connect to the monitoring namespace on the dynamic server URL
+        const socket = io(`${COMM_URL}/monitoring`, {
+            path: '/socket.io',
+            transports: ['websocket', 'polling']
+        });
         socketRef.current = socket;
+
 
         socket.on("connect", () => {
             console.log("Connected to Monitoring Signaling Server");
