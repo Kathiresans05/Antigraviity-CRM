@@ -46,8 +46,11 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const activeRoomTypeRef = useRef<"voice" | "video" | "chat" | null>(null);
 
     useEffect(() => {
-        const socketUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 'http://localhost:3001';
+        const socketUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
+                         (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : 'http://localhost:3001');
+        
         console.log('[Comm] Connecting to signaling server:', socketUrl);
+
         const newSocket = io(socketUrl);
         setSocket(newSocket);
         socketRef.current = newSocket;

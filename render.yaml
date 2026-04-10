@@ -20,3 +20,7 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: NEXT_PUBLIC_COMMUNICATION_URL
+        value: https://antigraviity-crm-cxmf.onrender.com
+      - key: PORT
+        value: 10000
