@@ -267,8 +267,11 @@ async function setupLiveStreaming(userId, name, backendUrl) {
     if (monitoringSocket) return;
 
     const baseSocketUrl = backendUrl || "http://localhost:3001";
-    logToFile(`[Monitoring] Connecting to Signaling Server for ${name} at ${baseSocketUrl}...`);
-    monitoringSocket = io(baseSocketUrl, {
+    const socketNamespaceUrl = baseSocketUrl.endsWith('/') ? `${baseSocketUrl}monitoring` : `${baseSocketUrl}/monitoring`;
+    
+    logToFile(`[Monitoring] Connecting to Signaling Server for ${name} at ${socketNamespaceUrl}...`);
+    monitoringSocket = io(socketNamespaceUrl, {
+
         path: '/socket.io',
 
         reconnection: true,
