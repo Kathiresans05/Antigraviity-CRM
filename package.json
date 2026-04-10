@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "dev:desktop": "concurrently \"npm run dev\" \"npm run comm-server\" \"wait-on http://localhost:3000/login && node launcher.js\"",
+    "dev:live": "cross-env CRM_LIVE_MODE=true node launcher.js",
     "build": "next build",
     "build:desktop": "npm run build && electron-builder",
     "start": "node server.js",
     "electron": "node launcher.js",
+    "electron:live": "cross-env CRM_LIVE_MODE=true node launcher.js",
     "comm-server": "tsx backend/communication-server.ts",
     "lint": "eslint"
   },

@@ -99,11 +99,17 @@ function createWindow() {
     icon: path.join(__dirname, 'public/logo_highres.png')
   });
 
-  if (app.isPackaged) {
-    mainWindow.loadURL('https://antigraviity-crm-cxmf.onrender.com/login');
+  const isLiveMode = process.env.CRM_LIVE_MODE === 'true';
+  const liveUrl = 'https://antigraviity-crm-cxmf.onrender.com/login';
+
+  if (app.isPackaged || isLiveMode) {
+    console.log('[Main] Loading LIVE Production Environment...');
+    mainWindow.loadURL(liveUrl);
   } else {
+    console.log('[Main] Loading Local Development Environment...');
     mainWindow.loadURL('http://localhost:3000/login');
   }
+
 
   // Setup Auto-Start for desktop agent
   if (!app.isPackaged) {
