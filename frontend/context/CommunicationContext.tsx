@@ -177,7 +177,14 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             initiator,
             trickle: false,
             stream,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
         });
+
 
         peer.on('signal', (signal: Peer.SignalData) => {
             const eventName = activeRoomTypeRef.current === 'video' ? 'video-signal' : 'voice-signal';
