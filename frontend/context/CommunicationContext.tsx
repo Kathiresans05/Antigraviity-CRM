@@ -46,12 +46,18 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const activeRoomTypeRef = useRef<"voice" | "video" | "chat" | null>(null);
 
     useEffect(() => {
+        // In production, we default to the current window origin (unified server)
+        // In development, we fallback to localhost:3001
         const socketUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
-                         (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : 'http://localhost:3001');
+                         (typeof window !== 'undefined' ? '/' : 'http://localhost:3001');
         
         console.log('[Comm] Connecting to signaling server:', socketUrl);
+        
+        const newSocket = io(socketUrl, {
+            path: '/socket.io',
+            transports: ['websocket', 'polling']
+        });
 
-        const newSocket = io(socketUrl);
         setSocket(newSocket);
         socketRef.current = newSocket;
 
