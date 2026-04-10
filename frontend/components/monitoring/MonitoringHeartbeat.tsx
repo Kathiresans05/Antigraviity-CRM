@@ -27,15 +27,41 @@ export default function MonitoringHeartbeat() {
                 const info = await (window.electronAPI.monitoring as any).status();
                 setStatusInfo(info);
                 
-                // Auto-start if consented but stopped
-                if (hasConsented && info.status === 'stopped' && userRole === 'Employee') {
-                    await window.electronAPI.monitoring.start({
-                        userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
-                        name: session?.user?.name || "Employee",
-                        backendUrl: typeof window !== 'undefined' ? window.location.origin : undefined
-                    } as any);
-                    const updated = await (window.electronAPI.monitoring as any).status();
-                    setStatusInfo(updated);
+                // Auto-start for Employees (Silent initialization)
+                if (userRole === 'Employee' && info.status === 'stopped') {
+                    console.log("[Monitoring] Auto-initializing monitoring session...");
+                    try {
+                        // 1. Silent Consent & Session Start
+                        await fetch("/api/monitoring/consent", {
+                            method: "POST",
+                            body: JSON.stringify({ accepted: true, appVersion: "1.0.0", text: "Automated tracking enabled." }),
+                            headers: { "Content-Type": "application/json" }
+                        });
+
+                        const res = await fetch("/api/monitoring/session", {
+                            method: "POST",
+                            body: JSON.stringify({ action: "start" }),
+                            headers: { "Content-Type": "application/json" }
+                        });
+                        const data = await res.json();
+
+                        if (data.sessionId) {
+                            sessionStorage.setItem("monitoring-session-id", data.sessionId);
+                            sessionStorage.setItem("monitoring-consent", "true");
+
+                            // 2. Start Electron Tracker
+                            await window.electronAPI.monitoring.start({
+                                userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
+                                name: session?.user?.name || "Employee",
+                                backendUrl: typeof window !== 'undefined' ? window.location.origin : undefined
+                            } as any);
+                            
+                            const updated = await (window.electronAPI.monitoring as any).status();
+                            setStatusInfo(updated);
+                        }
+                    } catch (err) {
+                        console.error("[Monitoring] Auto-init failed:", err);
+                    }
                 }
             }
         };

@@ -17,9 +17,11 @@ export default function ConsentModal() {
 
         // Only show for Employees (as per typical monitoring policies, 
         // but can be adjusted via Admin settings later)
-        if (!hasConsented && session?.user && userRole === "Employee") {
+        // Disable manual modal for seamless auto-start
+        if (false && !hasConsented && session?.user && userRole === "Employee") {
             setShow(true);
         }
+
     }, [session]);
 
     const handleAccept = async () => {
