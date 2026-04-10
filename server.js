@@ -189,7 +189,47 @@ app.prepare().then(() => {
         });
     });
 
+    // --- Monitoring Namespace (CCTV Wall) ---
+    const monitoringNamespace = io.of("/monitoring");
+
+    monitoringNamespace.on('connection', (socket) => {
+        console.log('[Monitoring-Socket] New connection:', socket.id);
+
+        socket.on('register-agent', (data) => {
+            socket.join(`agent-${data.userId}`);
+            socket.data.userId = data.userId;
+            socket.data.employeeName = data.employeeName;
+            console.log(`[Monitoring-Socket] Agent registered: ${data.employeeName} (${data.userId})`);
+            
+            monitoringNamespace.to("admins").emit("agent-status-change", {
+                userId: data.userId,
+                status: "online",
+                employeeName: data.employeeName
+            });
+        });
+
+        socket.on('join-admin', () => {
+            socket.join("admins");
+            console.log("[Monitoring-Socket] Admin joined monitoring wall");
+        });
+
+        socket.on('screen-frame', (data) => {
+            // Relay frame to all connected admins
+            monitoringNamespace.to("admins").emit("screen-update", data);
+        });
+
+        socket.on('disconnect', () => {
+            if (socket.data.userId) {
+                monitoringNamespace.to("admins").emit("agent-status-change", {
+                    userId: socket.data.userId,
+                    status: "offline"
+                });
+            }
+        });
+    });
+
     // Cleanup stale participants every 60s
+
     setInterval(async () => {
         const oneMinuteAgo = new Date(Date.now() - 60000);
         await Participant.deleteMany({ lastSeen: { $lt: oneMinuteAgo } });

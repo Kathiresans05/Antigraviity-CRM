@@ -31,7 +31,8 @@ export default function MonitoringHeartbeat() {
                 if (hasConsented && info.status === 'stopped' && userRole === 'Employee') {
                     await window.electronAPI.monitoring.start({
                         userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
-                        name: session?.user?.name || "Employee"
+                        name: session?.user?.name || "Employee",
+                        backendUrl: typeof window !== 'undefined' ? window.location.origin : undefined
                     } as any);
                     const updated = await (window.electronAPI.monitoring as any).status();
                     setStatusInfo(updated);
@@ -148,7 +149,11 @@ export default function MonitoringHeartbeat() {
                     <button 
                         onClick={async () => {
                             if (window.electronAPI?.monitoring) {
-                                await (window.electronAPI.monitoring as any).start();
+                                await (window.electronAPI.monitoring as any).start({
+                                    userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
+                                    name: session?.user?.name || "Employee",
+                                    backendUrl: typeof window !== 'undefined' ? window.location.origin : undefined
+                                });
                                 const info = await (window.electronAPI.monitoring as any).status();
                                 setStatusInfo(info);
                             }

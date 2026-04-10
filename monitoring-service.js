@@ -79,7 +79,8 @@ let trackTimer = null;
 let syncTimer = null;
 let screenshotTimer = null;
 
-const BACKEND_URL = "http://localhost:3001/api/monitoring";
+let BACKEND_URL = "http://localhost:3001/api/monitoring";
+
 const SYNC_INTERVAL = 60000; // 60 seconds
 const SCREENSHOT_INTERVAL = 300000; // 5 minutes (300,000 ms)
 
@@ -150,8 +151,13 @@ async function syncToBackend(userId, employeeName) {
   }
 }
 
-function startMonitoring(userId, name) {
+function startMonitoring(userId, name, backendUrl) {
+  if (backendUrl) {
+    BACKEND_URL = `${backendUrl}/api/monitoring`;
+    logToFile(`[Monitoring] Updated BACKEND_URL: ${BACKEND_URL}`);
+  }
   logToFile(`[Monitoring] Entered startMonitoring() for ${name}. isMonitoring=${isMonitoring}`);
+
   if (isMonitoring) return;
   
   if (!uiohook || typeof uiohook.on !== 'function') {
@@ -220,7 +226,8 @@ function startMonitoring(userId, name) {
     screenshotTimer = setInterval(() => takeScreenshotAndSync(userId, name), SCREENSHOT_INTERVAL);
 
     // Module: LIVE Screen Streaming (CCTV Mode)
-    setupLiveStreaming(userId, name);
+    setupLiveStreaming(userId, name, backendUrl);
+
 
     hookStatus = 'starting';
     logToFile('[Monitoring] Step 3: Attempting uiohook.start()...');
@@ -256,11 +263,14 @@ function stopMonitoring() {
   logToFile('[Monitoring] Service Stopped.');
 }
 
-async function setupLiveStreaming(userId, name) {
+async function setupLiveStreaming(userId, name, backendUrl) {
     if (monitoringSocket) return;
 
-    logToFile(`[Monitoring] Connecting to Signaling Server for ${name}...`);
-    monitoringSocket = io("http://localhost:3001/monitoring", {
+    const baseSocketUrl = backendUrl || "http://localhost:3001";
+    logToFile(`[Monitoring] Connecting to Signaling Server for ${name} at ${baseSocketUrl}...`);
+    monitoringSocket = io(baseSocketUrl, {
+        path: '/socket.io',
+
         reconnection: true,
         reconnectionAttempts: 5
     });
@@ -302,8 +312,10 @@ async function setupLiveStreaming(userId, name) {
 ipcMain.handle('monitoring:start', (event, payload) => {
   const userId = payload?.userId || "SYSTEM_AGENT";
   const name = payload?.name || "Employee";
-  logToFile(`[Monitoring] IPC monitoring:start received for ${name} (${userId}).`);
-  startMonitoring(userId, name);
+  const backendUrl = payload?.backendUrl;
+  logToFile(`[Monitoring] IPC monitoring:start received for ${name} (${userId}). URL: ${backendUrl}`);
+  startMonitoring(userId, name, backendUrl);
+
   return { success: true, status: hookStatus };
 });
 
