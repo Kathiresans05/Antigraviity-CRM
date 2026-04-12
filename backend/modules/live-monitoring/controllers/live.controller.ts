@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import MonitoringDevice from "../models/MonitoringDevice";
-import MonitoringAuditLog from "../models/AuditLog";
+import MonitoringAuditLog from "../../../models/MonitoringAuditLog";
 import mongoose from "mongoose";
 
 export const registerDevice = async (req: Request, res: Response) => {
