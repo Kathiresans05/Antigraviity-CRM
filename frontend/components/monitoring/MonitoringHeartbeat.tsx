@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { Lock } from "lucide-react";
 
 export default function MonitoringHeartbeat() {
     const { data: session } = useSession();
@@ -150,6 +151,55 @@ export default function MonitoringHeartbeat() {
                 >
                     I'm Back / Resume Work
                 </button>
+            </div>
+        );
+    }
+
+    if (statusInfo.status === 'permission_denied') {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                background: '#fffbeb', // Amber-50
+                borderBottom: '2px solid #d97706', // Amber-600
+                padding: '16px 20px',
+                textAlign: 'center',
+                zIndex: 10000,
+                boxShadow: '0 4px 15px rgba(217, 119, 6, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Lock style={{ color: '#d97706', width: '20px', height: '20px' }} />
+                    <h3 style={{ margin: 0, color: '#92400e', fontWeight: 800, fontSize: '16px' }}>
+                        Screen Recording Permission Required
+                    </h3>
+                </div>
+                <p style={{ margin: 0, color: '#b45309', fontSize: '14px', fontWeight: 500 }}>
+                    Monitoring is paused because the system is blocking screen capture. 
+                    Please enable **Screen Recording** for this app in your system settings and restart.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        style={{
+                            padding: '6px 16px',
+                            background: '#d97706',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                        }}
+                    >
+                        I've fixed it / Reload
+                    </button>
+                </div>
             </div>
         );
     }

@@ -198,7 +198,20 @@ export default function LiveMonitoringWall() {
                     <div key={stream.userId} className="group bg-white rounded-3xl p-3 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden">
                         {/* Stream Frame */}
                         <div className="aspect-video bg-gray-900 rounded-2xl overflow-hidden relative border border-gray-800">
-                            {stream.frame ? (
+                            {stream.status === 'permission_denied' ? (
+                                <div className="absolute inset-0 bg-orange-50/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 gap-4">
+                                    <div className="p-4 bg-orange-100 rounded-full">
+                                        <Lock className="w-10 h-10 text-orange-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-orange-900 font-bold text-sm">Permission Required</h3>
+                                        <p className="text-orange-700 text-[10px] mt-1 font-medium leading-relaxed">
+                                            Screen Recording is blocked by system settings.<br/>
+                                            The employee must allow access.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : stream.frame ? (
                                 <img 
                                     src={`data:image/jpeg;base64,${stream.frame}`} 
                                     alt={stream.employeeName}

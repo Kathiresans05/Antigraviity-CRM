@@ -298,6 +298,16 @@ monitoringNamespace.on("connection", (socket) => {
         monitoringNamespace.to("admins").emit("agent-heartbeat", data);
     });
 
+    // Handle explicit status changes from agent (e.g. permission errors)
+    socket.on("agent-status-change", (data: { userId: string, status: string, error?: string }) => {
+        if (onlineAgents.has(data.userId)) {
+            const agent = onlineAgents.get(data.userId)!;
+            agent.status = data.status;
+            console.log(`[Monitoring-Socket] Agent ${agent.employeeName} status changed to: ${data.status}`);
+        }
+        monitoringNamespace.to("admins").emit("agent-status-change", data);
+    });
+
     socket.on("disconnect", () => {
         if (socket.data.userId) {
             console.log(`[Monitoring-Socket] Agent disconnected: ${socket.data.employeeName}`);

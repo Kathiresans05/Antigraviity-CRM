@@ -302,17 +302,33 @@ async function setupLiveStreaming(userId, name, backendUrl) {
         if (!isMonitoring || !screenshotDesktop) return;
         try {
             const imgBuffer = await screenshotDesktop();
-            // Optimize for live view: lower quality or smaller size if possible
-            // Currently screenshot-desktop doesn't easily support resizing in-memory without extra libs
-            // We send the buffer as Base64.
             const frame = imgBuffer.toString('base64');
             monitoringSocket.emit('screen-frame', {
                 userId,
                 frame,
                 activeApp: currentStats.activeApp
             });
+            
+            // If we recover from an error, tell the server
+            if (lastErrorMessage && lastErrorMessage.includes('capture')) {
+                lastErrorMessage = null;
+                monitoringSocket.emit('agent-status-change', { userId, status: 'online' });
+            }
         } catch (err) {
+            const isPermissionError = err.message.toLowerCase().includes('permission') || 
+                                    err.message.toLowerCase().includes('access') ||
+                                    err.message.toLowerCase().includes('denied');
+            
+            lastErrorMessage = `Screen capture error: ${err.message}`;
             logToFile(`[Monitoring] Live Frame Capture Error: ${err.message}`);
+
+            if (isPermissionError) {
+                monitoringSocket.emit('agent-status-change', { 
+                    userId, 
+                    status: 'permission_denied',
+                    error: "Screen Recording permission is required."
+                });
+            }
         }
     }, LIVE_INTERVAL);
 }
