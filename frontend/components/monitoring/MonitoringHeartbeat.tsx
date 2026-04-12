@@ -32,7 +32,7 @@ export default function MonitoringHeartbeat() {
                 const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
                 const shouldAutoStart = userRole === 'Employee';
 
-                if (shouldAutoStart && info.status === 'stopped') {
+                if (shouldAutoStart && (info.status === 'stopped' || info.status === 'error')) {
                     console.log(`[Monitoring] Auto-initializing monitoring session for ${userRole}...`);
                     try {
                         // 1. Silent Consent & Session Start (Only for Employees in production, both in dev)

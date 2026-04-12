@@ -352,10 +352,14 @@ ipcMain.handle('monitoring:start', (event, payload) => {
   const userId = payload?.userId || "SYSTEM_AGENT";
   const name = payload?.name || "Employee";
   const backendUrl = payload?.backendUrl;
-  logToFile(`[Monitoring] IPC monitoring:start received for ${name} (${userId}). URL: ${backendUrl}`);
-  startMonitoring(userId, name, backendUrl);
-
-  return { success: true, status: hookStatus };
+  logToFile(`[Monitoring] IPC monitoring:start received. User: ${name} (${userId}), Backend: ${backendUrl}`);
+  try {
+    startMonitoring(userId, name, backendUrl);
+    return { success: true, status: hookStatus };
+  } catch (err) {
+    logToFile(`[Monitoring] CRITICAL ERROR in IPC start handler: ${err.message}`);
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('monitoring:stop', () => {
