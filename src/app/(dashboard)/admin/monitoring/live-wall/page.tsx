@@ -90,6 +90,21 @@ export default function LiveMonitoringWall() {
             socket.emit("join-admin");
         });
 
+        socket.on("initial-agents-list", (list: any[]) => {
+            console.log("[Monitoring] Received initial agents list:", list);
+            const initialStreams: Record<string, EmployeeFrame> = {};
+            list.forEach(agent => {
+                initialStreams[agent.userId] = {
+                    userId: agent.userId,
+                    employeeName: agent.employeeName,
+                    frame: "",
+                    activeApp: agent.lastActiveApp || "Initializing...",
+                    lastSeen: Date.now()
+                };
+            });
+            setStreams(initialStreams);
+        });
+
         socket.on("screen-update", (data: any) => {
             setStreams(prev => ({
                 ...prev,
@@ -102,8 +117,24 @@ export default function LiveMonitoringWall() {
         });
 
         socket.on("agent-status-change", (data: any) => {
-            if (data.status === "offline") {
-                // Handle offline status if needed
+            console.log("[Monitoring] Agent status change:", data);
+            if (data.status === "online") {
+                setStreams(prev => ({
+                    ...prev,
+                    [data.userId]: {
+                        userId: data.userId,
+                        employeeName: data.employeeName,
+                        frame: '',
+                        activeApp: data.lastActiveApp || 'Initializing...',
+                        lastSeen: Date.now()
+                    }
+                }));
+            } else if (data.status === "offline") {
+                setStreams(prev => {
+                    const newStreams = { ...prev };
+                    delete newStreams[data.userId];
+                    return newStreams;
+                });
             }
         });
 

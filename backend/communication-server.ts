@@ -235,6 +235,9 @@ io.on("connection", (socket: Socket) => {
 // ------------------------------------------------------------------------------------------------
 const monitoringNamespace = io.of("/monitoring");
 
+// Track online agents in-memory for immediate sync when admins join
+const onlineAgents = new Map<string, { userId: string, employeeName: string, status: string, lastActiveApp?: string }>();
+
 monitoringNamespace.on("connection", (socket) => {
     console.log("[Monitoring-Socket] New connection:", socket.id);
 
@@ -246,44 +249,60 @@ monitoringNamespace.on("connection", (socket) => {
         socket.data.deviceId = data.deviceId;
         socket.data.isMonitoring = true;
         
+        const agentInfo = {
+            userId: data.userId,
+            employeeName: data.employeeName,
+            status: "online",
+            lastActiveApp: "Initializing..."
+        };
+        
+        onlineAgents.set(data.userId, agentInfo);
         console.log(`[Monitoring-Socket] Agent registered: ${data.employeeName} (${data.userId})`);
         
         // Notify admins that a new agent is online
-        monitoringNamespace.to("admins").emit("agent-status-change", {
-            userId: data.userId,
-            status: "online",
-            employeeName: data.employeeName
-        });
+        monitoringNamespace.to("admins").emit("agent-status-change", agentInfo);
     });
 
     // Admin joins to watch the wall
     socket.on("join-admin", () => {
         socket.join("admins");
         console.log("[Monitoring-Socket] Admin joined monitoring wall");
+        
+        // Send the initial list of currently online agents to the new admin
+        const agentsList = Array.from(onlineAgents.values());
+        socket.emit("initial-agents-list", agentsList);
     });
 
     // Receive screen frame from agent and broadcast to admins
     socket.on("screen-frame", (data: { frame: string, userId: string, activeApp: string }) => {
-        // Log frame reception once every 100 frames to avoid console spam
+        // Update last seen app in memory
+        if (onlineAgents.has(data.userId)) {
+            const agent = onlineAgents.get(data.userId)!;
+            agent.lastActiveApp = data.activeApp;
+        }
+
+        // Log frame reception once every 50 frames to avoid console spam
         socket.data.frameCount = (socket.data.frameCount || 0) + 1;
         if (socket.data.frameCount % 50 === 0) {
             console.log(`[Monitoring-Socket] Received frame ${socket.data.frameCount} from ${socket.data.employeeName || data.userId} (${data.activeApp})`);
         }
         
-        // Only broadcast if the admin is actually in the "admins" room
-        // Optimization: In production, only broadcast if at least one admin is watching
         monitoringNamespace.to("admins").emit("screen-update", data);
     });
 
     // Heartbeat from agent
     socket.on("heartbeat", (data: { userId: string, status: string }) => {
-        // Update presence or DB status
+        if (onlineAgents.has(data.userId)) {
+            onlineAgents.get(data.userId)!.status = data.status;
+        }
         monitoringNamespace.to("admins").emit("agent-heartbeat", data);
     });
 
     socket.on("disconnect", () => {
         if (socket.data.userId) {
             console.log(`[Monitoring-Socket] Agent disconnected: ${socket.data.employeeName}`);
+            onlineAgents.delete(socket.data.userId);
+            
             monitoringNamespace.to("admins").emit("agent-status-change", {
                 userId: socket.data.userId,
                 status: "offline"
