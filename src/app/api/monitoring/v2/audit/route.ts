@@ -9,10 +9,10 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session || (session.user as any).role !== "Admin") {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 0 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const body = await req.body.json();
+        const body = await req.json();
         const { employeeId, employeeName, viewPurpose } = body;
 
         await dbConnect();
