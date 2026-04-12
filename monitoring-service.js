@@ -182,10 +182,32 @@ function startMonitoring(userId, name, backendUrl) {
   setupLiveStreaming(userId, name, backendUrl);
   logToFile(`[Monitoring] LIVE streaming started for ${name} (${userId}). Attempting activity hooks...`);
 
+  // Background timer for status & window tracking - ALWAYS RUN
+  trackTimer = setInterval(() => {
+    if (!isMonitoring) return;
+    const now = Date.now();
+    getActiveWindow();
+
+    if (now - lastActivityTime < 10000) {
+      currentStats.activeSeconds++;
+      consecutiveIdleSeconds = 0;
+    } else {
+      currentStats.idleSeconds++;
+      consecutiveIdleSeconds++;
+      if (consecutiveIdleSeconds === 300) {
+        logToFile('[Monitoring] ALERT: 5 minutes of continuous inactivity detected.');
+        process.emit('monitoring:idle-warning');
+      }
+    }
+  }, 1000);
+
+  syncTimer = setInterval(() => syncToBackend(userId, name), SYNC_INTERVAL);
+  screenshotTimer = setInterval(() => takeScreenshotAndSync(userId, name), SCREENSHOT_INTERVAL);
+
   if (!uiohook || typeof uiohook.on !== 'function') {
     lastErrorMessage = 'uiohook object is invalid - keyboard/mouse tracking disabled, streaming only';
     logToFile(`[Monitoring] WARNING: ${lastErrorMessage}`);
-    return; // Return here but streaming has already started above!
+    return;
   }
   
   try {
@@ -236,11 +258,8 @@ function startMonitoring(userId, name, backendUrl) {
       }
     }, 1000);
 
-    // Module: Remote Sync every 60s
-    syncTimer = setInterval(() => syncToBackend(userId, name), SYNC_INTERVAL);
-
-    // Module: Screenshots every 5m
-    screenshotTimer = setInterval(() => takeScreenshotAndSync(userId, name), SCREENSHOT_INTERVAL);
+    // Module: Remote Sync every 60s (DEPRECATED MOVE: Handled above)
+    // Module: Screenshots every 5m (DEPRECATED MOVE: Handled above)
 
     // Module: LIVE Screen Streaming (CCTV Mode)
     isStreaming = true;

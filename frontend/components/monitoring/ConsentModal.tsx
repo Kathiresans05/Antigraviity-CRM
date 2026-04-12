@@ -60,8 +60,9 @@ export default function ConsentModal() {
                 toast.loading("Activating Tracker Hook...", { id: "monitor-init" });
                 
                 if (window.electronAPI?.monitoring) {
+                    const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
                     const backendUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
-                                     (typeof window !== 'undefined' ? window.location.origin : "http://localhost:3001");
+                                     (isDevelopment ? "http://localhost:3001" : window.location.origin);
                     const result = await (window.electronAPI.monitoring as any).start({
                         userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
                         name: session?.user?.name || "Employee",
