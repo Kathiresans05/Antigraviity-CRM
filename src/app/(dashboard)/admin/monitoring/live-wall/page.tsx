@@ -314,41 +314,55 @@ export default function LiveMonitoringWall() {
             {/* Detailed Stream Overlay */}
             {isViewingDetail && selectedStream && (
                 <div className="fixed inset-0 z-[110] bg-gray-900 flex flex-col p-8 space-y-6 overflow-auto">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-2xl">
-                                {selectedStream.employeeName.charAt(0)}
-                            </div>
-                            <div>
-                                <h2 className="text-3xl font-black text-white tracking-tight">{selectedStream.employeeName}</h2>
-                                <div className="flex items-center gap-4 mt-1">
-                                    <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Live Desktop Stream</span>
-                                    <div className="flex items-center gap-2 text-emerald-400">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                        <span className="text-[10px] uppercase font-bold tracking-widest">Active</span>
+                    {(() => {
+                        const liveStream = streams[selectedStream.userId] || selectedStream;
+                        return (
+                            <>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-2xl">
+                                            {liveStream.employeeName.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-3xl font-black text-white tracking-tight">{liveStream.employeeName}</h2>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Live Desktop Stream</span>
+                                                <div className="flex items-center gap-2 text-emerald-400">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="text-[10px] uppercase font-bold tracking-widest">Active</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={handleStopViewing}
+                                        className="px-8 py-4 bg-rose-600 text-white rounded-3xl font-black text-sm hover:bg-rose-700 transition-all shadow-xl shadow-rose-900/20"
+                                    >
+                                        Terminate Session
+                                    </button>
+                                </div>
+
+                                <div className="grow bg-black rounded-[48px] overflow-hidden relative border border-white/5 shadow-2xl flex items-center justify-center">
+                                    {liveStream.frame ? (
+                                        <img 
+                                            src={`data:image/jpeg;base64,${liveStream.frame}`} 
+                                            alt="Full Stream"
+                                            className="w-full h-full object-contain"
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-4 text-gray-500">
+                                            <Clock className="w-12 h-12 animate-spin-slow" />
+                                            <span className="text-sm font-bold uppercase tracking-widest">Receiving Stream...</span>
+                                        </div>
+                                    )}
+                                    <div className="absolute top-8 right-8 px-6 py-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center gap-3">
+                                        <Clock className="w-4 h-4 text-indigo-300" />
+                                        <span className="text-xs font-black text-white tabular-nums tracking-widest uppercase">Encryption Active</span>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={handleStopViewing}
-                            className="px-8 py-4 bg-rose-600 text-white rounded-3xl font-black text-sm hover:bg-rose-700 transition-all shadow-xl shadow-rose-900/20"
-                        >
-                            Terminate Session
-                        </button>
-                    </div>
-
-                    <div className="grow bg-black rounded-[48px] overflow-hidden relative border border-white/5 shadow-2xl">
-                        <img 
-                            src={`data:image/jpeg;base64,${selectedStream.frame}`} 
-                            alt="Full Stream"
-                            className="w-full h-full object-contain"
-                        />
-                        <div className="absolute top-8 right-8 px-6 py-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 flex items-center gap-3">
-                            <Clock className="w-4 h-4 text-indigo-300" />
-                            <span className="text-xs font-black text-white tabular-nums tracking-widest uppercase">Encryption Active</span>
-                        </div>
-                    </div>
+                            </>
+                        );
+                    })()}
                 </div>
             )}
 
