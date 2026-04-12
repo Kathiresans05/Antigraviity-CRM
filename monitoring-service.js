@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { ipcMain, app } = require('electron');
 
 // Ensure log directory is writable in production
@@ -293,11 +294,12 @@ async function setupLiveStreaming(userId, name, backendUrl) {
     });
 
     monitoringSocket.on('connect', () => {
-        logToFile('[Monitoring] Live stream socket CONNECTED.');
+        const deviceId = os.hostname() || "DEV-UNKNOWN";
+        logToFile(`[Monitoring] Live stream socket CONNECTED for ${name} (${userId}) on ${deviceId}`);
         monitoringSocket.emit('register-agent', {
             userId,
             employeeName: name,
-            deviceId: "DEV-12345" // In production, generate per-device
+            deviceId: deviceId
         });
     });
 

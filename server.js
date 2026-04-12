@@ -211,7 +211,7 @@ app.prepare().then(() => {
             };
             
             onlineAgents.set(data.userId, agentInfo);
-            console.log(`[Monitoring-Socket] Agent registered: ${data.employeeName} (${data.userId})`);
+            console.log(`[Monitoring-Socket] Agent registered: ${data.employeeName} (${data.userId}) on ${data.deviceId || 'unknown'}`);
             
             // Notify admins that a new agent is online
             monitoringNamespace.to("admins").emit("agent-status-change", agentInfo);

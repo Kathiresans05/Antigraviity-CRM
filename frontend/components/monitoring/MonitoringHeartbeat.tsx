@@ -114,9 +114,14 @@ export default function MonitoringHeartbeat() {
 
             intervalRef.current = setInterval(syncActivity, 60000); 
 
-            return () => {
-                if (intervalRef.current) clearInterval(intervalRef.current);
-            };
+        }
+    }, [session?.user?.id, session?.user?.role]);
+
+    // Explicit cleanup on logout
+    useEffect(() => {
+        if (!session && window.electronAPI?.monitoring) {
+            console.log("[Monitoring] No active session, ensuring agent is stopped...");
+            (window.electronAPI.monitoring as any).stop();
         }
     }, [session]);
 
