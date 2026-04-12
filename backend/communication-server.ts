@@ -244,6 +244,17 @@ monitoringNamespace.on("connection", (socket) => {
 
     // Agent joins as an employee
     socket.on("register-agent", (data: { userId: string, employeeName: string, deviceId: string }) => {
+        // --- PREVENTION: Clean up ghost registration for this specific socket ---
+        // If this socket was previously registered under a different userId, remove the old one first.
+        if (socket.data.userId && socket.data.userId !== data.userId) {
+            console.log(`[Monitoring-Socket] Re-registering socket ${socket.id} from ${socket.data.userId} to ${data.userId}`);
+            onlineAgents.delete(socket.data.userId);
+            monitoringNamespace.to("admins").emit("agent-status-change", {
+                userId: socket.data.userId,
+                status: "offline"
+            });
+        }
+
         socket.join(`agent-${data.userId}`);
         socket.data.userId = data.userId;
         socket.data.employeeName = data.employeeName;

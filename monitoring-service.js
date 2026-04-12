@@ -171,18 +171,19 @@ function startMonitoring(userId, name, backendUrl) {
   trackingUserId = userId;
   trackingUserName = name;
 
-  // *** CRITICAL FIX: Start LIVE screen streaming FIRST, before anything else ***
-  // This ensures screen frames reach the admin even if uiohook (keyboard tracker) fails
+  // 1. Initial State
   isStreaming = true;
-  hookStatus = 'running';
   isMonitoring = true;
+  hookStatus = 'running';
   currentStats.startTime = new Date();
   lastActivityTime = Date.now();
   consecutiveIdleSeconds = 0;
-  setupLiveStreaming(userId, name, backendUrl);
-  logToFile(`[Monitoring] LIVE streaming started for ${name} (${userId}). Attempting activity hooks...`);
 
-  // Background timer for status & window tracking - ALWAYS RUN
+  // 2. Start Live Streaming (Socket)
+  setupLiveStreaming(userId, name, backendUrl);
+  logToFile(`[Monitoring] LIVE streaming started for ${name} (${userId}).`);
+
+  // 3. Background Timers
   trackTimer = setInterval(() => {
     if (!isMonitoring) return;
     const now = Date.now();
@@ -204,6 +205,7 @@ function startMonitoring(userId, name, backendUrl) {
   syncTimer = setInterval(() => syncToBackend(userId, name), SYNC_INTERVAL);
   screenshotTimer = setInterval(() => takeScreenshotAndSync(userId, name), SCREENSHOT_INTERVAL);
 
+  // 4. Activity Hooks (Optional but preferred)
   if (!uiohook || typeof uiohook.on !== 'function') {
     lastErrorMessage = 'uiohook object is invalid - keyboard/mouse tracking disabled, streaming only';
     logToFile(`[Monitoring] WARNING: ${lastErrorMessage}`);
@@ -211,13 +213,12 @@ function startMonitoring(userId, name, backendUrl) {
   }
   
   try {
-    logToFile('[Monitoring] Step 1: Registering event listeners...');
+    logToFile('[Monitoring] Registering uiohook listeners...');
     uiohook.on('keydown', () => {
       if (!isMonitoring) return;
       currentStats.keyboardCount++;
       lastActivityTime = Date.now();
       consecutiveIdleSeconds = 0; 
-      console.log('[Monitoring] Key Press detected.');
     });
 
     uiohook.on('mousedown', () => {
@@ -225,7 +226,6 @@ function startMonitoring(userId, name, backendUrl) {
       currentStats.mouseCount++;
       lastActivityTime = Date.now();
       consecutiveIdleSeconds = 0;
-      console.log('[Monitoring] Mouse Click detected.');
     });
 
     uiohook.on('mousemove', () => {
@@ -234,68 +234,49 @@ function startMonitoring(userId, name, backendUrl) {
       consecutiveIdleSeconds = 0;
     });
 
-    // Background timer to track active vs idle seconds every second
-    logToFile('[Monitoring] Step 2: Starting background timer...');
-    trackTimer = setInterval(() => {
-      if (!isMonitoring) return;
-      const now = Date.now();
-      
-      // Update active window info every second
-      getActiveWindow();
-
-      if (now - lastActivityTime < 10000) {
-        currentStats.activeSeconds++;
-        consecutiveIdleSeconds = 0;
-      } else {
-        currentStats.idleSeconds++;
-        consecutiveIdleSeconds++;
-        
-        // Trigger 5-minute (300 seconds) warning
-        if (consecutiveIdleSeconds === 300) {
-          logToFile('[Monitoring] ALERT: 5 minutes of continuous inactivity detected.');
-          process.emit('monitoring:idle-warning');
-        }
-      }
-    }, 1000);
-
-    // Module: Remote Sync every 60s (DEPRECATED MOVE: Handled above)
-    // Module: Screenshots every 5m (DEPRECATED MOVE: Handled above)
-
-    // Module: LIVE Screen Streaming (CCTV Mode)
-    isStreaming = true;
     hookStatus = 'starting';
-    logToFile('[Monitoring] Step 3: Attempting uiohook.start()...');
     uiohook.start();
     logToFile('[Monitoring] SUCCESS: uiohook started.');
   } catch (err) {
     hookStatus = 'error';
     lastErrorMessage = err.message;
     logToFile(`[Monitoring] ERROR STARTING UIOHOOK: ${err.message}`);
-    if (err.message.includes('permission')) {
-      logToFile('[Monitoring] HINT: Please run the app as Administrator.');
-    }
   }
 }
 
 function stopMonitoring() {
   if (!isMonitoring && !isStreaming) return;
+  
+  logToFile('[Monitoring] Stopping service and cleaning up all timers...');
+  
   isMonitoring = false;
   isStreaming = false;
   trackingUserId = null;
   trackingUserName = null;
   hookStatus = 'stopped';
-  try { if (uiohook && typeof uiohook.stop === 'function') uiohook.stop(); } catch(e) {}
-  if (trackTimer) clearInterval(trackTimer);
-  if (syncTimer) clearInterval(syncTimer);
-  if (screenshotTimer) clearInterval(screenshotTimer);
-  if (liveStreamTimer) clearInterval(liveStreamTimer);
+
+  try { 
+      if (uiohook && typeof uiohook.stop === 'function') {
+          uiohook.stop(); 
+          logToFile('[Monitoring] uiohook stopped.');
+      }
+  } catch(e) {
+      logToFile(`[Monitoring] Error stopping uiohook: ${e.message}`);
+  }
+
+  // Clear ALL intervals to prevent leaks
+  if (trackTimer) { clearInterval(trackTimer); trackTimer = null; }
+  if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
+  if (screenshotTimer) { clearInterval(screenshotTimer); screenshotTimer = null; }
+  if (liveStreamTimer) { clearInterval(liveStreamTimer); liveStreamTimer = null; }
   
   if (monitoringSocket) {
+      logToFile('[Monitoring] Disconnecting live stream socket...');
       monitoringSocket.disconnect();
       monitoringSocket = null;
   }
   
-  logToFile('[Monitoring] Service Stopped.');
+  logToFile('[Monitoring] Service Stopped successfully.');
 }
 
 async function setupLiveStreaming(userId, name, backendUrl) {
