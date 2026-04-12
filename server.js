@@ -57,7 +57,8 @@ app.prepare().then(() => {
         cors: {
             origin: "*",
             methods: ["GET", "POST"]
-        }
+        },
+        maxHttpBufferSize: 1e8
     });
 
     // --- Signaling Logic ---

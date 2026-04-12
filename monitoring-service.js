@@ -111,9 +111,9 @@ async function takeScreenshotAndSync(userId, employeeName) {
   if (!screenshotDesktop) return;
   try {
     logToFile('[Monitoring] Capturing screenshot...');
-    const imgBuffer = await screenshotDesktop();
+    const imgBuffer = await screenshotDesktop({ format: 'jpg' });
     const base64Img = imgBuffer.toString('base64');
-    const dataUri = `data:image/png;base64,${base64Img}`;
+    const dataUri = `data:image/jpeg;base64,${base64Img}`;
 
     const res = await fetch(`${BACKEND_URL}/screenshots`, {
       method: 'POST',
@@ -315,7 +315,7 @@ async function setupLiveStreaming(userId, name, backendUrl) {
     liveStreamTimer = setInterval(async () => {
         if (!isStreaming || !screenshotDesktop) return;
         try {
-            const imgBuffer = await screenshotDesktop();
+            const imgBuffer = await screenshotDesktop({ format: 'jpg' });
             const frame = imgBuffer.toString('base64');
             monitoringSocket.emit('screen-frame', {
                 userId,

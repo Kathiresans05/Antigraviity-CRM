@@ -24,7 +24,8 @@ const io = new Server(httpServer, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    maxHttpBufferSize: 1e8
 });
 
 const PORT =process.env.COMMUNICATION_PORT || 3001;
