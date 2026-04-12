@@ -191,6 +191,9 @@ app.prepare().then(() => {
 
     // --- Monitoring Namespace (CCTV Wall) ---
     const monitoringNamespace = io.of("/monitoring");
+    
+    // Track online agents in-memory for immediate sync
+    const onlineAgents = new Map();
 
     monitoringNamespace.on('connection', (socket) => {
         console.log('[Monitoring-Socket] New connection:', socket.id);
@@ -199,27 +202,58 @@ app.prepare().then(() => {
             socket.join(`agent-${data.userId}`);
             socket.data.userId = data.userId;
             socket.data.employeeName = data.employeeName;
+            
+            const agentInfo = {
+                userId: data.userId,
+                employeeName: data.employeeName,
+                status: "online",
+                lastActiveApp: "Initializing..."
+            };
+            
+            onlineAgents.set(data.userId, agentInfo);
             console.log(`[Monitoring-Socket] Agent registered: ${data.employeeName} (${data.userId})`);
             
-            monitoringNamespace.to("admins").emit("agent-status-change", {
-                userId: data.userId,
-                status: "online",
-                employeeName: data.employeeName
-            });
+            // Notify admins that a new agent is online
+            monitoringNamespace.to("admins").emit("agent-status-change", agentInfo);
         });
 
         socket.on('join-admin', () => {
             socket.join("admins");
             console.log("[Monitoring-Socket] Admin joined monitoring wall");
+            
+            // Send the initial list of currently online agents to the new admin
+            const agentsList = Array.from(onlineAgents.values());
+            socket.emit("initial-agents-list", agentsList);
         });
 
         socket.on('screen-frame', (data) => {
+            // Update last seen app in memory
+            if (onlineAgents.has(data.userId)) {
+                onlineAgents.get(data.userId).lastActiveApp = data.activeApp;
+            }
+
+            // Log frames occasionally to verify signal flow
+            socket.data.frameCount = (socket.data.frameCount || 0) + 1;
+            if (socket.data.frameCount % 50 === 0) {
+                console.log(`[Monitoring-Socket] Frame ${socket.data.frameCount} relayed for ${socket.data.employeeName || data.userId}`);
+            }
+
             // Relay frame to all connected admins
             monitoringNamespace.to("admins").emit("screen-update", data);
         });
 
+        socket.on('agent-status-change', (data) => {
+            if (onlineAgents.has(data.userId)) {
+                onlineAgents.get(data.userId).status = data.status;
+            }
+            monitoringNamespace.to("admins").emit("agent-status-change", data);
+        });
+
         socket.on('disconnect', () => {
             if (socket.data.userId) {
+                console.log(`[Monitoring-Socket] Agent disconnected: ${socket.data.employeeName}`);
+                onlineAgents.delete(socket.data.userId);
+                
                 monitoringNamespace.to("admins").emit("agent-status-change", {
                     userId: socket.data.userId,
                     status: "offline"

@@ -37,16 +37,13 @@ export default function LiveMonitoringWall() {
         if (!selectedStream || !auditReason.trim()) return;
 
         try {
-            // 1. Create Audit Log Entry
-            const res = await fetch(`${COMM_URL}/api/monitoring/v2/audit/start`, {
+            // 1. Create Audit Log Entry via Internal Next.js API
+            const res = await fetch('/api/monitoring/v2/audit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    adminId: "ADMIN-001", // In production, get from session
-                    adminName: "Administrator",
                     employeeId: selectedStream.userId,
                     employeeName: selectedStream.employeeName,
-                    action: "view_start",
                     viewPurpose: auditReason
                 })
             });
@@ -64,7 +61,8 @@ export default function LiveMonitoringWall() {
     const handleStopViewing = async () => {
         if (activeAuditLogId) {
             try {
-                await fetch(`${COMM_URL}/api/monitoring/v2/audit/stop/${activeAuditLogId}`, {
+                // 2. Close Audit Log Entry via Internal Next.js API
+                await fetch(`/api/monitoring/v2/audit?logId=${activeAuditLogId}`, {
                     method: 'PATCH'
                 });
             } catch (err) {
