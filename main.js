@@ -140,7 +140,7 @@ function createWindow() {
 
 // Setup navigation listener to auto-stop monitoring on logout/login page
 function setupNavigationListener(window) {
-    window.webContents.on('did-navigate', (event, url) => {
+    const handleNavigation = (event, url) => {
         if (url.includes('/login')) {
             console.log('[Main] Navigation to login detected. Stopping monitoring sessions...');
             try {
@@ -150,6 +150,16 @@ function setupNavigationListener(window) {
                 console.error('[Main] Auto-stop failed:', err.message);
             }
         }
+    };
+
+    window.webContents.on('did-navigate', handleNavigation);
+    window.webContents.on('did-navigate-in-page', handleNavigation);
+
+    // If main window closes, bring down the whole app (including banner)
+    window.on('closed', () => {
+        const { stopMonitoring } = require('./monitoring-service');
+        stopMonitoring();
+        app.quit();
     });
 }
 
