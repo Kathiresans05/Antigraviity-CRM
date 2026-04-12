@@ -28,9 +28,8 @@ export default function MonitoringHeartbeat() {
                 const info = await (window.electronAPI.monitoring as any).status();
                 setStatusInfo(info);
                 
-                // Auto-start for Employees and Admins in local dev (for testing)
-                const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-                const shouldAutoStart = userRole === 'Employee' || (userRole === 'Admin' && isDevelopment);
+                // Auto-start only for Employees
+                const shouldAutoStart = userRole === 'Employee';
 
                 if (shouldAutoStart && info.status === 'stopped') {
                     console.log(`[Monitoring] Auto-initializing monitoring session for ${userRole}...`);
@@ -72,6 +71,11 @@ export default function MonitoringHeartbeat() {
                     } catch (err) {
                         console.error("[Monitoring] Auto-init failed:", err);
                     }
+                } else if (!shouldAutoStart && info.status !== 'stopped') {
+                    console.log(`[Monitoring] Role is ${userRole}, stopping active monitoring session...`);
+                    await window.electronAPI.monitoring.stop();
+                    const updated = await (window.electronAPI.monitoring as any).status();
+                    setStatusInfo(updated);
                 }
             }
         };

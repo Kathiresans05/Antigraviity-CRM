@@ -67,6 +67,8 @@ try {
 }
 
 let isMonitoring = false;
+let trackingUserId = null;
+let trackingUserName = null;
 let hookStatus = 'stopped'; // stopped, starting, running, error
 let lastErrorMessage = '';
 let currentStats = {
@@ -162,9 +164,13 @@ function startMonitoring(userId, name, backendUrl) {
     BACKEND_URL = `${backendUrl}/api/monitoring`;
     logToFile(`[Monitoring] Updated BACKEND_URL: ${BACKEND_URL}`);
   }
-  logToFile(`[Monitoring] Entered startMonitoring() for ${name}. isMonitoring=${isMonitoring}`);
+  if (isMonitoring) {
+      logToFile(`[Monitoring] Active session detected for another user. Restarting with ${name}...`);
+      stopMonitoring();
+  }
 
-  if (isMonitoring) return;
+  trackingUserId = userId;
+  trackingUserName = name;
   
   if (!uiohook || typeof uiohook.on !== 'function') {
     hookStatus = 'error';
@@ -254,6 +260,8 @@ function startMonitoring(userId, name, backendUrl) {
 function stopMonitoring() {
   if (!isMonitoring) return;
   isMonitoring = false;
+  trackingUserId = null;
+  trackingUserName = null;
   hookStatus = 'stopped';
   uiohook.stop();
   if (trackTimer) clearInterval(trackTimer);
