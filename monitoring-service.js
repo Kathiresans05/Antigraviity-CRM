@@ -173,17 +173,23 @@ function startMonitoring(userId, name, backendUrl) {
 
   trackingUserId = userId;
   trackingUserName = name;
-  
-  if (!uiohook || typeof uiohook.on !== 'function') {
-    hookStatus = 'error';
-    lastErrorMessage = 'uiohook object is invalid or missing .on()';
-    logToFile(`[Monitoring] ERROR: ${lastErrorMessage}`);
-    return;
-  }
 
+  // *** CRITICAL FIX: Start LIVE screen streaming FIRST, before anything else ***
+  // This ensures screen frames reach the admin even if uiohook (keyboard tracker) fails
+  isStreaming = true;
+  hookStatus = 'running';
+  isMonitoring = true;
   currentStats.startTime = new Date();
   lastActivityTime = Date.now();
   consecutiveIdleSeconds = 0;
+  setupLiveStreaming(userId, name, backendUrl);
+  logToFile(`[Monitoring] LIVE streaming started for ${name} (${userId}). Attempting activity hooks...`);
+
+  if (!uiohook || typeof uiohook.on !== 'function') {
+    lastErrorMessage = 'uiohook object is invalid - keyboard/mouse tracking disabled, streaming only';
+    logToFile(`[Monitoring] WARNING: ${lastErrorMessage}`);
+    return; // Return here but streaming has already started above!
+  }
   
   try {
     logToFile('[Monitoring] Step 1: Registering event listeners...');
@@ -241,15 +247,10 @@ function startMonitoring(userId, name, backendUrl) {
 
     // Module: LIVE Screen Streaming (CCTV Mode)
     isStreaming = true;
-    setupLiveStreaming(userId, name, backendUrl);
-
-
     hookStatus = 'starting';
     logToFile('[Monitoring] Step 3: Attempting uiohook.start()...');
     uiohook.start();
-    isMonitoring = true;
-    hookStatus = 'running';
-    logToFile('[Monitoring] SUCCESS: Service Started Successfully.');
+    logToFile('[Monitoring] SUCCESS: uiohook started.');
   } catch (err) {
     hookStatus = 'error';
     lastErrorMessage = err.message;
@@ -267,7 +268,7 @@ function stopMonitoring() {
   trackingUserId = null;
   trackingUserName = null;
   hookStatus = 'stopped';
-  uiohook.stop();
+  try { if (uiohook && typeof uiohook.stop === 'function') uiohook.stop(); } catch(e) {}
   if (trackTimer) clearInterval(trackTimer);
   if (syncTimer) clearInterval(syncTimer);
   if (screenshotTimer) clearInterval(screenshotTimer);
