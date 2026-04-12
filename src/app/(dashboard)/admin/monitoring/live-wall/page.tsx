@@ -11,6 +11,7 @@ interface EmployeeFrame {
     frame: string; // Base64
     activeApp: string;
     lastSeen: number;
+    status?: string;
 }
 
 export default function LiveMonitoringWall() {
