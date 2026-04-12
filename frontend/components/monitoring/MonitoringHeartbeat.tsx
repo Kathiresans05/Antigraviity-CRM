@@ -117,12 +117,16 @@ export default function MonitoringHeartbeat() {
         }
     }, [session?.user?.id, session?.user?.role]);
 
-    // Explicit cleanup on logout
+    // Explicit cleanup on logout or when user is not an Employee
     useEffect(() => {
-        if (!session && window.electronAPI?.monitoring) {
-            console.log("[Monitoring] No active session, ensuring agent is stopped...");
-            (window.electronAPI.monitoring as any).stop();
-        }
+        const handleLogoutCleanup = async () => {
+            if (!session && window.electronAPI?.monitoring) {
+                console.log("[Monitoring] No active session, stopping agent...");
+                await (window.electronAPI.monitoring as any).stop();
+                setStatusInfo({ status: 'stopped', error: null });
+            }
+        };
+        handleLogoutCleanup();
     }, [session]);
 
     if (showIdleWarning) {
