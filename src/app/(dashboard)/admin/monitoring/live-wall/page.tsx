@@ -27,8 +27,9 @@ export default function LiveMonitoringWall() {
 
     const socketRef = useRef<Socket | null>(null);
 
+    const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     const COMM_URL = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
-                    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
+                    (isDevelopment ? 'http://localhost:3001' : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'));
 
 
     const handleAccessStream = async () => {

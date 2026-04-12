@@ -71,6 +71,18 @@
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "main.js",
+      "monitoring-service.js",
+      "launcher.js",
+      "preload.js",
+      "public/**/*",
+      "node_modules/**/*",
+      "!dist/**/*",
+      "!.next/**/*",
+      "!frontend/**/*",
+      "!backend/**/*"
+    ],
     "win": {
       "icon": "public/logo_highres.png",
       "target": [

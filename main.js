@@ -29,6 +29,16 @@ if (!electron || !electron.app) {
     process.exit(1);
 }
 
+// Global Exception Handling to prevent silent crashes
+process.on('uncaughtException', (err) => {
+    console.error('[Main] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[Main] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+
 const { app, BrowserWindow, ipcMain } = electron;
 
 // Initialize Monitoring Service (Isolated logic)
@@ -104,11 +114,16 @@ function createWindow() {
 
   if (app.isPackaged || isLiveMode) {
     console.log('[Main] Loading LIVE Production Environment...');
-    mainWindow.loadURL(liveUrl);
+    mainWindow.loadURL(liveUrl).catch(err => {
+      console.error('[Main] Failed to load production URL:', err);
+    });
   } else {
     console.log('[Main] Loading Local Development Environment...');
-    mainWindow.loadURL('http://localhost:3000/login');
+    mainWindow.loadURL('http://localhost:3000/login').catch(err => {
+        console.error('[Main] Failed to load dev URL:', err);
+    });
   }
+
 
 
   // Setup Auto-Start for desktop agent
@@ -139,27 +154,34 @@ app.whenReady().then(async () => {
   createWindow();
   createBannerWindow();
 
-  // Consent Logic: Show on first launch
-  const fs = require('fs');
-  const consentPath = path.join(app.getPath('userData'), 'consent.json');
-  if (!fs.existsSync(consentPath)) {
-      const { dialog } = electron;
-      const choice = dialog.showMessageBoxSync(mainWindow, {
-          type: 'info',
-          buttons: ['I Decline', 'I Consent'],
-          title: 'Employee Monitoring Consent',
-          message: 'Monitoring Agreement',
-          detail: 'To continue using this corporate device, you must consent to activity monitoring, including screenshot capture and application tracking, for productivity and security purposes as per company policy.',
-          defaultId: 1,
-          cancelId: 0
-      });
+  // Consent Logic: Show on first launch (Slight Delay to ensure Window Handle is ready)
+  setTimeout(() => {
+    const fs = require('fs');
+    const consentPath = path.join(app.getPath('userData'), 'consent.json');
+    if (!fs.existsSync(consentPath)) {
+        try {
+            const { dialog } = electron;
+            const choice = dialog.showMessageBoxSync(mainWindow || null, {
+                type: 'info',
+                buttons: ['I Decline', 'I Consent'],
+                title: 'Employee Monitoring Consent',
+                message: 'Monitoring Agreement',
+                detail: 'To continue using this corporate device, you must consent to activity monitoring, including screenshot capture and application tracking, for productivity and security purposes as per company policy.',
+                defaultId: 1,
+                cancelId: 0
+            });
 
-      if (choice === 1) {
-          fs.writeFileSync(consentPath, JSON.stringify({ accepted: true, date: new Date() }));
-      } else {
-          app.quit();
-      }
-  }
+            if (choice === 1) {
+                fs.writeFileSync(consentPath, JSON.stringify({ accepted: true, date: new Date() }));
+            } else {
+                app.quit();
+            }
+        } catch (err) {
+            console.error('[Main] Consent dialog error:', err);
+        }
+    }
+  }, 1000);
+
 
   // Automatically handle media permissions for the voice rooms
   const { session } = electron;

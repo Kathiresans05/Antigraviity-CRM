@@ -27,11 +27,14 @@ export default function MonitoringHeartbeat() {
                 const info = await (window.electronAPI.monitoring as any).status();
                 setStatusInfo(info);
                 
-                // Auto-start for Employees (Silent initialization)
-                if (userRole === 'Employee' && info.status === 'stopped') {
-                    console.log("[Monitoring] Auto-initializing monitoring session...");
+                // Auto-start for Employees and Admins in local dev (for testing)
+                const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+                const shouldAutoStart = userRole === 'Employee' || (userRole === 'Admin' && isDevelopment);
+
+                if (shouldAutoStart && info.status === 'stopped') {
+                    console.log(`[Monitoring] Auto-initializing monitoring session for ${userRole}...`);
                     try {
-                        // 1. Silent Consent & Session Start
+                        // 1. Silent Consent & Session Start (Only for Employees in production, both in dev)
                         await fetch("/api/monitoring/consent", {
                             method: "POST",
                             body: JSON.stringify({ accepted: true, appVersion: "1.0.0", text: "Automated tracking enabled." }),
@@ -50,10 +53,16 @@ export default function MonitoringHeartbeat() {
                             sessionStorage.setItem("monitoring-consent", "true");
 
                             // 2. Start Electron Tracker
+                            // Prioritize public communication URL for cross-device testing
+                            const backendUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
+                                             (isDevelopment ? "http://localhost:3001" : window.location.origin);
+
+                            console.log(`[Monitoring] Connecting agent to: ${backendUrl}`);
+
                             await window.electronAPI.monitoring.start({
                                 userId: (session?.user as any)?.id || (session?.user as any)?.email || "SYSTEM_AGENT",
                                 name: session?.user?.name || "Employee",
-                                backendUrl: typeof window !== 'undefined' ? window.location.origin : undefined
+                                backendUrl
                             } as any);
                             
                             const updated = await (window.electronAPI.monitoring as any).status();

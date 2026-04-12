@@ -264,6 +264,12 @@ monitoringNamespace.on("connection", (socket) => {
 
     // Receive screen frame from agent and broadcast to admins
     socket.on("screen-frame", (data: { frame: string, userId: string, activeApp: string }) => {
+        // Log frame reception once every 100 frames to avoid console spam
+        socket.data.frameCount = (socket.data.frameCount || 0) + 1;
+        if (socket.data.frameCount % 50 === 0) {
+            console.log(`[Monitoring-Socket] Received frame ${socket.data.frameCount} from ${socket.data.employeeName || data.userId} (${data.activeApp})`);
+        }
+        
         // Only broadcast if the admin is actually in the "admins" room
         // Optimization: In production, only broadcast if at least one admin is watching
         monitoringNamespace.to("admins").emit("screen-update", data);

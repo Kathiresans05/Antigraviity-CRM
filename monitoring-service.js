@@ -1,19 +1,25 @@
 const fs = require('fs');
 const path = require('path');
+const { ipcMain, app } = require('electron');
 
-const logPath = path.join(__dirname, 'tracker-debug.log');
+// Ensure log directory is writable in production
+const logDir = app ? app.getPath('userData') : __dirname;
+const logPath = path.join(logDir, 'tracker-debug.log');
 
 function logToFile(msg) {
   const timestamp = new Date().toISOString();
   const formatted = `[${timestamp}] ${msg}\n`;
   try {
     fs.appendFileSync(logPath, formatted);
-  } catch (e) {}
+  } catch (e) {
+      console.error('Failed to write to log file:', e.message);
+  }
   console.log(msg);
 }
 
 // Initial log
 logToFile('--- MONITORING SERVICE INITIALIZED ---');
+logToFile(`[Monitoring] Log directory: ${logDir}`);
 
 let uiohook;
 try {
@@ -28,8 +34,8 @@ try {
   logToFile(`[Monitoring] CRITICAL: Failed to require uiohook-napi: ${err.message}`);
 }
 
-const { ipcMain } = require('electron');
 const { io } = require('socket.io-client');
+
 
 let monitoringSocket = null;
 let liveStreamTimer = null;
