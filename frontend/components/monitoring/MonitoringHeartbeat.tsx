@@ -29,6 +29,7 @@ export default function MonitoringHeartbeat() {
                 setStatusInfo(info);
                 
                 // Auto-start only for Employees
+                const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
                 const shouldAutoStart = userRole === 'Employee';
 
                 if (shouldAutoStart && info.status === 'stopped') {
