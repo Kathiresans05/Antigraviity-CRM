@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { ipcMain, app } = require('electron');
+const { ipcMain, app, desktopCapturer, systemPreferences } = require('electron');
 
 // Ensure log directory is writable in production
 const logDir = app ? app.getPath('userData') : __dirname;
@@ -53,12 +53,7 @@ process.on('uncaughtException', (err) => {
   logToFile(`[Monitoring] CRASH: Uncaught Exception: ${err.message}`);
 });
 
-let screenshotDesktop;
-try {
-    screenshotDesktop = require('screenshot-desktop');
-} catch (e) {
-    logToFile('[Monitoring] screenshot-desktop module not found.');
-}
+// We now use Electron's native desktopCapturer instead of screenshot-desktop
 
 let activeWin;
 try {
@@ -108,10 +103,12 @@ async function getActiveWindow() {
 }
 
 async function takeScreenshotAndSync(userId, employeeName) {
-  if (!screenshotDesktop) return;
   try {
-    logToFile('[Monitoring] Capturing screenshot...');
-    const imgBuffer = await screenshotDesktop({ format: 'jpg' });
+    logToFile('[Monitoring] Capturing high-res native screenshot...');
+    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
+    if (!sources || sources.length === 0) throw new Error("No screens found");
+
+    const imgBuffer = sources[0].thumbnail.toJPEG(80);
     const base64Img = imgBuffer.toString('base64');
     const dataUri = `data:image/jpeg;base64,${base64Img}`;
 
@@ -313,9 +310,17 @@ async function setupLiveStreaming(userId, name, backendUrl) {
 
     // Start frame capture loop
     liveStreamTimer = setInterval(async () => {
-        if (!isStreaming || !screenshotDesktop) return;
+        if (!isStreaming) return;
         try {
-            const imgBuffer = await screenshotDesktop({ format: 'jpg' });
+            // Check Mac OS Screen Recording permission gracefully
+            if (process.platform === 'darwin' && systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
+                throw new Error("macOS Screen Recording permission denied.");
+            }
+
+            const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1280, height: 720 } });
+            if (!sources || sources.length === 0) throw new Error("No screens found");
+
+            const imgBuffer = sources[0].thumbnail.toJPEG(60); // Optimize quality for fast streaming
             const frame = imgBuffer.toString('base64');
             monitoringSocket.emit('screen-frame', {
                 userId,
