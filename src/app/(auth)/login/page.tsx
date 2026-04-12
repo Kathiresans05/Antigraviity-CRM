@@ -14,6 +14,14 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        // EMERGENCY KILL: If we are on the login page, no monitoring should EVER be running.
+        if (window.electronAPI?.monitoring) {
+            console.log("[Login] Ensuring all background monitoring is stopped...");
+            (window.electronAPI.monitoring as any).stop();
+        }
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);

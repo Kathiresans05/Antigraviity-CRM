@@ -126,7 +126,6 @@ function createWindow() {
 
 
 
-  // Setup Auto-Start for desktop agent
   if (!app.isPackaged) {
     app.setLoginItemSettings({
       openAtLogin: true,
@@ -134,6 +133,24 @@ function createWindow() {
       args: [path.resolve(process.argv[1])]
     });
   }
+
+  // Bind the navigation listener
+  setupNavigationListener(mainWindow);
+}
+
+// Setup navigation listener to auto-stop monitoring on logout/login page
+function setupNavigationListener(window) {
+    window.webContents.on('did-navigate', (event, url) => {
+        if (url.includes('/login')) {
+            console.log('[Main] Navigation to login detected. Stopping monitoring sessions...');
+            try {
+                const { stopMonitoring } = require('./monitoring-service');
+                stopMonitoring();
+            } catch (err) {
+                console.error('[Main] Auto-stop failed:', err.message);
+            }
+        }
+    });
 }
 
 // Global listener for monitoring events
