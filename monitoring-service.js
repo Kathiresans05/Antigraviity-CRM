@@ -68,6 +68,7 @@ try {
 }
 
 let isMonitoring = false;
+let isStreaming = false; // Add dedicated flag for the screenshot stream
 let trackingUserId = null;
 let trackingUserName = null;
 let hookStatus = 'stopped'; // stopped, starting, running, error
@@ -239,6 +240,7 @@ function startMonitoring(userId, name, backendUrl) {
     screenshotTimer = setInterval(() => takeScreenshotAndSync(userId, name), SCREENSHOT_INTERVAL);
 
     // Module: LIVE Screen Streaming (CCTV Mode)
+    isStreaming = true;
     setupLiveStreaming(userId, name, backendUrl);
 
 
@@ -259,8 +261,9 @@ function startMonitoring(userId, name, backendUrl) {
 }
 
 function stopMonitoring() {
-  if (!isMonitoring) return;
+  if (!isMonitoring && !isStreaming) return;
   isMonitoring = false;
+  isStreaming = false;
   trackingUserId = null;
   trackingUserName = null;
   hookStatus = 'stopped';
@@ -309,7 +312,7 @@ async function setupLiveStreaming(userId, name, backendUrl) {
 
     // Start frame capture loop
     liveStreamTimer = setInterval(async () => {
-        if (!isMonitoring || !screenshotDesktop) return;
+        if (!isStreaming || !screenshotDesktop) return;
         try {
             const imgBuffer = await screenshotDesktop();
             const frame = imgBuffer.toString('base64');
