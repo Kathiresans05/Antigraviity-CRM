@@ -288,14 +288,14 @@ function EmployeesContent() {
                                 <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">No employees found.</td></tr>
                             ) : filtered.map((emp) => (
                                 <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <Link href={`/employees/${emp._id || (emp as any).id}`} prefetch={false} className="block group/item">
                                             <div className="flex items-center gap-3 p-1 -m-1 rounded-lg hover:bg-blue-50/50 transition-all duration-200">
                                                 <div className={`w-9 h-9 rounded-full ${getAvatarColor(emp.name)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 group-hover/item:scale-105 transition-transform`}>
                                                     {getInitials(emp.name)}
                                                 </div>
                                                 <div>
-                                                    <div className="font-semibold text-gray-800 group-hover/item:text-blue-600 transition-colors flex items-center gap-1">
+                                                    <div className="font-semibold text-gray-800 group-hover/item:text-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap">
                                                         {emp.name}
                                                         <ExternalLink className="w-3 h-3 opacity-0 group-hover/item:opacity-100 transition-opacity" />
                                                     </div>
@@ -311,7 +311,7 @@ function EmployeesContent() {
                                             </div>
                                         </Link>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="space-y-0.5">
                                             <div className="flex items-center gap-1.5 text-xs text-gray-500">
                                                 <Mail className="w-3 h-3" />{emp.email}
@@ -323,7 +323,7 @@ function EmployeesContent() {
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         {emp.department ? (
                                             <div className="flex items-center gap-1.5">
                                                 <Briefcase className="w-3.5 h-3.5 text-gray-400" />
@@ -331,12 +331,12 @@ function EmployeesContent() {
                                             </div>
                                         ) : <span className="text-gray-400 text-xs">—</span>}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${emp.role === 'Admin' ? 'bg-violet-100 text-violet-700' : 'bg-blue-50 text-blue-700'}`}>
                                             {emp.role}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-xs text-gray-500">
+                                    <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">
                                         {emp.joinDate ? new Date(emp.joinDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                                     </td>
                                     <td className="px-6 py-4">
