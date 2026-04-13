@@ -287,8 +287,8 @@ app.prepare().then(() => {
     };
     seedRooms();
 
-    httpServer.listen(port, (err) => {
+    httpServer.listen(port, '0.0.0.0', (err) => {
         if (err) throw err;
-        console.log(`> Ready on http://localhost:${port}`);
+        console.log(`> Ready on http://0.0.0.0:${port}`);
     });
 });
