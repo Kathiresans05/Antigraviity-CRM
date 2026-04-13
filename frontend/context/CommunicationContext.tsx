@@ -17,10 +17,13 @@ interface CommunicationContextType {
     remoteStreams: Map<string, MediaStream>;
     isMicMuted: boolean;
     isVideoOn: boolean;
+    isScreenSharing: boolean;
+    screenStream: MediaStream | null;
     joinRoom: (roomId: string, type: "voice" | "video" | "chat") => Promise<void>;
     leaveRoom: () => void;
     toggleMic: () => void;
     toggleVideo: () => void;
+    toggleScreenShare: () => Promise<void>;
     sendMessage: (text: string) => void;
 }
 
@@ -38,11 +41,14 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const [isMicMuted, setIsMicMuted] = useState(false);
     const [isVideoOn, setIsVideoOn] = useState(false);
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
 
     const peersRef = useRef<Map<string, Peer.Instance>>(new Map());
     const socketRef = useRef<Socket | null>(null);
     const activeRoomRef = useRef<string | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
+    const screenStreamRef = useRef<MediaStream | null>(null);
     const activeRoomTypeRef = useRef<"voice" | "video" | "chat" | null>(null);
 
     useEffect(() => {
@@ -340,6 +346,13 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
                 localStreamRef.current = null;
             }
 
+            if (screenStreamRef.current) {
+                screenStreamRef.current.getTracks().forEach(track => track.stop());
+                setScreenStream(null);
+                screenStreamRef.current = null;
+                setIsScreenSharing(false);
+            }
+
             peersRef.current.forEach(peer => peer.destroy());
             peersRef.current.clear();
             setRemoteStreams(new Map());
@@ -395,6 +408,78 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     };
 
+    const toggleScreenShare = async () => {
+        try {
+            if (isScreenSharing) {
+                // Stop sharing
+                const screenTrack = screenStreamRef.current?.getTracks()[0];
+                if (screenTrack) screenTrack.stop();
+                
+                const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+                if (videoTrack && screenTrack) {
+                    peersRef.current.forEach(peer => {
+                        try {
+                            peer.replaceTrack(screenTrack, videoTrack, localStreamRef.current!);
+                        } catch (err) {
+                            console.error('Error replacing track back to camera', err);
+                        }
+                    });
+                }
+                
+                setScreenStream(null);
+                screenStreamRef.current = null;
+                setIsScreenSharing(false);
+            } else {
+                // Start sharing
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+                setScreenStream(stream);
+                screenStreamRef.current = stream;
+                
+                const screenTrack = stream.getTracks()[0];
+                
+                // Track ending natively from browser UI
+                screenTrack.onended = () => {
+                    // Need to check if still sharing manually (since state inside closure might be old, 
+                    // but calling toggleScreenShare toggles it off regardless if we are smart, 
+                    // or we check ref)
+                    if (screenStreamRef.current) {
+                        try {
+                            // Manual revert
+                            const vidTrack = localStreamRef.current?.getVideoTracks()[0];
+                            if (vidTrack) {
+                                peersRef.current.forEach(peer => {
+                                    peer.replaceTrack(screenTrack, vidTrack, localStreamRef.current!);
+                                });
+                            }
+                        } catch(e) {}
+                        setScreenStream(null);
+                        screenStreamRef.current = null;
+                        setIsScreenSharing(false);
+                    }
+                };
+                
+                const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+                if (videoTrack) {
+                    peersRef.current.forEach(peer => {
+                        try {
+                            peer.replaceTrack(videoTrack, screenTrack, localStreamRef.current!);
+                        } catch (err) {
+                            console.error('Error replacing track to screen share', err);
+                        }
+                    });
+                } else {
+                    peersRef.current.forEach(peer => {
+                        peer.addTrack(screenTrack, localStreamRef.current!);
+                    });
+                }
+                
+                setIsScreenSharing(true);
+            }
+        } catch (err) {
+            console.error('Failed to toggle screen share', err);
+        }
+    };
+
     return (
         <CommunicationContext.Provider value={{
             socket,
@@ -407,10 +492,13 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             remoteStreams,
             isMicMuted,
             isVideoOn,
+            isScreenSharing,
+            screenStream,
             joinRoom,
             leaveRoom,
             toggleMic,
             toggleVideo,
+            toggleScreenShare,
             sendMessage
         }}>
             {children}

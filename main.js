@@ -211,7 +211,7 @@ app.whenReady().then(async () => {
 
 
   // Automatically handle media permissions for the voice rooms
-  const { session } = electron;
+  const { session, desktopCapturer } = electron;
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const url = webContents.getURL();
     console.log(`[Main] Permission request: ${permission} for ${url}`);
@@ -222,6 +222,17 @@ app.whenReady().then(async () => {
     } else {
       callback(false);
     }
+  });
+
+  // Enable getDisplayMedia native functionality for Screen Sharing
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
+      // Pick the primary screen automatically for simplicity
+      const primaryScreen = sources.find(s => s.id.startsWith('screen')) || sources[0];
+      callback({ video: primaryScreen, audio: 'loopback' });
+    }).catch(err => {
+      console.error('[Main] Desktop capture error:', err);
+    });
   });
 
   app.on('activate', () => {

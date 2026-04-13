@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCommunication } from '@/frontend/context/CommunicationContext';
-import { Mic, MicOff, PhoneOff, Users, ChevronUp, ChevronDown, Video, VideoOff, MessageSquare } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Users, ChevronUp, ChevronDown, Video, VideoOff, MessageSquare, MonitorUp, MonitorX } from 'lucide-react';
 import clsx from 'clsx';
 
 const CallPanel: React.FC = () => {
@@ -12,8 +12,11 @@ const CallPanel: React.FC = () => {
         participants, 
         isMicMuted, 
         isVideoOn, 
+        isScreenSharing,
+        screenStream,
         toggleMic, 
         toggleVideo, 
+        toggleScreenShare,
         leaveRoom 
     } = useCommunication();
     const [collapsed, setCollapsed] = useState(false);
@@ -125,6 +128,21 @@ const CallPanel: React.FC = () => {
                                 {!collapsed && <span>{isVideoOn ? "Stop Video" : "Start Video"}</span>}
                             </button>
                         )}
+
+                        {isVideoRoom && (
+                            <button 
+                                onClick={toggleScreenShare}
+                                className={clsx(
+                                    "flex-1 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 font-bold text-xs gap-2.5",
+                                    isScreenSharing 
+                                        ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" 
+                                        : "bg-white/10 text-white hover:bg-white/20 active:scale-95"
+                                )}
+                            >
+                                {isScreenSharing ? <MonitorX className="w-4.5 h-4.5" /> : <MonitorUp className="w-4.5 h-4.5" />}
+                                {!collapsed && <span>{isScreenSharing ? "Stop Sharing" : "Screen Share"}</span>}
+                            </button>
+                        )}
                     </div>
                     
                     <button 
@@ -141,7 +159,7 @@ const CallPanel: React.FC = () => {
 };
 
 const VideoGrid: React.FC = () => {
-    const { localStream, remoteStreams, participants } = useCommunication();
+    const { localStream, remoteStreams, participants, isScreenSharing, screenStream } = useCommunication();
     
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 h-full overflow-y-auto content-start">
@@ -151,12 +169,20 @@ const VideoGrid: React.FC = () => {
                     autoPlay 
                     muted 
                     playsInline 
-                    ref={v => { if (v) v.srcObject = localStream; }} 
-                    className="w-full h-full object-cover -scale-x-100"
+                    ref={v => { 
+                        if (v) {
+                            if (isScreenSharing && screenStream) {
+                                v.srcObject = screenStream;
+                            } else {
+                                v.srcObject = localStream;
+                            }
+                        }
+                    }} 
+                    className={clsx("w-full h-full object-cover", !isScreenSharing && "-scale-x-100")}
                 />
                 <div className="absolute bottom-3 left-3 px-2 py-1 bg-black/50 backdrop-blur-md rounded-md text-[10px] font-bold text-white flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    You (Host)
+                    You (Host) {isScreenSharing && "- Screen"}
                 </div>
             </div>
 
