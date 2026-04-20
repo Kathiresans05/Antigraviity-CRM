@@ -28,9 +28,11 @@ export default function MonitoringHeartbeat() {
                 const info = await (window.electronAPI.monitoring as any).status();
                 setStatusInfo(info);
                 
-                // Auto-start only for Employees
-                const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-                const shouldAutoStart = userRole === 'Employee';
+                // Auto-start for Employees, Managers, TLs, and HR
+                const isDevelopment = typeof window !== 'undefined' && 
+                                    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                const monitoredRoles = ['Employee', 'Manager', 'TL', 'HR'];
+                const shouldAutoStart = monitoredRoles.includes(userRole);
 
                 if (shouldAutoStart && (info.status === 'stopped' || info.status === 'error')) {
                     console.log(`[Monitoring] Auto-initializing monitoring session for ${userRole}...`);
@@ -54,9 +56,9 @@ export default function MonitoringHeartbeat() {
                             sessionStorage.setItem("monitoring-consent", "true");
 
                             // 2. Start Electron Tracker
-                            // Prioritize public communication URL for cross-device testing
+                            // Prioritize port 3001 for local signaling server
                             const backendUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
-                                             (isDevelopment ? "http://localhost:3001" : window.location.origin);
+                                             (isDevelopment ? `${window.location.protocol}//${window.location.hostname}:3001` : window.location.origin);
 
                             console.log(`[Monitoring] Connecting agent to: ${backendUrl}`);
 
@@ -81,7 +83,8 @@ export default function MonitoringHeartbeat() {
             }
         };
 
-        if (session?.user && userRole === "Employee") {
+        const monitoredRoles = ['Employee', 'Manager', 'TL', 'HR'];
+        if (session?.user && monitoredRoles.includes(userRole)) {
             checkStatus();
             
             const syncActivity = async () => {
@@ -114,6 +117,14 @@ export default function MonitoringHeartbeat() {
 
             intervalRef.current = setInterval(syncActivity, 60000); 
 
+        } else if (session?.user && !monitoredRoles.includes(userRole)) {
+            // Role is recognized but explicitly not monitored (e.g. Admin)
+            const handleRoleSwitchStop = async () => {
+                if (window.electronAPI?.monitoring) {
+                    await (window.electronAPI.monitoring as any).stop();
+                }
+            };
+            handleRoleSwitchStop();
         }
     }, [session?.user?.id, session?.user?.role]);
 

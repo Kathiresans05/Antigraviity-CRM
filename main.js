@@ -141,7 +141,11 @@ function createWindow() {
 // Setup navigation listener to auto-stop monitoring on logout/login page
 function setupNavigationListener(window) {
     const handleNavigation = (event, url) => {
-        if (url.includes('/login')) {
+        // Only stop if the URL is exactly the login page or has query params (like error/callback)
+        // This prevents accidental stops during transitions or if assets contain 'login' in path
+        const isLoginPage = url.endsWith('/login') || url.includes('/login?') || url.includes('/api/auth/signin');
+        
+        if (isLoginPage) {
             console.log('[Main] Navigation to login detected. Stopping monitoring sessions...');
             try {
                 const { stopMonitoring } = require('./monitoring-service');

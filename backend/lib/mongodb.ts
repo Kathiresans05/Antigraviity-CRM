@@ -32,6 +32,7 @@ async function connectToDatabase() {
       maxPoolSize: 10,
       retryWrites: true,
       retryReads: true,
+      family: 4,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
