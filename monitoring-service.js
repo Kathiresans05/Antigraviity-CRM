@@ -84,7 +84,10 @@ let trackTimer = null;
 let syncTimer = null;
 let screenshotTimer = null;
 
-let BACKEND_URL = "http://localhost:3001/api/monitoring";
+let BACKEND_URL = process.env.NEXTAUTH_URL 
+    ? `${process.env.NEXTAUTH_URL}/api/monitoring`
+    : "http://localhost:3000/api/monitoring";
+
 
 const SYNC_INTERVAL = 60000; // 60 seconds
 const SCREENSHOT_INTERVAL = 300000; // 5 minutes (300,000 ms)

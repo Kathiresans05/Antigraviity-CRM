@@ -10,11 +10,10 @@ export default function ScreenshotViewerPage() {
     const [selectedImage, setSelectedImage] = useState<any>(null);
     const [filterUser, setFilterUser] = useState("");
 
-    const COMM_URL = process.env.NEXT_PUBLIC_COMMUNICATION_URL || "http://localhost:3001";
-
     const fetchScreenshots = async () => {
         try {
-            const res = await fetch(`${COMM_URL}/api/monitoring/screenshots`);
+            // Use the Next.js API route directly (works both locally and on Render)
+            const res = await fetch(`/api/monitoring/screenshots`);
             const data = await res.json();
             if (data.success) {
                 setScreenshots(data.screenshots || []);
