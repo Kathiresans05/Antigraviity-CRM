@@ -5,11 +5,6 @@ import { io, Socket } from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
-import { Buffer } from 'buffer';
-
-if (typeof window !== 'undefined' && !(window as any).Buffer) {
-    (window as any).Buffer = Buffer;
-}
 
 interface CommunicationContextType {
     socket: Socket | null;
@@ -57,6 +52,13 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const activeRoomTypeRef = useRef<"voice" | "video" | "chat" | null>(null);
 
     useEffect(() => {
+        // Safely polyfill Buffer in browser only (dynamic import avoids SSR crash)
+        if (typeof window !== 'undefined' && !(window as any).Buffer) {
+            import('buffer').then(({ Buffer }) => {
+                (window as any).Buffer = Buffer;
+            });
+        }
+
         // In production, we default to the current window origin (unified server)
         // In development, we fallback to localhost:3001
         const socketUrl = process.env.NEXT_PUBLIC_COMMUNICATION_URL || 
