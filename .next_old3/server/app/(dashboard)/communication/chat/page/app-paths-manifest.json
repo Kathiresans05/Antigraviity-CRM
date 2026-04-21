@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/communication/chat/page": "app/(dashboard)/communication/chat/page.js"
+}

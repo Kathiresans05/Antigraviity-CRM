@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/leave-tracker/page": "app/(dashboard)/leave-tracker/page.js"
+}

@@ -1,0 +1,3 @@
+module.exports=[79818,e=>{"use strict";var t=e.i(64328);let r=new t.default.Schema({name:{type:String,required:!0},client:{type:String,required:!0},startDate:{type:String,required:!0},endDate:{type:String,required:!0},status:{type:String,required:!0,default:"In Progress"},progress:{type:Number,default:0},team:{type:Number,default:1}},{timestamps:!0}),u=t.default.models.Project||t.default.model("Project",r);e.s(["default",0,u])}];
+
+//# sourceMappingURL=backend_models_Project_ts_3144a818._.js.map
