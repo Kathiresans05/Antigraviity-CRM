@@ -76,6 +76,7 @@ const ADMIN_LINKS = [
         label: "Live Monitoring (Admin)",
         items: [
             { name: "CCTV Live Wall", href: "/admin/monitoring/live-wall", icon: Monitor },
+            { name: "Desktop Captures", href: "/admin/monitoring/screenshots", icon: Camera },
             { name: "Compliance Logs", href: "/admin/monitoring/audit-logs", icon: ShieldCheck },
             { name: "Managed Devices", href: "/admin/monitoring/employees", icon: Users },
             { name: "Policy Settings", href: "/admin/monitoring/settings", icon: Settings },
