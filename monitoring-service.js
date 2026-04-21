@@ -40,7 +40,7 @@ const { io } = require('socket.io-client');
 
 let monitoringSocket = null;
 let liveStreamTimer = null;
-const LIVE_INTERVAL = 3000; // 3 seconds for "live" thumbnails (CCTV mode)
+const LIVE_INTERVAL = 1000; // 1 second for "live" thumbnails (CCTV mode)
 
 // Check if uiohook is loaded
 try {
