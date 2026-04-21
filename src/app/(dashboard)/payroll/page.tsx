@@ -107,6 +107,7 @@ export default function PayrollPage() {
     // Modals state
     const [editModalData, setEditModalData] = useState<any>(null);
     const [payslipModalData, setPayslipModalData] = useState<any>(null);
+    const [autoCalculateModalData, setAutoCalculateModalData] = useState<any>(null);
 
     const fetchPayroll = async () => {
         try {
@@ -165,6 +166,22 @@ export default function PayrollPage() {
         } catch (err: any) {
             console.error(`Failed to ${isHolding ? 'hold' : 'release'} payout`, err);
             toast.error(err.response?.data?.error || `Error ${isHolding ? 'holding' : 'releasing'} payout`, { id: actionToast });
+        }
+    };
+
+    const handleAutoCalculate = async (userId: string, empName: string, baseSalary: number) => {
+        const loadingToast = toast.loading("Calculating fixed salary...");
+        try {
+            // Expected format for monthYear: "YYYY-MM"
+            // The existing monthYear state is something like "April 2026", we need to parse it.
+            const date = new Date(`${monthYear} 1`);
+            const formattedMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            const res = await axios.get(`/api/payroll/calculate?userId=${userId}&month=${formattedMonth}&baseSalary=${baseSalary}`);
+            toast.dismiss(loadingToast);
+            setAutoCalculateModalData({ ...res.data, userId, empName });
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || "Error calculating salary", { id: loadingToast });
         }
     };
 
@@ -436,6 +453,12 @@ export default function PayrollPage() {
                                                 >
                                                     Edit Details
                                                 </button>
+                                                <button
+                                                    onClick={() => handleAutoCalculate(emp.userId, emp.employeeName, emp.baseSalary)}
+                                                    className="w-full px-4 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center justify-between"
+                                                >
+                                                    Calculate Salary <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-md font-bold">AUTO</span>
+                                                </button>
                                                 <div className="h-px bg-gray-100 my-1 mx-2"></div>
                                                 <button
                                                     onClick={() => handleHoldPayout(emp.userId, emp.status)}
@@ -568,6 +591,94 @@ export default function PayrollPage() {
                         <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
                             <button className="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 transition-all flex justify-center items-center gap-2">
                                 <Download className="w-4 h-4" /> Download PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Auto Calculate Modal */}
+            {autoCalculateModalData && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 leading-tight">Calculated Final Salary</h3>
+                                <p className="text-sm text-gray-500 font-medium">{autoCalculateModalData.empName} • {autoCalculateModalData.month}</p>
+                            </div>
+                            <button onClick={() => setAutoCalculateModalData(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-blue-50/50 rounded-xl p-3 border border-blue-100">
+                                    <p className="text-xs font-bold text-gray-500 uppercase">Monthly Salary</p>
+                                    <p className="text-lg font-black text-gray-900 mt-1">₹{autoCalculateModalData.monthlySalary.toLocaleString()}</p>
+                                </div>
+                                <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100">
+                                    <p className="text-xs font-bold text-gray-500 uppercase">Days in Month</p>
+                                    <p className="text-lg font-black text-gray-900 mt-1">{autoCalculateModalData.totalDaysInMonth}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 mt-0.5">₹{autoCalculateModalData.perDaySalary}/day</p>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                <h4 className="text-xs font-bold text-gray-900 mb-3 uppercase tracking-wider">Attendance Breakdown</h4>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="font-semibold text-emerald-600">Present (No Deduct)</span>
+                                        <span className="font-bold">{autoCalculateModalData.attendanceSummary.presentDays} Days</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="font-semibold text-rose-600">Absent (1 Day Deduct)</span>
+                                        <span className="font-bold">{autoCalculateModalData.attendanceSummary.absentDays} Days</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="font-semibold text-amber-600">Half Day (0.5 Deduct)</span>
+                                        <span className="font-bold">{autoCalculateModalData.attendanceSummary.halfDays} Days</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-sm font-semibold text-gray-500">Total Deductions</span>
+                                    <span className="text-sm font-bold text-rose-600">-₹{autoCalculateModalData.totalDeduction.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-gray-900">Final Salary to Pay</span>
+                                    <span className="text-xl font-black text-[#1F6F8B]">₹{autoCalculateModalData.finalSalary.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                            <button onClick={() => setAutoCalculateModalData(null)} className="px-5 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-xl transition-colors">
+                                Dismiss
+                            </button>
+                            <button 
+                                onClick={async () => {
+                                    // Trigger an update to Payroll directly using same edit API mechanism
+                                    const savingToast = toast.loading("Applying salary...");
+                                    try {
+                                        await axios.patch("/api/payroll", {
+                                            userId: autoCalculateModalData.userId,
+                                            monthYear,
+                                            baseSalary: autoCalculateModalData.monthlySalary, // Update base salary
+                                            bonus: 0,
+                                            deductions: autoCalculateModalData.totalDeduction,
+                                            action: 'edit'
+                                        });
+                                        toast.success("Applied to payroll successfully!", { id: savingToast });
+                                        setAutoCalculateModalData(null);
+                                        fetchPayroll();
+                                    } catch (err: any) {
+                                        toast.error(err.response?.data?.error || "Error applying salary", { id: savingToast });
+                                    }
+                                }}
+                                className="flex-1 py-2.5 bg-[#1F6F8B] text-white text-sm font-bold rounded-xl hover:bg-[#164e63] shadow-md transition-all flex justify-center items-center"
+                            >
+                                Apply to Payroll
                             </button>
                         </div>
                     </div>

@@ -194,6 +194,7 @@ export default function HolidaysPage() {
                                         <option>National</option>
                                         <option>Festival</option>
                                         <option>Company Specific</option>
+                                        <option>Week Off</option>
                                     </select>
                                 </div>
                             </div>
@@ -224,11 +225,13 @@ function HolidayCard({ holiday }: { holiday: any }) {
                     "p-3 rounded-xl",
                     holiday.type === 'National' ? "bg-amber-50 text-amber-600" :
                         holiday.type === 'Festival' ? "bg-rose-50 text-rose-600" :
-                            "bg-blue-50 text-blue-600"
+                            holiday.type === 'Week Off' ? "bg-emerald-50 text-emerald-600" :
+                                "bg-blue-50 text-blue-600"
                 )}>
                     {holiday.type === 'National' ? <Flag className="w-5 h-5" /> :
                         holiday.type === 'Festival' ? <Tent className="w-5 h-5" /> :
-                            <Gift className="w-5 h-5" />}
+                            holiday.type === 'Week Off' ? <Calendar className="w-5 h-5" /> :
+                                <Gift className="w-5 h-5" />}
                 </div>
                 <div>
                     <h4 className="font-bold text-gray-900">{holiday.name}</h4>
