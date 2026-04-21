@@ -5,6 +5,11 @@ import { io, Socket } from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
+import { Buffer } from 'buffer';
+
+if (typeof window !== 'undefined' && !(window as any).Buffer) {
+    (window as any).Buffer = Buffer;
+}
 
 interface CommunicationContextType {
     socket: Socket | null;
@@ -186,7 +191,11 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' }
+                    { urls: 'stun:global.stun.twilio.com:3478' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
                 ]
             }
         });
