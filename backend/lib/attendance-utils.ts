@@ -19,10 +19,12 @@ export async function markAbsenteesToday() {
     const todayStart = moment().startOf('day').toDate();
     const todayEnd = moment().endOf('day').toDate();
 
-    // Check if today is a Holiday
+    // Check if today is a Holiday or a Sunday (Weekly Off)
     const holidayToday = await Holiday.findOne({
         date: { $gte: todayStart, $lte: todayEnd }
     });
+    const isSunday = moment().day() === 0; // 0 is Sunday
+    const isWeeklyOff = isSunday;
 
     // 1. Get all active employees whose joinDate is before today
     //    (new hires who started today should not be auto-marked absent)
@@ -61,7 +63,7 @@ export async function markAbsenteesToday() {
     // 5. Create "Absent", "On Leave", or "Holiday" records for them
     const newRecords = absenteeIds.map(userId => {
         let status = 'Absent';
-        if (holidayToday) {
+        if (holidayToday || isWeeklyOff) {
             status = 'Holiday';
         } else if (onLeaveIds.includes(userId.toString())) {
             status = 'On Leave';

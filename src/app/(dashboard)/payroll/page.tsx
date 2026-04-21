@@ -112,10 +112,10 @@ export default function PayrollPage() {
     const fetchPayroll = async () => {
         try {
             const res = await axios.get("/api/payroll");
-            setPayrolls(res.data.payrolls);
-            setStats(res.data.stats);
-            setMonthYear(res.data.monthYear);
-            if (res.data.trend) {
+            setPayrolls(res.data?.payrolls || []);
+            setStats(res.data?.stats || { totalGross: 0, totalBonus: 0, totalDeductions: 0, netPayout: 0, pendingCount: 0 });
+            setMonthYear(res.data?.monthYear || "");
+            if (res.data?.trend) {
                 setTrend(res.data.trend);
             }
         } catch (err: any) {
@@ -206,7 +206,8 @@ export default function PayrollPage() {
         }
     };
 
-    const filteredPayrolls = payrolls.filter(emp => {
+    const filteredPayrolls = (payrolls || []).filter(emp => {
+        if (!emp || !emp.employeeName) return false;
         const matchesSearch = emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (emp.department || "").toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDept = departmentFilter ? emp.department === departmentFilter : true;
