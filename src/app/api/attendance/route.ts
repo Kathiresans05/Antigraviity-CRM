@@ -5,10 +5,11 @@ import connectToDatabase from "@/backend/lib/mongodb";
 import Attendance from "@/backend/models/Attendance";
 import moment from "moment";
 import { getManagedUserIds } from "@/backend/lib/hierarchy";
-import { getShiftStartMoment, calculateLateMinutes, SHIFT_START_TIME } from "@/backend/lib/attendance-utils";
+import { getShiftStartMoment, calculateLateMinutes } from "@/backend/lib/attendance-utils";
 import Leave from "@/backend/models/Leave";
 import Holiday from "@/backend/models/Holiday";
 import User from "@/backend/models/User";
+import ShiftAssignment from "@/backend/models/ShiftAssignment";
 import { sendDailyWorkSummaryEmail } from "@/backend/lib/email";
 
 export async function POST(req: Request) {
@@ -40,12 +41,31 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: "You are already clocked in." }, { status: 400 });
             }
             const now = moment();
-            const shiftStart = getShiftStartMoment(today);
-            const { lateMinutes, isLate } = calculateLateMinutes(now, shiftStart);
+            const todayEnd = moment().endOf('day').toDate();
+            
+            // Fetch Assignment to get Shift and Policy
+            const assignment = await ShiftAssignment.findOne({
+                userId,
+                effectiveFrom: { $lte: todayEnd },
+                $or: [{ effectiveTo: null }, { effectiveTo: { $gte: today } }]
+            }).populate('shiftId').populate('policyId');
+
+            const user = await User.findById(userId).populate('shift').populate('attendancePolicy');
+            
+            const shift = assignment?.shiftId || user?.shift;
+            const policy = assignment?.policyId || user?.attendancePolicy;
+
+            const shiftStartStr = shift?.startTime || "10:00";
+            const [sh, sm] = shiftStartStr.split(':').map(Number);
+            const shiftStart = moment(today).hour(sh).minute(sm);
+            
+            const gracePeriod = policy?.gracePeriodLate ?? 15;
+
+            const { lateMinutes, isLate } = calculateLateMinutes(now, shiftStart, gracePeriod);
             const newStatus = 'ACTIVE';
 
             let record;
-            if (existingRecord && (existingRecord.status === 'ABSENT' || existingRecord.status === 'On Leave' || existingRecord.status === 'Absent')) {
+            if (existingRecord && (['ABSENT', 'On Leave', 'Absent'].includes(existingRecord.status))) {
                 existingRecord.clockInTime = now.toDate();
                 existingRecord.clockOutTime = null;
                 existingRecord.totalHours = 0;
@@ -62,8 +82,7 @@ export async function POST(req: Request) {
                     userId, date: today, clockInTime: now.toDate(),
                     status: newStatus,
                     lateMinutes: lateMinutes,
-                    isLate: isLate,
-                    shiftStartTime: SHIFT_START_TIME // Optional: save for records
+                    isLate: isLate
                 });
             }
             return NextResponse.json({ message: "Clocked in successfully", record });
@@ -136,10 +155,7 @@ export async function POST(req: Request) {
                 clockOutTime: clockOutTime
             };
             const { calculateAttendanceStats } = await import('@/backend/lib/attendance-utils');
-            const stats = calculateAttendanceStats(tempRecord);
-
-            // Business Rules Validation - Removed strict block to allow early logout
-            // The status (Full Day, Half Day, Absent) is already calculated by calculateAttendanceStats
+            const stats = await calculateAttendanceStats(tempRecord);
 
             // Update record fields
             existingRecord.clockOutTime = clockOutTime;

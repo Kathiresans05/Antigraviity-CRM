@@ -86,7 +86,7 @@ export async function POST(req: Request) {
             personalEmail, alternatePhone, residentialLandline,
             emergencyContactName, emergencyContactNumber,
             countryOfBirth, stateOfBirth, placeOfBirth,
-            ifscCode, documents
+            ifscCode, documents, shift
         } = await req.json();
 
         // Validate reportingManager ID
@@ -225,7 +225,8 @@ export async function POST(req: Request) {
                 salaryDetails: salaryDetails || {},
                 probationPeriod: probationPeriod || 6,
                 probationEndDate: moment(joinDate || new Date()).add(probationPeriod || 6, 'months').toDate(),
-                probationStatus: 'Review Pending'
+                probationStatus: 'Review Pending',
+                shift: shift || null
             });
         }
 
@@ -267,7 +268,7 @@ export async function PATCH(req: Request) {
 
         await connectToDatabase();
 
-        const { id, name, email, password, phone, department, role, isActive, status, reportingManager, teamLeader } = await req.json();
+        const { id, name, email, password, phone, department, role, isActive, status, reportingManager, teamLeader, shift } = await req.json();
 
         if (!id) {
             return NextResponse.json({ error: "User ID is required." }, { status: 400 });
@@ -284,6 +285,7 @@ export async function PATCH(req: Request) {
         if (phone !== undefined) updateData.phone = phone;
         if (department !== undefined) updateData.department = department;
         if (role !== undefined) updateData.role = role;
+        if (shift !== undefined) updateData.shift = shift || null;
 
         let justActivated = false;
         if (status !== undefined) {

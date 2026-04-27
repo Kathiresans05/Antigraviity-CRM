@@ -114,9 +114,10 @@ export default function DailyReportModal({ isOpen, onClose, onSuccess, report, u
             }
             onSuccess();
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save report", error);
-            alert("Failed to save report. Please try again.");
+            const errorMsg = error.response?.data?.error || "Failed to save report. Please try again.";
+            alert(errorMsg);
         } finally {
             setSubmitting(false);
         }

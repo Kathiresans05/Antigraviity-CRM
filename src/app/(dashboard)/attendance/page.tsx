@@ -108,31 +108,17 @@ export default function AttendancePage() {
 
         let effectiveStatus = r.status;
 
-        // If it's a legacy late status or the record has isLate flag, prioritize showing Lateness during active session
-        // However, if clocked out, we prioritize the hour-based rules from backend but can still indicate late login
-        
-        // Normalize backend statuses to match STATUS_CONFIG keys if needed, 
-        // though we added the uppercase keys above, normalization is safer.
+        // Normalizing backend statuses for UI display
         if (effectiveStatus === 'FULL_DAY') effectiveStatus = 'Full Day';
         if (effectiveStatus === 'HALF_DAY') effectiveStatus = 'Half Day';
         if (effectiveStatus === 'ABSENT') effectiveStatus = 'Absent';
         if (effectiveStatus === 'ACTIVE') effectiveStatus = 'Present';
 
-        // Only apply "Early Logout" override if they've clocked out and were under 8 hours net
-        if (hasClockedOut && !['On Leave', 'Holiday', 'Absent'].includes(effectiveStatus)) {
-            if (hours < 8 && hours >= 4) {
-                 // The backend might call this HALF_DAY, but we show Early Logout for better UX if they are close to 8
-                 effectiveStatus = 'Early Logout';
-            } else if (hours < 4) {
-                effectiveStatus = 'Absent';
-            }
-        }
-
         return { ...r, effectiveStatus, effectiveHours: hours };
     }).filter(r => {
         if (!statusFilter) return true;
         if (statusFilter === 'Missed Punch') return r.autoClosed || r.status === 'Auto Closed';
-        if (statusFilter === 'Early Exit') return r.status === 'Early Logout';
+        if (statusFilter === 'Early Exit') return r.isEarlyOut || r.status === 'Early Logout';
         return r.effectiveStatus === statusFilter;
     });
 
@@ -299,7 +285,7 @@ export default function AttendancePage() {
             const lateMins: number = res.data?.record?.lateMinutes || 0;
             if (lateMins > 0) {
                 toast(
-                    `⚠️ Late Login — ${lateMins} minute${lateMins !== 1 ? 's' : ''} past 10:00 AM.`,
+                    `⚠️ Late Login — ${lateMins} minute${lateMins !== 1 ? 's' : ''} past shift start (inc. grace period).`,
                     { duration: 6000, style: { background: '#fff7ed', color: '#c2410c', fontWeight: 700, border: '1px solid #fed7aa' } }
                 );
             } else {

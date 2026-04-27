@@ -1,3 +1,0 @@
-module.exports=[19398,e=>{"use strict";var t=e.i(64328);let d=new t.default.Schema({userId:{type:t.default.Schema.Types.ObjectId,ref:"User",required:!0},date:{type:Date,required:!0},items:[{id:{type:String,required:!0},title:{type:String,required:!0},completed:{type:Boolean,default:!1}}]},{timestamps:!0}),l=t.default.models.DailyChecklist||t.default.model("DailyChecklist",d);e.s(["default",0,l])}];
-
-//# sourceMappingURL=backend_models_DailyChecklist_ts_dabbcf43._.js.map

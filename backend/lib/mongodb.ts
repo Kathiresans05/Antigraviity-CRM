@@ -1,4 +1,16 @@
 import mongoose from 'mongoose';
+import '../models/User';
+import '../models/Shift';
+import '../models/AttendancePolicy';
+import '../models/ShiftAssignment';
+import '../models/Attendance';
+import '../models/Leave';
+import '../models/Project';
+import '../models/Task';
+import '../models/Support';
+import '../models/Announcement';
+import '../models/Holiday';
+import '../models/DailyReport';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

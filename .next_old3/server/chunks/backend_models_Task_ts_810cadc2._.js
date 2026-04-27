@@ -1,3 +1,0 @@
-module.exports=[95480,e=>{"use strict";var t=e.i(64328);let r=new t.default.Schema({title:{type:String,required:!0},project:{type:String,required:!0},status:{type:String,required:!0,default:"To Do"},priority:{type:String,default:"Medium"},due:{type:String},assignedTo:{type:String},createdBy:{type:String}},{timestamps:!0}),i=t.default.models.Task||t.default.model("Task",r);e.s(["default",0,i])}];
-
-//# sourceMappingURL=backend_models_Task_ts_810cadc2._.js.map

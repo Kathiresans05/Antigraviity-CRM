@@ -69,12 +69,15 @@ export async function POST(req: Request) {
         const report = await DailyReport.create({
             ...data,
             userId,
+            summary: data.summary || "",
             date: data.date ? new Date(data.date) : new Date()
         });
 
         return NextResponse.json({ report }, { status: 201 });
     } catch (error: any) {
         console.error("Daily Reports POST Error:", error);
-        return NextResponse.json({ error: "Failed to create report" }, { status: 500 });
+        return NextResponse.json({ 
+            error: error.message || "Failed to create report" 
+        }, { status: 500 });
     }
 }

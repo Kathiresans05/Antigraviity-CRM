@@ -106,7 +106,9 @@ const UserSchema = new mongoose.Schema({
         professionalTax: { type: Number },
         pfEmployer: { type: Number },
         esiEmployer: { type: Number }
-    }
+    },
+    shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift' },
+    attendancePolicy: { type: mongoose.Schema.Types.ObjectId, ref: 'AttendancePolicy' }
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

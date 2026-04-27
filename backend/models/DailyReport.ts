@@ -15,7 +15,7 @@ const DailyReportSchema = new mongoose.Schema({
         }
     ],
     totalHours: { type: Number, required: true },
-    summary: { type: String, required: true },
+    summary: { type: String },
     blockers: { type: String },
     tomorrowPlan: { type: String },
     status: { type: String, enum: ['Completed', 'Pending'], default: 'Pending' }
