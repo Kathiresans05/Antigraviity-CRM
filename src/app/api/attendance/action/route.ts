@@ -40,7 +40,7 @@ export async function POST(req: Request) {
             const autoCloseTime = recordDate.clone().hour(21).minute(0).toDate();
 
             const { calculateAttendanceStats } = await import('@/backend/lib/attendance-utils');
-            const stats = calculateAttendanceStats({
+            const stats = await calculateAttendanceStats({
                 ...record.toObject(),
                 clockOutTime: autoCloseTime,
                 isOnBreak: false // Always end break on auto-close
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
             }
 
             const { calculateAttendanceStats } = await import('@/backend/lib/attendance-utils');
-            const stats = calculateAttendanceStats({
+            const stats = await calculateAttendanceStats({
                 ...record.toObject(),
                 clockInTime: requestedIn,
                 clockOutTime: requestedOut

@@ -4,15 +4,16 @@ import { authOptions } from "@/backend/lib/auth-config";
 import connectToDatabase from "@/backend/lib/mongodb";
 import AttendancePolicy from "@/backend/models/AttendancePolicy";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session || !['Admin', 'HR'].includes((session.user as any).role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectToDatabase();
-        const policy = await AttendancePolicy.findById(params.id);
+        const policy = await AttendancePolicy.findById(id);
         if (!policy) return NextResponse.json({ error: "Policy not found" }, { status: 404 });
         
         return NextResponse.json({ policy });
@@ -21,8 +22,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session || !['Admin', 'HR'].includes((session.user as any).role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,7 +33,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         await connectToDatabase();
         const body = await req.json();
         
-        const policy = await AttendancePolicy.findByIdAndUpdate(params.id, body, { new: true });
+        const policy = await AttendancePolicy.findByIdAndUpdate(id, body, { new: true });
         if (!policy) return NextResponse.json({ error: "Policy not found" }, { status: 404 });
         
         return NextResponse.json({ message: "Policy updated successfully", policy });
@@ -40,15 +42,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session || !['Admin', 'HR'].includes((session.user as any).role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         await connectToDatabase();
-        const policy = await AttendancePolicy.findByIdAndDelete(params.id);
+        const policy = await AttendancePolicy.findByIdAndDelete(id);
         if (!policy) return NextResponse.json({ error: "Policy not found" }, { status: 404 });
         
         return NextResponse.json({ message: "Policy deleted successfully" });
